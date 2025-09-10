@@ -167,7 +167,7 @@ try {
     } else {
         echo '❌ sessions table missing - creating now...' . PHP_EOL;
         \$sql = 'CREATE TABLE sessions (
-            id varchar(255) not null primary key,
+            id varchar(191) not null primary key,
             user_id bigint unsigned null,
             ip_address varchar(45) null,
             user_agent text null,
