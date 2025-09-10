@@ -184,6 +184,61 @@ try {
         }
     }
     
+    // Check and create categories table (required for items)
+    \$result = \$pdo->query('SHOW TABLES LIKE \"categories\"');
+    if (\$result->rowCount() > 0) {
+        echo '✅ categories table already exists' . PHP_EOL;
+    } else {
+        echo '🔧 Creating categories table...' . PHP_EOL;
+        \$sql = 'CREATE TABLE categories (
+            id bigint unsigned not null auto_increment primary key,
+            name varchar(191) not null,
+            description text null,
+            created_at timestamp null,
+            updated_at timestamp null
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+        
+        if (\$pdo->exec(\$sql) !== false) {
+            echo '✅ categories table created successfully!' . PHP_EOL;
+        } else {
+            echo '❌ ERROR: Failed to create categories table' . PHP_EOL;
+        }
+    }
+    
+    // Check and create items table
+    \$result = \$pdo->query('SHOW TABLES LIKE \"items\"');
+    if (\$result->rowCount() > 0) {
+        echo '✅ items table already exists' . PHP_EOL;
+    } else {
+        echo '🔧 Creating items table...' . PHP_EOL;
+        \$sql = 'CREATE TABLE items (
+            id bigint unsigned not null auto_increment primary key,
+            category_id bigint unsigned not null,
+            name varchar(191) not null,
+            description text null,
+            quantity int not null,
+            price int null,
+            unit varchar(191) null,
+            location varchar(191) not null,
+            \`condition\` varchar(191) default \"Good\",
+            qr_code varchar(191) not null unique,
+            expiry_date date null,
+            current_holder_id bigint unsigned null,
+            created_at timestamp null,
+            updated_at timestamp null,
+            deleted_at timestamp null,
+            KEY items_category_id_foreign (category_id),
+            KEY items_current_holder_id_foreign (current_holder_id),
+            CONSTRAINT items_category_id_foreign FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+        
+        if (\$pdo->exec(\$sql) !== false) {
+            echo '✅ items table created successfully!' . PHP_EOL;
+        } else {
+            echo '❌ ERROR: Failed to create items table' . PHP_EOL;
+        }
+    }
+    
     // Final verification - list all tables again
     echo '📋 Final table list:' . PHP_EOL;
     \$finalTables = \$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
