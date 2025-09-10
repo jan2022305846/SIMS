@@ -115,10 +115,28 @@ if [ "$DB_HAS_TABLES" = "EXISTING_DATABASE" ]; then
                 \$stmt->execute([\$filename]);
                 
                 if (\$stmt->fetchColumn() == 0) {
-                    // Add migration record without actually running it
-                    \$insertStmt = \$pdo->prepare('INSERT INTO migrations (migration, batch) VALUES (?, ?)');
-                    \$insertStmt->execute([\$filename, \$batch]);
-                    echo 'Recorded migration: ' . \$filename . PHP_EOL;
+                    // Only record migrations for tables that actually exist
+                    \$shouldRecord = false;
+                    \$existingTables = \$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+                    
+                    // Check if this migration's main table already exists
+                    if ((strpos(\$filename, 'create_users_table') !== false && in_array('users', \$existingTables)) ||
+                        (strpos(\$filename, 'create_cache_table') !== false && in_array('cache', \$existingTables)) ||
+                        (strpos(\$filename, 'create_jobs_table') !== false && in_array('jobs', \$existingTables)) ||
+                        (strpos(\$filename, 'create_personal_access_tokens_table') !== false && in_array('personal_access_tokens', \$existingTables)) ||
+                        (strpos(\$filename, 'create_categories_table') !== false && in_array('categories', \$existingTables)) ||
+                        (strpos(\$filename, 'create_items_table') !== false && in_array('items', \$existingTables)) ||
+                        (strpos(\$filename, 'create_requests_table') !== false && in_array('requests', \$existingTables)) ||
+                        (strpos(\$filename, 'create_logs_table') !== false && in_array('logs', \$existingTables))) {
+                        \$shouldRecord = true;
+                    }
+                    
+                    if (\$shouldRecord) {
+                        // Record migration as completed for existing table
+                        \$insertStmt = \$pdo->prepare('INSERT INTO migrations (migration, batch) VALUES (?, ?)');
+                        \$insertStmt->execute([\$filename, \$batch]);
+                        echo 'Recorded existing table migration: ' . \$filename . PHP_EOL;
+                    }
                 }
             }
             
@@ -127,6 +145,14 @@ if [ "$DB_HAS_TABLES" = "EXISTING_DATABASE" ]; then
             echo 'Migration tracking update failed: ' . \$e->getMessage() . PHP_EOL;
         }
     " || echo "⚠️  Migration tracking update failed"
+    
+    # Now run any pending migrations (like activity_logs)
+    echo "🔄 Running any pending migrations..."
+    if php artisan migrate --force 2>&1; then
+        echo "✅ All pending migrations completed successfully"
+    else
+        echo "⚠️  Some migrations may have had issues but continuing..."
+    fi
     
     echo "✅ Migration tracking completed - database is ready"
     
