@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Simple startup script - focuses on getting the app running
+set -e
+
+echo "Starting Laravel application (simple mode)..."
+
+# Generate application key if not set
+if [ -z "$APP_KEY" ]; then
+    echo "Generating application key..."
+    php artisan key:generate --force
+fi
+
+# Clear caches in development, cache in production
+if [ "$APP_DEBUG" = "true" ] || [ "$APP_ENV" != "production" ]; then
+    echo "Development mode - clearing all caches..."
+    php artisan config:clear || true
+    php artisan route:clear || true
+    php artisan view:clear || true
+    php artisan cache:clear || true
+else
+    echo "Production mode - caching configuration..."
+    php artisan config:cache || true
+    php artisan route:cache || true
+    php artisan view:cache || true
+fi
+
+# Set proper permissions
+chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true
+chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true
+
+echo "Laravel application setup completed!"
+
+# Start Apache in foreground
+echo "Starting Apache server..."
+exec apache2-foreground

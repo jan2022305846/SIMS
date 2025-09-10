@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
+    netcat-openbsd \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd
 
@@ -54,12 +55,13 @@ RUN echo '<VirtualHost *:80>\n\
     </Directory>\n\
 </VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
-# Copy startup script
+# Copy startup scripts
 COPY docker-start.sh /usr/local/bin/start.sh
-RUN chmod +x /usr/local/bin/start.sh
+COPY docker-start-simple.sh /usr/local/bin/start-simple.sh
+RUN chmod +x /usr/local/bin/start.sh /usr/local/bin/start-simple.sh
 
 # Expose port
 EXPOSE 80
 
-# Start Apache
-CMD ["/usr/local/bin/start.sh"]
+# Start Apache (use simple startup by default)
+CMD ["/usr/local/bin/start-simple.sh"]
