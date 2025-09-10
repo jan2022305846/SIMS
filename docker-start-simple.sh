@@ -49,6 +49,61 @@ for i in {1..30}; do
     fi
 done
 
+# IMMEDIATE FIX: Create activity_logs table if it doesn't exist
+echo "🔧 IMMEDIATE FIX: Ensuring activity_logs table exists..."
+php -r "
+try {
+    \$pdo = new PDO('mysql:host=' . getenv('DB_HOST') . ';dbname=' . getenv('DB_DATABASE') . ';port=' . (getenv('DB_PORT') ?: '3306'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
+    
+    // Check if activity_logs table exists
+    \$result = \$pdo->query('SHOW TABLES LIKE \"activity_logs\"');
+    if (\$result->rowCount() > 0) {
+        echo '✅ activity_logs table already exists' . PHP_EOL;
+    } else {
+        echo '🔧 Creating activity_logs table...' . PHP_EOL;
+        \$sql = 'CREATE TABLE activity_logs (
+            id bigint unsigned not null auto_increment primary key,
+            log_name varchar(191) null,
+            description text not null,
+            subject_type varchar(191) null,
+            subject_id bigint unsigned null,
+            causer_type varchar(191) null,
+            causer_id bigint unsigned null,
+            properties json null,
+            batch_uuid varchar(191) null,
+            event varchar(191) null,
+            ip_address varchar(191) null,
+            user_agent varchar(191) null,
+            created_at timestamp null,
+            updated_at timestamp null,
+            KEY activity_logs_log_name_index (log_name),
+            KEY activity_logs_subject_type_index (subject_type),
+            KEY activity_logs_subject_id_index (subject_id),
+            KEY activity_logs_causer_type_index (causer_type),
+            KEY activity_logs_causer_id_index (causer_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+        
+        \$pdo->exec(\$sql);
+        echo '✅ activity_logs table created successfully!' . PHP_EOL;
+        
+        // Also add it to migrations table for tracking
+        \$migrationExists = \$pdo->query('SHOW TABLES LIKE \"migrations\"')->rowCount() > 0;
+        if (\$migrationExists) {
+            \$stmt = \$pdo->prepare('SELECT COUNT(*) FROM migrations WHERE migration = ?');
+            \$stmt->execute(['2025_09_04_225548_create_activity_logs_table']);
+            if (\$stmt->fetchColumn() == 0) {
+                \$insertStmt = \$pdo->prepare('INSERT INTO migrations (migration, batch) VALUES (?, ?)');
+                \$insertStmt->execute(['2025_09_04_225548_create_activity_logs_table', 2]);
+                echo '📝 Added migration tracking for activity_logs' . PHP_EOL;
+            }
+        }
+    }
+} catch (Exception \$e) {
+    echo '❌ Error with activity_logs table: ' . \$e->getMessage() . PHP_EOL;
+    // Don't exit - continue deployment even if this fails
+}
+"
+
 # Create database if it doesn't exist
 echo "Ensuring database exists..."
 php -r "
