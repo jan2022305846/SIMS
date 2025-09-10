@@ -65,11 +65,11 @@ RUN echo '<VirtualHost *:80>\n\
 </VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
 # Copy startup scripts
-COPY docker-start-simple.sh /usr/local/bin/start-simple.sh
-RUN chmod +x /usr/local/bin/start-simple.sh
+COPY docker-start-clean.sh /usr/local/bin/start-clean.sh
+RUN chmod +x /usr/local/bin/start-clean.sh
 
 # Expose port
 EXPOSE 80
 
-# Start Apache (use simple startup by default)
-CMD ["/usr/local/bin/start-simple.sh"]
+# Start Apache (use clean startup - database pre-imported)
+CMD ["/usr/local/bin/start-clean.sh"]
