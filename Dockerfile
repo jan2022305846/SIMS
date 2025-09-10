@@ -27,6 +27,9 @@ RUN composer install --no-dev --optimize-autoloader
 # Cache Laravel config/routes
 RUN php artisan config:cache && php artisan route:cache
 
+# Fix storage and cache permissions
+RUN chmod -R 775 storage bootstrap/cache
+
 # Expose port
 EXPOSE 8000
 
