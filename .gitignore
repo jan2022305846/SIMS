@@ -9,6 +9,9 @@
 .env
 .env.backup
 .env.production
+.env.local
+.env.staging
+.env.testing
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
@@ -21,3 +24,55 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Security - Never commit these files
+*.key
+*.pem
+*.p12
+*.p8
+/config/secrets.php
+/storage/app/keys/
+/storage/oauth-*.key
+
+# Deployment documentation with real secrets (use templates instead)
+DEPLOYMENT_GUIDE_REAL.md
+URGENT_FIX_REAL.md
+.env.production.real
+
+# Database dumps and backups
+*.sql
+*.dump
+/database/backups/
+
+# Logs and temporary files
+/storage/logs/*.log
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/bootstrap/cache/*.php
+*.tmp
+*.temp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and editor files
+*.swp
+*.swo
+*~
+.project
+.metadata
+.buildpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Docker local overrides
+docker-compose.override.yml
+.dockerignore.local

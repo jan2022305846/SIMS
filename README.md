@@ -1,66 +1,617 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🏢 Supply Office Management System (SIMS)
 
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+  <img src="https://img.shields.io/badge/Laravel-11.42.1-red?style=for-the-badge&logo=laravel" alt="Laravel Version">
+  <img src="https://img.shields.io/badge/PHP-8.2-blue?style=for-the-badge&logo=php" alt="PHP Version">
+  <img src="https://img.shields.io/badge/Docker-Ready-brightgreen?style=for-the-badge&logo=docker" alt="Docker Ready">
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License">
 </p>
 
-## About Laravel
+A comprehensive Laravel-based **Supply Office Management System** designed for educational institutions and organizations to efficiently manage inventory, track supply requests, and maintain detailed records of office supplies and equipment.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📋 Table of Contents
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- [Features](#-features)
+- [System Architecture](#-system-architecture)
+- [Installation](#-installation)
+- [Deployment](#-deployment)
+- [Usage](#-usage)
+- [API Documentation](#-api-documentation)
+- [Security](#-security)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## ✨ Features
 
-## Learning Laravel
+### 🎯 Core Functionality
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+#### **Inventory Management**
+- ✅ **Item Catalog** - Comprehensive item database with categories, descriptions, and specifications
+- ✅ **Stock Tracking** - Real-time inventory levels with minimum stock alerts
+- ✅ **QR Code Integration** - Generate and scan QR codes for easy item identification
+- ✅ **Asset Tracking** - Track non-consumable items and their current holders
+- ✅ **Categories & Classification** - Organize items by type (consumable, non-consumable, equipment)
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+#### **Request Management Workflow**
+- ✅ **Multi-Stage Approval** - Office Head → Admin approval workflow
+- ✅ **Priority Levels** - Low, Normal, High, Urgent priority classification
+- ✅ **Request History** - Complete audit trail of all requests and approvals
+- ✅ **Bulk Operations** - Approve/decline multiple requests simultaneously
+- ✅ **Attachment Support** - Upload supporting documents with requests
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+#### **User Management & Roles**
+- ✅ **Role-Based Access Control** - Admin, Office Head, Faculty roles
+- ✅ **Office Management** - Organize users by departments/offices
+- ✅ **User Profiles** - Comprehensive user information and permissions
+- ✅ **Multi-Tenant Support** - School ID-based user organization
 
-## Laravel Sponsors
+#### **Reporting & Analytics**
+- ✅ **Inventory Reports** - Stock levels, valuation, and analytics
+- ✅ **Request Analytics** - Request trends, approval rates, and statistics
+- ✅ **Activity Logs** - Detailed system activity tracking
+- ✅ **PDF Generation** - Professional reports with charts and summaries
+- ✅ **Low Stock Alerts** - Automated notifications for restocking
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+#### **Advanced Features**
+- ✅ **QR Code Scanner** - Built-in camera scanner for mobile devices
+- ✅ **Activity Logging** - Comprehensive audit trail with user actions
+- ✅ **Search & Filtering** - Advanced search across all modules
+- ✅ **Responsive Design** - Mobile-friendly interface
+- ✅ **Real-time Updates** - Live status updates and notifications
 
-### Premium Partners
+## 🏗️ System Architecture
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+### **Backend Stack**
+- **Framework**: Laravel 11.42.1
+- **Language**: PHP 8.2
+- **Database**: MySQL 8.0+
+- **Authentication**: Laravel Sanctum
+- **PDF Generation**: DomPDF
+- **QR Codes**: QR Code Generator
 
-## Contributing
+### **Frontend Stack**
+- **Build Tool**: Vite
+- **CSS Framework**: Tailwind CSS
+- **JavaScript**: Vanilla JS with Alpine.js components
+- **Icons**: Heroicons
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### **Deployment**
+- **Containerization**: Docker with Apache
+- **Cloud Platform**: Render.com
+- **Database**: FreeMySQLDatabase
+- **Asset Compilation**: Node.js 18.x
 
-## Code of Conduct
+### **Database Schema**
+```
+📊 Core Tables:
+├── users (Admin, Office Head, Faculty)
+├── offices (Departments/Units)
+├── categories (Item classifications)
+├── items (Supply catalog)
+├── requests (Supply requests with workflow)
+├── activity_logs (System audit trail)
+├── item_scan_logs (QR code scan tracking)
+└── logs (Legacy activity tracking)
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## 🚀 Installation
 
-## Security Vulnerabilities
+### **Local Development Setup**
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+#### **Prerequisites**
+- PHP 8.2+
+- Composer 2.6+
+- Node.js 18.x+
+- MySQL 8.0+
+- Git
 
-## License
+#### **Step 1: Clone Repository**
+```bash
+git clone https://github.com/jan2022305846/SIMS.git
+cd SIMS
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+#### **Step 2: Install Dependencies**
+```bash
+# PHP dependencies
+composer install
+
+# Node.js dependencies  
+npm install
+```
+
+#### **Step 3: Environment Configuration**
+```bash
+# Copy environment file
+cp .env.example .env
+
+# Generate application key
+php artisan key:generate
+
+# Configure database in .env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=supply_office_db
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+```
+
+#### **Step 4: Database Setup**
+```bash
+# Run migrations
+php artisan migrate
+
+# Seed database with admin user and sample data
+php artisan db:seed --class=AdminUserSeeder
+```
+
+#### **Step 5: Build Assets**
+```bash
+# Development build
+npm run dev
+
+# Production build
+npm run build
+```
+
+#### **Step 6: Start Development Server**
+```bash
+php artisan serve
+```
+
+Visit `http://localhost:8000` and login with:
+- **Username**: `admin`
+- **Password**: `password`
+
+## 🌐 Deployment
+
+### **Production Deployment on Render**
+
+#### **Step 1: Prepare Docker Configuration**
+The project includes production-ready Docker configuration:
+- `Dockerfile` - Multi-stage build with Apache + Node.js
+- `docker-start-simple.sh` - Production startup script
+- `database-init.sh` - Database initialization script
+
+#### **Step 2: Environment Variables**
+Set these environment variables in Render Dashboard:
+
+```bash
+# Application
+APP_NAME="Supply Office Management System"
+APP_ENV=production
+APP_KEY=your_generated_app_key_here
+APP_DEBUG=false
+APP_TIMEZONE=UTC
+APP_URL=https://your-app-name.onrender.com
+
+# Database (FreeMySQLDatabase)
+DB_CONNECTION=mysql
+DB_HOST=your_database_host
+DB_PORT=3306
+DB_DATABASE=your_database_name
+DB_USERNAME=your_database_user
+DB_PASSWORD=your_database_password
+
+# Deployment
+RUN_MIGRATIONS=true
+```
+
+#### **Step 3: Deploy to Render**
+1. Connect your GitHub repository
+2. Select **Docker** as the environment
+3. Set environment variables
+4. Deploy
+
+The deployment process will:
+- ✅ Install PHP and Node.js dependencies
+- ✅ Build frontend assets with Vite
+- ✅ Run database migrations automatically
+- ✅ Create admin user
+- ✅ Configure Apache virtual host
+- ✅ Start the application server
+
+### **Manual Database Initialization**
+If migrations fail, run the database initialization script:
+```bash
+# Inside the running container
+/usr/local/bin/database-init.sh
+```
+
+## 👥 Usage
+
+### **User Roles & Permissions**
+
+#### **🔐 Admin**
+- Full system access and configuration
+- User management and role assignment
+- Complete inventory management
+- Request approval (final stage)
+- System reports and analytics
+- QR code generation and scanning
+
+#### **👨‍💼 Office Head**
+- View and manage office inventory
+- First-stage request approval
+- Office user management
+- Department-specific reports
+- QR code scanning
+
+#### **👩‍🏫 Faculty**
+- Submit supply requests
+- View personal request history
+- Browse available inventory
+- Update request information
+
+### **Core Workflows**
+
+#### **📝 Supply Request Process**
+1. **Faculty** submits request with details:
+   - Item selection from catalog
+   - Quantity needed
+   - Purpose and priority
+   - Required date
+   - Supporting documents
+
+2. **Office Head** reviews and approves:
+   - Verify request validity
+   - Check budget/policy compliance
+   - Add notes and recommendations
+
+3. **Admin** final approval:
+   - Check stock availability
+   - Process fulfillment
+   - Update inventory levels
+   - Generate pickup notifications
+
+#### **📦 Inventory Management**
+1. **Add New Items**:
+   - Basic information (name, description, category)
+   - Stock details (quantity, minimum stock, unit price)
+   - Classification (consumable/non-consumable)
+   - Generate QR codes
+
+2. **Stock Management**:
+   - Track current stock levels
+   - Set minimum stock thresholds
+   - Receive low stock alerts
+   - Update stock quantities
+
+3. **Item Tracking**:
+   - QR code scanning for quick access
+   - Track item locations and holders
+   - Maintain usage history
+   - Generate item reports
+
+## 🔌 API Documentation
+
+### **Authentication**
+All API endpoints require authentication via Laravel Sanctum:
+
+```javascript
+// Login to get token
+POST /api/login
+{
+    "email": "admin@example.com",
+    "password": "password"
+}
+
+// Use token in subsequent requests
+Authorization: Bearer your_token_here
+```
+
+### **Core Endpoints**
+
+#### **Inventory Management**
+```javascript
+// Get all items with filtering
+GET /api/admin/inventory?category_id=1&status=low_stock
+
+// Add new item
+POST /api/admin/inventory
+{
+    "name": "Whiteboard Marker",
+    "category_id": 1,
+    "current_stock": 50,
+    "minimum_stock": 10,
+    "unit_price": 2.50
+}
+
+// Update item
+PUT /api/admin/inventory/{id}
+
+// Delete item
+DELETE /api/admin/inventory/{id}
+```
+
+#### **Request Management**
+```javascript
+// Get requests with filtering
+GET /api/admin/requests?status=pending&priority=high
+
+// Approve request
+POST /api/admin/requests/{id}/approve
+{
+    "admin_notes": "Approved for immediate fulfillment",
+    "approved_quantity": 5
+}
+
+// Bulk approve requests
+POST /api/admin/requests/bulk-approve
+{
+    "request_ids": [1, 2, 3],
+    "admin_notes": "Bulk approved"
+}
+```
+
+#### **User Management**
+```javascript
+// Get all users
+GET /api/admin/users?role=faculty&office_id=1
+
+// Create user
+POST /api/admin/users
+{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "role": "faculty",
+    "office_id": 1
+}
+```
+
+#### **Reports**
+```javascript
+// Generate inventory report
+GET /api/admin/reports/inventory?format=pdf&category_id=1
+
+// Get system statistics
+GET /api/admin/reports/stats
+```
+
+### **QR Code Integration**
+```javascript
+// Scan QR code
+POST /api/admin/scan-qr
+{
+    "qr_data": "item_123",
+    "location": "Office A"
+}
+
+// Generate QR code
+GET /api/admin/items/{id}/qr-code
+```
+
+## 🔒 Security
+
+### **Security Features**
+- ✅ **Authentication**: Laravel Sanctum token-based auth
+- ✅ **Authorization**: Role-based access control (RBAC)
+- ✅ **Data Validation**: Comprehensive input validation
+- ✅ **CSRF Protection**: Built-in CSRF token validation
+- ✅ **SQL Injection Prevention**: Eloquent ORM with parameterized queries
+- ✅ **Password Security**: Bcrypt hashing with salt
+- ✅ **Activity Logging**: Complete audit trail of user actions
+
+### **Security Best Practices**
+```bash
+# Environment Variables
+- Never commit .env files to version control
+- Use strong, unique APP_KEY
+- Secure database credentials
+- HTTPS in production
+
+# User Management
+- Strong password requirements
+- Regular password updates
+- Role-based permissions
+- Session management
+
+# Data Protection
+- Input sanitization
+- Output encoding
+- File upload restrictions
+- Regular security updates
+```
+
+### **Recent Security Updates**
+- 🔐 **Git Guardian Integration**: Automated secret detection
+- 🔐 **Enhanced .gitignore**: Prevent accidental secret commits
+- 🔐 **Secure Key Generation**: Automated APP_KEY rotation
+- 🔐 **Documentation Sanitization**: Removed hardcoded secrets
+
+## 🛠️ Development
+
+### **Project Structure**
+```
+📁 supply-api/
+├── 📁 app/
+│   ├── 📁 Http/Controllers/
+│   │   ├── 📁 Admin/          # Admin panel controllers
+│   │   ├── 📁 Auth/           # Authentication controllers
+│   │   └── 📁 Web/            # Web interface controllers
+│   ├── 📁 Models/             # Eloquent models
+│   └── 📁 Services/           # Business logic services
+├── 📁 database/
+│   ├── 📁 migrations/         # Database schema changes
+│   ├── 📁 seeders/           # Sample data generators
+│   └── 📁 factories/         # Model factories for testing
+├── 📁 resources/
+│   ├── 📁 views/             # Blade templates
+│   ├── 📁 css/               # Stylesheets
+│   └── 📁 js/                # JavaScript assets
+├── 📁 routes/                # Route definitions
+├── 📁 storage/               # Application storage
+├── 📁 tests/                 # PHPUnit tests
+├── 🐳 Dockerfile            # Docker configuration
+├── 📜 docker-start-simple.sh # Production startup script
+└── 📜 database-init.sh       # Database initialization
+```
+
+### **Key Components**
+
+#### **Models**
+- `User` - System users with role-based permissions
+- `Office` - Departments and organizational units  
+- `Category` - Item classification system
+- `Item` - Supply catalog with QR code support
+- `Request` - Multi-stage approval workflow
+- `ActivityLog` - Comprehensive audit trail
+
+#### **Controllers**
+- `AdminController` - Dashboard and QR scanning
+- `InventoryManagementController` - Item management
+- `RequestManagementController` - Request workflow
+- `UserManagementController` - User administration
+- `ReportsController` - Analytics and reporting
+
+#### **Services**
+- `QRCodeService` - QR code generation and scanning
+- Authentication services via Laravel Sanctum
+- PDF generation with DomPDF
+
+### **Testing**
+```bash
+# Run all tests
+php artisan test
+
+# Run specific test suite
+php artisan test --testsuite=Feature
+
+# Generate test coverage
+php artisan test --coverage
+```
+
+### **Code Style**
+The project follows PSR-12 coding standards:
+```bash
+# Check code style
+./vendor/bin/phpcs
+
+# Fix code style issues
+./vendor/bin/phpcbf
+```
+
+## 📈 Monitoring & Maintenance
+
+### **Health Checks**
+Monitor application health via the debug endpoint:
+```bash
+# Check system status
+GET /debug/health
+
+Response:
+{
+    "status": "healthy",
+    "database": "connected",
+    "users_table": "exists", 
+    "admin_user": "exists",
+    "timestamp": "2025-09-11T10:30:00Z"
+}
+```
+
+### **Log Monitoring**
+```bash
+# Application logs
+tail -f storage/logs/laravel.log
+
+# Activity logs
+SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 100;
+
+# QR scan logs  
+SELECT * FROM item_scan_logs ORDER BY created_at DESC LIMIT 50;
+```
+
+### **Performance Optimization**
+```bash
+# Cache configuration
+php artisan config:cache
+
+# Cache routes  
+php artisan route:cache
+
+# Optimize autoloader
+composer dump-autoload --optimize
+
+# Database optimization
+php artisan migrate:status
+php artisan db:seed --class=OptimizationSeeder
+```
+
+## 🤝 Contributing
+
+We welcome contributions to improve the Supply Office Management System!
+
+### **Development Setup**
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes
+4. Run tests: `php artisan test`
+5. Commit changes: `git commit -m 'Add amazing feature'`
+6. Push to branch: `git push origin feature/amazing-feature`
+7. Submit a Pull Request
+
+### **Contribution Guidelines**
+- Follow PSR-12 coding standards
+- Write comprehensive tests for new features
+- Update documentation for API changes
+- Use descriptive commit messages
+- Ensure backward compatibility
+
+### **Bug Reports**
+Please include:
+- Laravel and PHP versions
+- Detailed steps to reproduce
+- Expected vs actual behavior
+- Error messages and logs
+- System configuration details
+
+## 📄 License
+
+This project is open-sourced software licensed under the [MIT License](https://opensource.org/licenses/MIT).
+
+```
+MIT License
+
+Copyright (c) 2025 Supply Office Management System
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## 📞 Support
+
+For support and questions:
+- 📧 **Email**: [support@sims-project.com](mailto:support@sims-project.com)
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/jan2022305846/SIMS/issues)
+- 📚 **Documentation**: [Project Wiki](https://github.com/jan2022305846/SIMS/wiki)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/jan2022305846/SIMS/discussions)
+
+---
+
+<p align="center">
+  <strong>Built with ❤️ for educational institutions and organizations</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/stars/jan2022305846/SIMS?style=social" alt="GitHub Stars">
+  <img src="https://img.shields.io/github/forks/jan2022305846/SIMS?style=social" alt="GitHub Forks">
+  <img src="https://img.shields.io/github/watchers/jan2022305846/SIMS?style=social" alt="GitHub Watchers">
+</p>

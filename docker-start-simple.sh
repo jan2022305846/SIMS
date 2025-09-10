@@ -19,26 +19,77 @@ if [ ! -f "/var/www/html/public/build/manifest.json" ]; then
     echo "Created fallback manifest.json"
 fi
 
-# Check if we should run migrations
-if [ "$RUN_MIGRATIONS" = "true" ] || [ "$APP_DEBUG" = "true" ]; then
-    echo "Checking database and running migrations..."
-    
-    # Test database connection first
-    if php artisan migrate:status >/dev/null 2>&1; then
-        echo "Database connected successfully."
-        
-        # Run migrations if needed
-        echo "Running migrations..."
-        php artisan migrate --force || {
-            echo "Migration failed, but continuing startup..."
+# Always try to run migrations in production
+echo "Initializing database..."
+
+# Wait for database to be ready
+echo "Waiting for database connection..."
+for i in {1..30}; do
+    if php -r "
+        try {
+            \$pdo = new PDO('mysql:host=' . getenv('DB_HOST') . ';port=' . (getenv('DB_PORT') ?: '3306'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
+            echo 'Database connection successful';
+            exit(0);
+        } catch (Exception \$e) {
+            echo 'Database connection failed: ' . \$e->getMessage();
+            exit(1);
         }
+    " 2>/dev/null; then
+        echo "✅ Database connection established!"
+        break
     else
-        echo "Cannot connect to database or migrations table doesn't exist."
-        echo "You may need to check your database configuration."
+        echo "⏳ Waiting for database... (attempt $i/30)"
+        sleep 2
     fi
+    
+    if [ $i -eq 30 ]; then
+        echo "❌ Database connection timeout after 60 seconds"
+        echo "Database config: HOST=${DB_HOST}, PORT=${DB_PORT}, DB=${DB_DATABASE}, USER=${DB_USERNAME}"
+        exit 1
+    fi
+done
+
+# Create database if it doesn't exist
+echo "Ensuring database exists..."
+php -r "
+    try {
+        \$pdo = new PDO('mysql:host=' . getenv('DB_HOST') . ';port=' . (getenv('DB_PORT') ?: '3306'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
+        \$pdo->exec('CREATE DATABASE IF NOT EXISTS \`' . getenv('DB_DATABASE') . '\`');
+        echo 'Database ' . getenv('DB_DATABASE') . ' ready';
+    } catch (Exception \$e) {
+        echo 'Failed to create database: ' . \$e->getMessage();
+        exit(1);
+    }
+" || {
+    echo "❌ Failed to ensure database exists"
+    exit 1
+}
+
+# Force run migrations - this will create migration table if needed
+echo "🔄 Running database migrations..."
+php artisan migrate:install --force 2>/dev/null || true
+php artisan migrate --force || {
+    echo "❌ Migration failed, checking details..."
+    php artisan migrate:status || true
+    echo "Attempting to continue..."
+}
+
+# Check if migrations actually worked
+echo "🔍 Verifying migrations..."
+if php artisan migrate:status | grep -q "users"; then
+    echo "✅ Users table migration confirmed"
 else
-    echo "Skipping migrations (set RUN_MIGRATIONS=true to enable)."
+    echo "❌ Users table migration failed - forcing fresh migration"
+    php artisan migrate:refresh --force --seed || {
+        echo "❌ Fresh migration also failed, but continuing..."
+    }
 fi
+
+# Create admin user
+echo "👤 Setting up admin user..."
+php artisan db:seed --class=AdminUserSeeder --force || {
+    echo "⚠️  Admin seeder failed, but continuing startup..."
+}
 
 # Clear caches in development, cache in production
 if [ "$APP_DEBUG" = "true" ] || [ "$APP_ENV" != "production" ]; then

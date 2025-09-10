@@ -8,7 +8,7 @@ The most common causes of 500 errors in Laravel production deployments:
 
 ```bash
 # CRITICAL - Set these first
-APP_KEY=base64:mekbdLOze95Lwp/oKEamke9p7EMDfL7tKS1JchrZfDk=
+APP_KEY=YOUR_GENERATED_APP_KEY_HERE
 APP_ENV=production
 APP_DEBUG=true  # Set to true initially for debugging, then false later
 APP_URL=https://your-app-name.onrender.com
@@ -50,7 +50,7 @@ https://your-app-name.onrender.com/debug/health
 **Issue: "No application encryption key"**
 ```bash
 # Solution: Set APP_KEY in Render environment variables
-APP_KEY=base64:mekbdLOze95Lwp/oKEamke9p7EMDfL7tKS1JchrZfDk=
+APP_KEY=YOUR_GENERATED_APP_KEY_HERE
 ```
 
 **Issue: "Database connection failed"**

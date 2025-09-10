@@ -67,7 +67,8 @@ RUN echo '<VirtualHost *:80>\n\
 # Copy startup scripts
 COPY docker-start.sh /usr/local/bin/start.sh
 COPY docker-start-simple.sh /usr/local/bin/start-simple.sh
-RUN chmod +x /usr/local/bin/start.sh /usr/local/bin/start-simple.sh
+COPY database-init.sh /usr/local/bin/database-init.sh
+RUN chmod +x /usr/local/bin/start.sh /usr/local/bin/start-simple.sh /usr/local/bin/database-init.sh
 
 # Expose port
 EXPOSE 80

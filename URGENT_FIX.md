@@ -12,7 +12,7 @@ The new Dockerfile now uses a simple startup script that **doesn't wait for data
 
 ```bash
 # CRITICAL - Set these first
-APP_KEY=base64:mekbdLOze95Lwp/oKEamke9p7EMDfL7tKS1JchrZfDk=
+APP_KEY=YOUR_GENERATED_APP_KEY_HERE
 APP_ENV=production
 APP_DEBUG=true
 APP_URL=https://your-app-name.onrender.com

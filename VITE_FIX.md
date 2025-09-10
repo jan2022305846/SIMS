@@ -46,7 +46,7 @@ Make sure these are set in Render:
 
 ```bash
 # Essential
-APP_KEY=base64:mekbdLOze95Lwp/oKEamke9p7EMDfL7tKS1JchrZfDk=
+APP_KEY=YOUR_GENERATED_APP_KEY_HERE
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://sims-laravel.onrender.com
