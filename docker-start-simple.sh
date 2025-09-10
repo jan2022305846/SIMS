@@ -65,21 +65,44 @@ php -r "
     exit 1
 }
 
-# Force run migrations - this will create migration table if needed
+# Handle database migrations with better error handling
 echo "🔄 Running database migrations..."
-php artisan migrate:install --force 2>/dev/null || true
 
-# Run migrations with better error handling
-if php artisan migrate --force 2>&1; then
-    echo "✅ Database migrations completed successfully"
-else
-    echo "❌ Standard migration failed, attempting fresh migration..."
+# Check if migrations table exists and create if needed
+php artisan migrate:install 2>/dev/null || true
+
+# Get current migration status
+echo "📊 Checking migration status..."
+MIGRATION_STATUS=$(php artisan migrate:status --no-interaction 2>&1 || echo "FAILED")
+
+if echo "$MIGRATION_STATUS" | grep -q "No migrations found" || echo "$MIGRATION_STATUS" | grep -q "FAILED"; then
+    echo "🆕 No migrations found or status check failed, running fresh migration..."
     if php artisan migrate:fresh --force 2>&1; then
         echo "✅ Fresh migration completed successfully"
     else
-        echo "❌ All migration attempts failed, but continuing startup..."
-        echo "📋 Current migration status:"
-        php artisan migrate:status 2>/dev/null || echo "Cannot check migration status"
+        echo "❌ Fresh migration failed, attempting regular migration..."
+        php artisan migrate --force 2>&1 || {
+            echo "❌ All migration attempts failed"
+            echo "🔍 Current database state:"
+            php -r "
+                try {
+                    \$pdo = new PDO('mysql:host=' . getenv('DB_HOST') . ';dbname=' . getenv('DB_DATABASE') . ';port=' . (getenv('DB_PORT') ?: '3306'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
+                    \$tables = \$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+                    echo 'Tables: ' . implode(', ', \$tables) . PHP_EOL;
+                } catch (Exception \$e) {
+                    echo 'Cannot check database state: ' . \$e->getMessage() . PHP_EOL;
+                }
+            " || echo "Database check failed"
+        }
+    fi
+elif echo "$MIGRATION_STATUS" | grep -q "users.*DONE\|users.*✓"; then
+    echo "✅ Migrations appear to be completed already"
+else
+    echo "🔄 Running pending migrations..."
+    if php artisan migrate --force 2>&1; then
+        echo "✅ Migrations completed successfully"
+    else
+        echo "⚠️  Migration issues detected, but continuing..."
     fi
 fi
 

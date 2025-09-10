@@ -14,23 +14,24 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('username')->unique();
-            $table->string('email')->unique();
-            $table->string('school_id')->unique()->nullable(); // Add school_id from the start
+            $table->string('username', 100)->unique(); // Reduced length for older MySQL compatibility
+            $table->string('email', 150)->unique(); // Reduced length for older MySQL compatibility
+            $table->string('school_id', 50)->unique()->nullable(); // Reduced length
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->enum('role', ['admin', 'office_head', 'faculty'])->default('faculty'); // Include all roles
-            $table->string('department')->nullable();
+            $table->string('department', 100)->nullable(); // Reduced length
             $table->unsignedBigInteger('office_id')->nullable(); // Add office_id for future compatibility
             $table->rememberToken();
             $table->timestamps();
 
-            // Add index for performance
-            $table->index(['role', 'school_id']);
+            // Add indexes for performance (with shorter lengths for compatibility)
+            $table->index(['role']);
+            $table->index(['school_id']);
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
+            $table->string('email', 150)->primary(); // Reduced length
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });

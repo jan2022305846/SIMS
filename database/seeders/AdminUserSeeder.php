@@ -18,7 +18,7 @@ class AdminUserSeeder extends Seeder
     {
         // Check if users already exist to avoid duplicates
         if (User::where('username', 'admin')->exists()) {
-            $this->command->info('Admin user already exists. Skipping seeder.');
+            $this->command->info('✅ Admin user already exists. Skipping seeder.');
             return;
         }
 
@@ -41,49 +41,83 @@ class AdminUserSeeder extends Seeder
             'department' => 'Computer Science',
         ];
 
-        // Add school_id if the column exists
-        if (Schema::hasColumn('users', 'school_id')) {
-            $adminData['school_id'] = 'ADMIN001';
-            $facultyData['school_id'] = 'FAC001';
-        }
+        // Check for additional columns without using Schema::hasColumn (MySQL compatibility issue)
+        $this->command->info('🔍 Checking table structure...');
+        
+        try {
+            // Use raw SQL to check columns (compatible with older MySQL versions)
+            $columns = DB::select("SHOW COLUMNS FROM users");
+            $columnNames = array_column($columns, 'Field');
+            
+            $this->command->info('📋 Available columns: ' . implode(', ', $columnNames));
+            
+            // Add school_id if the column exists
+            if (in_array('school_id', $columnNames)) {
+                $adminData['school_id'] = 'ADMIN001';
+                $facultyData['school_id'] = 'FAC001';
+                $this->command->info('✅ Added school_id to user data');
+            }
 
-        // Add office_id if the column exists (for newer migrations)
-        if (Schema::hasColumn('users', 'office_id')) {
-            $adminData['office_id'] = null; // Admin doesn't need to belong to specific office
-            $facultyData['office_id'] = null; // Will be assigned later
+            // Add office_id if the column exists
+            if (in_array('office_id', $columnNames)) {
+                $adminData['office_id'] = null; // Admin doesn't need to belong to specific office
+                $facultyData['office_id'] = null; // Will be assigned later
+                $this->command->info('✅ Added office_id to user data');
+            }
+
+        } catch (\Exception $e) {
+            $this->command->warn('⚠️  Column structure check failed: ' . $e->getMessage());
+            $this->command->warn('🔄 Proceeding with basic user data...');
         }
 
         try {
-            // Create admin user
+            // Try creating users with Eloquent
             User::create($adminData);
-            $this->command->info('✅ Admin user created successfully (username: admin, password: password)');
+            $this->command->info('✅ Admin user created successfully via Eloquent (username: admin, password: password)');
 
-            // Create faculty user
             User::create($facultyData);
             $this->command->info('✅ Sample faculty user created successfully (username: faculty1, password: password)');
 
         } catch (\Exception $e) {
-            $this->command->error('❌ Failed to create users: ' . $e->getMessage());
+            $this->command->error('❌ Eloquent user creation failed: ' . $e->getMessage());
+            $this->command->info('🔄 Attempting manual database insertion...');
             
-            // Try creating with minimal data if there are column issues
+            // Fallback to raw SQL insertion
             try {
-                $minimalAdminData = [
-                    'name' => 'Admin User',
-                    'username' => 'admin',
-                    'email' => 'admin@ustp.edu.ph',
-                    'password' => Hash::make('password'),
-                ];
+                // Prepare data for raw insertion
+                $adminRawData = $adminData;
+                $adminRawData['created_at'] = now();
+                $adminRawData['updated_at'] = now();
 
-                // Add role if column exists
-                if (Schema::hasColumn('users', 'role')) {
-                    $minimalAdminData['role'] = 'admin';
-                }
+                // Build dynamic SQL based on available columns
+                $columns = array_keys($adminRawData);
+                $placeholders = ':' . implode(', :', $columns);
+                $columnsList = implode(', ', $columns);
 
-                DB::table('users')->insert($minimalAdminData);
-                $this->command->info('✅ Admin user created with minimal data');
+                DB::statement("INSERT INTO users ($columnsList) VALUES ($placeholders)", $adminRawData);
+                $this->command->info('✅ Admin user created via raw SQL insertion');
 
             } catch (\Exception $fallbackException) {
-                $this->command->error('❌ Fallback user creation also failed: ' . $fallbackException->getMessage());
+                $this->command->error('❌ All admin user creation attempts failed: ' . $fallbackException->getMessage());
+                
+                // Final fallback - try with absolute minimal data
+                try {
+                    DB::statement("
+                        INSERT INTO users (name, username, email, password, role, created_at, updated_at) 
+                        VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+                    ", [
+                        'Admin User',
+                        'admin', 
+                        'admin@ustp.edu.ph',
+                        Hash::make('password'),
+                        'admin'
+                    ]);
+                    $this->command->info('✅ Admin user created with minimal data via prepared statement');
+                    
+                } catch (\Exception $finalException) {
+                    $this->command->error('❌ Final fallback also failed: ' . $finalException->getMessage());
+                    $this->command->error('🆘 Manual intervention required - please create admin user manually');
+                }
             }
         }
     }
