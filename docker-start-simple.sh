@@ -73,18 +73,40 @@ for i in {1..30}; do
     fi
 done
 
-# IMMEDIATE FIX: Create activity_logs table if it doesn't exist
-echo "🔧 IMMEDIATE FIX: Ensuring critical tables exist..."
+# IMMEDIATE FIX: Create critical tables with better error handling
+echo "🔧 IMMEDIATE FIX: Ensuring critical tables exist with detailed logging..."
 php -r "
+set_error_handler(function(\$errno, \$errstr, \$errfile, \$errline) {
+    echo 'PHP Error: ' . \$errstr . ' in ' . \$errfile . ' on line ' . \$errline . PHP_EOL;
+});
+
 try {
-    \$pdo = new PDO('mysql:host=' . getenv('DB_HOST') . ';dbname=' . getenv('DB_DATABASE') . ';port=' . (getenv('DB_PORT') ?: '3306'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
+    echo '🔗 Attempting database connection...' . PHP_EOL;
+    echo 'DB_HOST: ' . getenv('DB_HOST') . PHP_EOL;
+    echo 'DB_DATABASE: ' . getenv('DB_DATABASE') . PHP_EOL;
+    echo 'DB_USERNAME: ' . getenv('DB_USERNAME') . PHP_EOL;
     
-    // Check and create activity_logs table
+    \$pdo = new PDO('mysql:host=' . getenv('DB_HOST') . ';dbname=' . getenv('DB_DATABASE') . ';port=' . (getenv('DB_PORT') ?: '3306'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'), [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+    ]);
+    echo '✅ Database connection successful' . PHP_EOL;
+    
+    // List all tables first
+    echo '📋 Current tables in database:' . PHP_EOL;
+    \$tables = \$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+    foreach (\$tables as \$table) {
+        echo '  - ' . \$table . PHP_EOL;
+    }
+    
+    // Force create activity_logs table
+    echo '🔧 Checking for activity_logs table...' . PHP_EOL;
     \$result = \$pdo->query('SHOW TABLES LIKE \"activity_logs\"');
     if (\$result->rowCount() > 0) {
         echo '✅ activity_logs table already exists' . PHP_EOL;
     } else {
-        echo '🔧 Creating activity_logs table...' . PHP_EOL;
+        echo '❌ activity_logs table missing - creating now...' . PHP_EOL;
+        
         \$sql = 'CREATE TABLE activity_logs (
             id bigint unsigned not null auto_increment primary key,
             log_name varchar(191) null,
@@ -107,28 +129,43 @@ try {
             KEY activity_logs_causer_id_index (causer_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
         
-        \$pdo->exec(\$sql);
-        echo '✅ activity_logs table created successfully!' . PHP_EOL;
+        if (\$pdo->exec(\$sql) !== false) {
+            echo '✅ activity_logs table created successfully!' . PHP_EOL;
+            
+            // Verify it was created
+            \$verify = \$pdo->query('SHOW TABLES LIKE \"activity_logs\"');
+            if (\$verify->rowCount() > 0) {
+                echo '✅ Verified: activity_logs table exists' . PHP_EOL;
+            } else {
+                echo '❌ ERROR: activity_logs table creation verification failed' . PHP_EOL;
+            }
+        } else {
+            echo '❌ ERROR: Failed to create activity_logs table' . PHP_EOL;
+        }
         
-        // Also add it to migrations table for tracking
+        // Track in migrations table
         \$migrationExists = \$pdo->query('SHOW TABLES LIKE \"migrations\"')->rowCount() > 0;
         if (\$migrationExists) {
+            echo '📝 Adding migration tracking...' . PHP_EOL;
             \$stmt = \$pdo->prepare('SELECT COUNT(*) FROM migrations WHERE migration = ?');
             \$stmt->execute(['2025_09_04_225548_create_activity_logs_table']);
             if (\$stmt->fetchColumn() == 0) {
                 \$insertStmt = \$pdo->prepare('INSERT INTO migrations (migration, batch) VALUES (?, ?)');
                 \$insertStmt->execute(['2025_09_04_225548_create_activity_logs_table', 2]);
-                echo '📝 Added migration tracking for activity_logs' . PHP_EOL;
+                echo '✅ Migration tracking added' . PHP_EOL;
+            } else {
+                echo '✅ Migration already tracked' . PHP_EOL;
             }
         }
     }
     
-    // Check and create sessions table for CSRF/session handling
+    // Check sessions table
+    echo '🔧 Checking for sessions table...' . PHP_EOL;
     \$result = \$pdo->query('SHOW TABLES LIKE \"sessions\"');
     if (\$result->rowCount() > 0) {
         echo '✅ sessions table already exists' . PHP_EOL;
     } else {
-        echo '🔧 Creating sessions table for CSRF/session handling...' . PHP_EOL;
+        echo '❌ sessions table missing - creating now...' . PHP_EOL;
         \$sql = 'CREATE TABLE sessions (
             id varchar(255) not null primary key,
             user_id bigint unsigned null,
@@ -140,15 +177,37 @@ try {
             KEY sessions_last_activity_index (last_activity)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
         
-        \$pdo->exec(\$sql);
-        echo '✅ sessions table created successfully!' . PHP_EOL;
+        if (\$pdo->exec(\$sql) !== false) {
+            echo '✅ sessions table created successfully!' . PHP_EOL;
+        } else {
+            echo '❌ ERROR: Failed to create sessions table' . PHP_EOL;
+        }
     }
     
+    // Final verification - list all tables again
+    echo '📋 Final table list:' . PHP_EOL;
+    \$finalTables = \$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+    foreach (\$finalTables as \$table) {
+        echo '  - ' . \$table . PHP_EOL;
+    }
+    
+    echo '🎯 Table creation process completed!' . PHP_EOL;
+    
 } catch (Exception \$e) {
-    echo '❌ Error with critical tables: ' . \$e->getMessage() . PHP_EOL;
-    // Don't exit - continue deployment even if this fails
+    echo '❌ CRITICAL ERROR in table creation: ' . \$e->getMessage() . PHP_EOL;
+    echo 'Error details: ' . \$e->getFile() . ':' . \$e->getLine() . PHP_EOL;
+    echo 'Stack trace: ' . \$e->getTraceAsString() . PHP_EOL;
+    // Don't exit - continue deployment
 }
 "
+
+# Also run the specific migration as a backup
+echo "🔄 Running specific activity_logs migration as backup..."
+if php artisan migrate --path=database/migrations/2025_09_04_225548_create_activity_logs_table.php --force 2>/dev/null; then
+    echo "✅ Activity logs migration completed successfully"
+else
+    echo "⚠️  Migration command failed, but table should exist from direct creation"
+fi
 
 # Create database if it doesn't exist
 echo "Ensuring database exists..."
