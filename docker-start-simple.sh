@@ -11,6 +11,30 @@ if [ -z "$APP_KEY" ]; then
     php artisan key:generate --force
 fi
 
+# Set session and CSRF configuration for production
+echo "⚙️  Configuring session and CSRF settings for production..."
+export SESSION_DRIVER=database
+export SESSION_LIFETIME=120
+export SESSION_SECURE_COOKIE=false
+export SESSION_HTTP_ONLY=true
+export SESSION_SAME_SITE=lax
+export SANCTUM_STATEFUL_DOMAINS="sims-laravel.onrender.com,localhost,127.0.0.1"
+
+# Clear cached configurations to ensure fresh settings
+echo "🧹 Clearing cached configurations..."
+php artisan config:clear || echo "⚠️  Config cache already clear"
+php artisan route:clear || echo "⚠️  Route cache already clear"
+php artisan view:clear || echo "⚠️  View cache already clear"
+
+# Ensure storage permissions for sessions
+echo "📁 Setting storage permissions..."
+chmod -R 755 /var/www/html/storage
+chmod -R 755 /var/www/html/bootstrap/cache
+
+echo "✅ Cache cleared and permissions set"
+
+echo "✅ Production session configuration applied"
+
 # Check for Vite manifest and create a minimal one if missing
 if [ ! -f "/var/www/html/public/build/manifest.json" ]; then
     echo "Vite manifest not found, creating minimal fallback..."
@@ -50,12 +74,12 @@ for i in {1..30}; do
 done
 
 # IMMEDIATE FIX: Create activity_logs table if it doesn't exist
-echo "🔧 IMMEDIATE FIX: Ensuring activity_logs table exists..."
+echo "🔧 IMMEDIATE FIX: Ensuring critical tables exist..."
 php -r "
 try {
     \$pdo = new PDO('mysql:host=' . getenv('DB_HOST') . ';dbname=' . getenv('DB_DATABASE') . ';port=' . (getenv('DB_PORT') ?: '3306'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
     
-    // Check if activity_logs table exists
+    // Check and create activity_logs table
     \$result = \$pdo->query('SHOW TABLES LIKE \"activity_logs\"');
     if (\$result->rowCount() > 0) {
         echo '✅ activity_logs table already exists' . PHP_EOL;
@@ -98,8 +122,30 @@ try {
             }
         }
     }
+    
+    // Check and create sessions table for CSRF/session handling
+    \$result = \$pdo->query('SHOW TABLES LIKE \"sessions\"');
+    if (\$result->rowCount() > 0) {
+        echo '✅ sessions table already exists' . PHP_EOL;
+    } else {
+        echo '🔧 Creating sessions table for CSRF/session handling...' . PHP_EOL;
+        \$sql = 'CREATE TABLE sessions (
+            id varchar(255) not null primary key,
+            user_id bigint unsigned null,
+            ip_address varchar(45) null,
+            user_agent text null,
+            payload longtext not null,
+            last_activity int not null,
+            KEY sessions_user_id_index (user_id),
+            KEY sessions_last_activity_index (last_activity)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+        
+        \$pdo->exec(\$sql);
+        echo '✅ sessions table created successfully!' . PHP_EOL;
+    }
+    
 } catch (Exception \$e) {
-    echo '❌ Error with activity_logs table: ' . \$e->getMessage() . PHP_EOL;
+    echo '❌ Error with critical tables: ' . \$e->getMessage() . PHP_EOL;
     // Don't exit - continue deployment even if this fails
 }
 "
