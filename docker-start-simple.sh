@@ -209,6 +209,29 @@ else
     echo "⚠️  Migration command failed, but table should exist from direct creation"
 fi
 
+# Run all pending migrations to ensure all tables exist
+echo "🔄 Running all pending migrations to create missing tables..."
+if php artisan migrate --force; then
+    echo "✅ All migrations completed successfully"
+else
+    echo "⚠️  Some migrations may have failed, but critical tables should exist"
+fi
+
+# List all tables for verification
+echo "📋 Final verification - listing all database tables:"
+php -r "
+try {
+    \$pdo = new PDO('mysql:host=' . getenv('DB_HOST') . ';dbname=' . getenv('DB_DATABASE') . ';port=' . (getenv('DB_PORT') ?: '3306'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
+    \$tables = \$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+    echo 'Database has ' . count(\$tables) . ' tables:' . PHP_EOL;
+    foreach (\$tables as \$table) {
+        echo '  ✅ ' . \$table . PHP_EOL;
+    }
+} catch (Exception \$e) {
+    echo '❌ Error listing tables: ' . \$e->getMessage() . PHP_EOL;
+}
+"
+
 # Create database if it doesn't exist
 echo "Ensuring database exists..."
 php -r "
