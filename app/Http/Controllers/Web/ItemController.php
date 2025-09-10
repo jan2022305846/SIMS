@@ -1,0 +1,245 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use App\Models\Item;
+use App\Models\Category;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+
+class ItemController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
+    {
+        $query = Item::with('category');
+
+        // Handle search
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('brand', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('description', 'like', '%' . $searchTerm . '%');
+            });
+        }
+
+        // Handle category filter
+        if ($request->filled('category')) {
+            $query->where('category_id', $request->category);
+        }
+
+        // Handle stock filter
+        if ($request->filled('stock')) {
+            switch ($request->stock) {
+                case 'low':
+                    $query->whereRaw('quantity <= COALESCE(minimum_stock, 10)');
+                    break;
+                case 'in-stock':
+                    $query->whereRaw('quantity > COALESCE(minimum_stock, 10)');
+                    break;
+                case 'out-of-stock':
+                    $query->where('quantity', '<=', 0);
+                    break;
+            }
+        }
+
+        $items = $query->orderBy('name')->paginate(15)->appends(request()->query());
+        $categories = Category::all();
+        
+        return view('admin.items.index', compact('items', 'categories'));
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        $categories = Category::all();
+        return view('admin.items.create', compact('categories'));
+    }
+
+        /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'category_id' => 'required|exists:categories,id',
+            'barcode' => 'nullable|string|max:255|unique:items',
+            'current_stock' => 'required|integer|min:0',
+            'minimum_stock' => 'required|integer|min:0',
+            'maximum_stock' => 'nullable|integer|min:0',
+            'unit' => 'nullable|string|max:50',
+            'unit_price' => 'nullable|numeric|min:0',
+            'total_value' => 'nullable|numeric|min:0',
+            'price' => 'nullable|numeric|min:0',
+            'location' => 'required|string|max:255',
+            'condition' => 'required|in:New,Good,Fair,Needs Repair',
+            'brand' => 'nullable|string|max:255',
+            'supplier' => 'nullable|string|max:255',
+            'warranty_date' => 'nullable|date',
+            'expiry_date' => 'nullable|date',
+        ]);
+
+        // Set quantity to current_stock for backward compatibility
+        $data = $request->all();
+        $data['quantity'] = $request->current_stock;
+        
+        // Generate unique QR code
+        $data['qr_code'] = Str::uuid();
+
+        $item = Item::create($data);
+        
+        // Update total value if unit price is provided
+        if ($item->unit_price && $item->current_stock) {
+            $item->updateTotalValue();
+        }
+
+        return redirect()->route('items.index')
+            ->with('success', 'Item created successfully.');
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Item $item)
+    {
+        $item->load('category');
+        return view('admin.items.show', compact('item'));
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Item $item)
+    {
+        $categories = Category::all();
+        return view('admin.items.edit', compact('item', 'categories'));
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Item $item)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'category_id' => 'required|exists:categories,id',
+            'barcode' => 'nullable|string|max:255|unique:items,barcode,' . $item->id,
+            'current_stock' => 'required|integer|min:0',
+            'minimum_stock' => 'required|integer|min:0',
+            'maximum_stock' => 'nullable|integer|min:0',
+            'unit' => 'nullable|string|max:50',
+            'unit_price' => 'nullable|numeric|min:0',
+            'total_value' => 'nullable|numeric|min:0',
+            'price' => 'nullable|numeric|min:0',
+            'location' => 'required|string|max:255',
+            'condition' => 'required|in:New,Good,Fair,Needs Repair',
+            'brand' => 'nullable|string|max:255',
+            'supplier' => 'nullable|string|max:255',
+            'warranty_date' => 'nullable|date',
+            'expiry_date' => 'nullable|date',
+        ]);
+
+        // Update quantity to current_stock for backward compatibility
+        $data = $request->all();
+        $data['quantity'] = $request->current_stock;
+
+        $item->update($data);
+        
+        // Update total value if unit price is provided
+        if ($item->unit_price && $item->current_stock) {
+            $item->updateTotalValue();
+        }
+
+        return redirect()->route('items.show', $item)
+            ->with('success', 'Item updated successfully.');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Item $item)
+    {
+        $item->delete();
+
+        return redirect()->route('items.index')
+            ->with('success', 'Item deleted successfully.');
+    }
+
+    /**
+     * Display items for browsing (faculty view).
+     */
+    public function browse(Request $request)
+    {
+        $query = Item::with('category');
+
+        if ($request->has('search')) {
+            $query->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhere('description', 'like', '%' . $request->search . '%');
+        }
+
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        $items = $query->paginate(12);
+        $categories = Category::all();
+
+        return view('faculty.items.browse', compact('items', 'categories'));
+    }
+
+    /**
+     * Display low stock items.
+     */
+    public function lowStock()
+    {
+        $items = Item::with('category')
+            ->whereRaw('quantity <= minimum_stock')
+            ->orWhere('quantity', '<=', 10)
+            ->paginate(10);
+
+        return view('admin.items.low-stock', compact('items'));
+    }
+
+    /**
+     * Display expiring items.
+     */
+    public function expiringSoon()
+    {
+        $items = Item::with('category')
+            ->whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<=', now()->addDays(30))
+            ->paginate(10);
+
+        return view('admin.items.expiring-soon', compact('items'));
+    }
+
+    /**
+     * Display trashed items.
+     */
+    public function trashed()
+    {
+        $items = Item::onlyTrashed()->with('category')->paginate(10);
+        return view('admin.items.trashed', compact('items'));
+    }
+
+    /**
+     * Restore a trashed item.
+     */
+    public function restore($id)
+    {
+        $item = Item::onlyTrashed()->findOrFail($id);
+        $item->restore();
+
+        return redirect()->route('items.trashed')
+            ->with('success', 'Item restored successfully.');
+    }
+}
