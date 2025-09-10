@@ -1,5 +1,5 @@
-# Use PHP 8.2 with Composer pre-installed
-FROM php:8.2-cli
+# Use PHP 8.2 with Apache
+FROM php:8.2-apache
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -10,28 +10,56 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     curl \
-    && docker-php-ext-install pdo pdo_mysql
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd
 
 # Install Composer
 COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
 
+# Enable Apache rewrite module
+RUN a2enmod rewrite
+
 # Set working directory
-WORKDIR /app
+WORKDIR /var/www/html
 
 # Copy project files
 COPY . .
 
 # Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader --no-scripts
 
-# Cache Laravel config/routes
-RUN php artisan config:cache && php artisan route:cache
+# Create storage directories if they don't exist
+RUN mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache
 
-# Fix storage and cache permissions
-RUN chmod -R 775 storage bootstrap/cache
+# Set proper permissions
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html \
+    && chmod -R 775 storage bootstrap/cache
+
+# Generate application key (will be overridden by environment variable)
+RUN php artisan key:generate --show > /tmp/app-key.txt
+
+# Don't cache config in Docker build - will be done at runtime if needed
+# RUN php artisan config:cache && php artisan route:cache
+
+# Create Apache virtual host configuration
+RUN echo '<VirtualHost *:80>\n\
+    DocumentRoot /var/www/html/public\n\
+    <Directory /var/www/html/public>\n\
+        AllowOverride All\n\
+        Require all granted\n\
+    </Directory>\n\
+</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+
+# Copy startup script
+COPY docker-start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
 
 # Expose port
-EXPOSE 8000
+EXPOSE 80
 
-# Start Laravel server
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Start Apache
+CMD ["/usr/local/bin/start.sh"]

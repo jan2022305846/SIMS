@@ -109,3 +109,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('users/{user}/activity', [App\Http\Controllers\ActivityLogController::class, 'userActivity'])->name('activity-logs.user-activity');
     });
 });
+
+// Include debug routes only in non-production environments
+if (config('app.debug') || config('app.env') !== 'production') {
+    require __DIR__ . '/debug.php';
+}
