@@ -12,14 +12,20 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
+            // Only add school_id if it doesn't exist (for backward compatibility)
             if (!Schema::hasColumn('users', 'school_id')) {
-                $table->string('school_id')->unique()->after('email');
+                $table->string('school_id')->unique()->nullable()->after('email');
             }
-            if (!Schema::hasColumn('users', 'department')) {
-                $table->string('department')->nullable()->after('email');
+            
+            // Update role column to include office_head if not already present
+            if (Schema::hasColumn('users', 'role')) {
+                // Check current column type and update if needed
+                $table->enum('role', ['admin', 'office_head', 'faculty'])->default('faculty')->change();
             }
-            if (!Schema::hasColumn('users', 'role')) {
-                $table->enum('role', ['admin', 'faculty'])->default('faculty')->after('department');
+            
+            // Add office_id if it doesn't exist
+            if (!Schema::hasColumn('users', 'office_id')) {
+                $table->unsignedBigInteger('office_id')->nullable()->after('department');
             }
         });
     }

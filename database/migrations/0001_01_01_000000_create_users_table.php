@@ -15,13 +15,18 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('username')->unique();
-            $table->string('department')->nullable();
             $table->string('email')->unique();
+            $table->string('school_id')->unique()->nullable(); // Add school_id from the start
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->string('role')->default('user');
+            $table->enum('role', ['admin', 'office_head', 'faculty'])->default('faculty'); // Include all roles
+            $table->string('department')->nullable();
+            $table->unsignedBigInteger('office_id')->nullable(); // Add office_id for future compatibility
             $table->rememberToken();
             $table->timestamps();
+
+            // Add index for performance
+            $table->index(['role', 'school_id']);
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
