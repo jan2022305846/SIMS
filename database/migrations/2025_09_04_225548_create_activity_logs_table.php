@@ -17,7 +17,7 @@ return new class extends Migration
             $table->text('description');
             $table->nullableMorphs('subject', 'subject');
             $table->nullableMorphs('causer', 'causer');
-            $table->json('properties')->nullable();
+            $table->text('properties')->nullable();
             $table->string('batch_uuid')->nullable();
             $table->string('event')->nullable();
             $table->string('ip_address')->nullable();

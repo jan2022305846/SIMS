@@ -115,7 +115,7 @@ try {
             subject_id bigint unsigned null,
             causer_type varchar(191) null,
             causer_id bigint unsigned null,
-            properties json null,
+            properties text null,
             batch_uuid varchar(191) null,
             event varchar(191) null,
             ip_address varchar(191) null,
