@@ -56,6 +56,65 @@ try {
     echo "❌ Database test failed, but continuing startup..."
 }
 
+# Check if we need to populate the database with initial data
+echo "🌱 Checking if database needs to be seeded..."
+php -r "
+try {
+    \$pdo = new PDO('mysql:host=' . getenv('DB_HOST') . ';dbname=' . getenv('DB_DATABASE') . ';port=' . (getenv('DB_PORT') ?: '3306'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
+    
+    // Check if users table has any data
+    \$userCount = \$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
+    echo 'Found ' . \$userCount . ' users in database' . PHP_EOL;
+    
+    if (\$userCount == 0) {
+        echo '🌱 No users found - database needs seeding' . PHP_EOL;
+        exit(1);
+    } else {
+        echo '✅ Users exist - skipping seeding' . PHP_EOL;
+        exit(0);
+    }
+} catch (Exception \$e) {
+    echo '⚠️  Unable to check user count: ' . \$e->getMessage() . PHP_EOL;
+    echo '🌱 Will attempt seeding to be safe' . PHP_EOL;
+    exit(1);
+}
+"
+
+# Run seeders if database is empty
+if [ $? -eq 1 ]; then
+    echo "🌱 Running database seeders..."
+    
+    # Run specific seeders in order
+    echo "👤 Creating admin users..."
+    if php artisan db:seed --class=AdminUserSeeder --force; then
+        echo "✅ Admin users created successfully"
+        echo "📋 Login credentials:"
+        echo "   Username: admin"
+        echo "   Password: password"
+        echo "   Email: admin@ustp.edu.ph"
+    else
+        echo "⚠️  AdminUserSeeder failed, but continuing..."
+    fi
+    
+    echo "🏢 Creating sample categories..."
+    if php artisan db:seed --class=CategoryTypeSeeder --force; then
+        echo "✅ Categories created successfully"
+    else
+        echo "⚠️  CategoryTypeSeeder failed, but continuing..."
+    fi
+    
+    echo "📦 Creating sample data..."
+    if php artisan db:seed --class=TestDataSeeder --force; then
+        echo "✅ Sample data created successfully"
+    else
+        echo "⚠️  TestDataSeeder failed, but continuing..."
+    fi
+    
+    echo "🎉 Database seeding completed!"
+else
+    echo "✅ Database already populated - skipping seeders"
+fi
+
 echo "✅ Application ready - database already configured!"
 echo "🌐 Starting Apache web server..."
 
