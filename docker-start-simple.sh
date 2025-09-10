@@ -11,6 +11,14 @@ if [ -z "$APP_KEY" ]; then
     php artisan key:generate --force
 fi
 
+# Check for Vite manifest and create a minimal one if missing
+if [ ! -f "/var/www/html/public/build/manifest.json" ]; then
+    echo "Vite manifest not found, creating minimal fallback..."
+    mkdir -p /var/www/html/public/build
+    echo '{}' > /var/www/html/public/build/manifest.json
+    echo "Created fallback manifest.json"
+fi
+
 # Check if we should run migrations
 if [ "$RUN_MIGRATIONS" = "true" ] || [ "$APP_DEBUG" = "true" ]; then
     echo "Checking database and running migrations..."

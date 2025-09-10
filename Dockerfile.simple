@@ -1,9 +1,5 @@
-# Use PHP 8.2 with Apache
+# Simplified Dockerfile without Vite build (fallback option)
 FROM php:8.2-apache
-
-# Install Node.js 18.x
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -36,13 +32,12 @@ COPY . .
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-scripts
 
-# Install Node.js dependencies and build assets
-RUN npm ci \
-    && npm run build \
-    && rm -rf node_modules
-
 # Create storage directories if they don't exist
 RUN mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache
+
+# Create build directory and minimal manifest
+RUN mkdir -p public/build \
+    && echo '{}' > public/build/manifest.json
 
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www/html \
@@ -51,9 +46,6 @@ RUN chown -R www-data:www-data /var/www/html \
 
 # Generate application key (will be overridden by environment variable)
 RUN php artisan key:generate --show > /tmp/app-key.txt
-
-# Don't cache config in Docker build - will be done at runtime if needed
-# RUN php artisan config:cache && php artisan route:cache
 
 # Create Apache virtual host configuration
 RUN echo '<VirtualHost *:80>\n\
