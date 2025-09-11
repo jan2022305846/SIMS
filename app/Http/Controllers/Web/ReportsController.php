@@ -18,11 +18,18 @@ use Carbon\Carbon;
 class ReportsController extends Controller
 {
     /**
-     * Check if workflow_status column exists
+     * Check if workflow_status column exists (MySQL 5.5 compatible)
      */
     private function hasWorkflowColumn()
     {
-        return Schema::hasColumn('requests', 'workflow_status');
+        try {
+            // Use a simple query that works with MySQL 5.5
+            $result = DB::select("SHOW COLUMNS FROM requests LIKE 'workflow_status'");
+            return count($result) > 0;
+        } catch (\Exception $e) {
+            // If there's any error, assume column doesn't exist
+            return false;
+        }
     }
 
     /**

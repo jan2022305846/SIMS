@@ -8,12 +8,25 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration
 {
     /**
+     * Check if column exists (MySQL 5.5 compatible)
+     */
+    private function hasColumn($table, $column)
+    {
+        try {
+            $result = DB::select("SHOW COLUMNS FROM {$table} LIKE '{$column}'");
+            return count($result) > 0;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
      * Run the migrations.
      */
     public function up(): void
     {
         // Check if workflow_status column already exists
-        if (!Schema::hasColumn('requests', 'workflow_status')) {
+        if (!$this->hasColumn('requests', 'workflow_status')) {
             Schema::table('requests', function (Blueprint $table) {
                 // Add workflow_status column
                 $table->enum('workflow_status', [
@@ -42,60 +55,60 @@ return new class extends Migration
         
         // Add other workflow-related columns if they don't exist
         Schema::table('requests', function (Blueprint $table) {
-            if (!Schema::hasColumn('requests', 'approved_by_office_head_id')) {
+            if (!$this->hasColumn('requests', 'approved_by_office_head_id')) {
                 $table->unsignedBigInteger('approved_by_office_head_id')->nullable()->after('workflow_status');
             }
-            if (!Schema::hasColumn('requests', 'approved_by_admin_id')) {
+            if (!$this->hasColumn('requests', 'approved_by_admin_id')) {
                 $table->unsignedBigInteger('approved_by_admin_id')->nullable()->after('approved_by_office_head_id');
             }
-            if (!Schema::hasColumn('requests', 'fulfilled_by_id')) {
+            if (!$this->hasColumn('requests', 'fulfilled_by_id')) {
                 $table->unsignedBigInteger('fulfilled_by_id')->nullable()->after('approved_by_admin_id');
             }
-            if (!Schema::hasColumn('requests', 'claimed_by_id')) {
+            if (!$this->hasColumn('requests', 'claimed_by_id')) {
                 $table->unsignedBigInteger('claimed_by_id')->nullable()->after('fulfilled_by_id');
             }
             
             // Workflow timestamps
-            if (!Schema::hasColumn('requests', 'office_head_approval_date')) {
+            if (!$this->hasColumn('requests', 'office_head_approval_date')) {
                 $table->timestamp('office_head_approval_date')->nullable()->after('claimed_by_id');
             }
-            if (!Schema::hasColumn('requests', 'admin_approval_date')) {
+            if (!$this->hasColumn('requests', 'admin_approval_date')) {
                 $table->timestamp('admin_approval_date')->nullable()->after('office_head_approval_date');
             }
-            if (!Schema::hasColumn('requests', 'fulfilled_date')) {
+            if (!$this->hasColumn('requests', 'fulfilled_date')) {
                 $table->timestamp('fulfilled_date')->nullable()->after('admin_approval_date');
             }
-            if (!Schema::hasColumn('requests', 'claimed_date')) {
+            if (!$this->hasColumn('requests', 'claimed_date')) {
                 $table->timestamp('claimed_date')->nullable()->after('fulfilled_date');
             }
             
             // Enhanced information
-            if (!Schema::hasColumn('requests', 'department')) {
+            if (!$this->hasColumn('requests', 'department')) {
                 $table->string('department')->nullable()->after('claimed_date');
             }
-            if (!Schema::hasColumn('requests', 'office_head_notes')) {
+            if (!$this->hasColumn('requests', 'office_head_notes')) {
                 $table->text('office_head_notes')->nullable()->after('department');
             }
-            if (!Schema::hasColumn('requests', 'priority')) {
+            if (!$this->hasColumn('requests', 'priority')) {
                 $table->enum('priority', ['low', 'normal', 'high', 'urgent'])->default('normal')->after('office_head_notes');
             }
-            if (!Schema::hasColumn('requests', 'claim_slip_number')) {
+            if (!$this->hasColumn('requests', 'claim_slip_number')) {
                 $table->string('claim_slip_number')->nullable()->after('priority');
             }
-            if (!Schema::hasColumn('requests', 'attachments')) {
+            if (!$this->hasColumn('requests', 'attachments')) {
                 $table->json('attachments')->nullable()->after('claim_slip_number');
             }
         });
         
-        // Add indexes for better performance
+        // Add indexes for better performance (skip foreign keys for MySQL 5.5 compatibility)
         try {
             Schema::table('requests', function (Blueprint $table) {
                 $table->index(['workflow_status'], 'requests_workflow_status_index');
-                $table->index(['priority'], 'requests_priority_index');
+                $table->index(['priority'], 'requests_priority_index'); 
                 $table->index(['department'], 'requests_department_index');
             });
         } catch (\Exception $e) {
-            // Indexes may already exist, ignore errors
+            // Indexes may already exist or fail on older MySQL, ignore errors
         }
     }
 
@@ -133,7 +146,7 @@ return new class extends Migration
             ];
             
             foreach ($columns as $column) {
-                if (Schema::hasColumn('requests', $column)) {
+                if ($this->hasColumn('requests', $column)) {
                     $table->dropColumn($column);
                 }
             }
