@@ -79,6 +79,26 @@ class ReportsController extends Controller
      */
     public function dashboard(Request $request)
     {
+        // Check if workflow_status column exists
+        if (!$this->hasWorkflowColumn()) {
+            return view('admin.reports.dashboard', [
+                'data' => [
+                    'period' => 'Daily',
+                    'current_date' => Carbon::now()->format('F j, Y'),
+                    'chart_data' => [],
+                    'summary' => [
+                        'total_requests' => 0,
+                        'fulfilled_requests' => 0,
+                        'pending_requests' => 0,
+                        'total_value' => 0,
+                    ],
+                    'records' => collect([]),
+                ],
+                'period' => 'daily',
+                'message' => 'Dashboard temporarily unavailable while database is being updated.'
+            ]);
+        }
+
         $period = $request->get('period', 'daily'); // daily, weekly, monthly, annually
         $data = $this->getReportData($period);
         
@@ -1023,6 +1043,23 @@ class ReportsController extends Controller
      */
     public function dashboardData(Request $request)
     {
+        // Check if workflow_status column exists
+        if (!$this->hasWorkflowColumn()) {
+            return response()->json([
+                'period' => 'Daily',
+                'current_date' => Carbon::now()->format('F j, Y'),
+                'chart_data' => [],
+                'summary' => [
+                    'total_requests' => 0,
+                    'fulfilled_requests' => 0,
+                    'pending_requests' => 0,
+                    'total_value' => 0,
+                ],
+                'records' => [],
+                'message' => 'Dashboard data temporarily unavailable while database is being updated.'
+            ]);
+        }
+
         $period = $request->get('period', 'daily');
         $data = $this->getReportData($period);
         

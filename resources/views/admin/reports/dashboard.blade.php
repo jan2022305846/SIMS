@@ -38,6 +38,17 @@
                     </div>
                 </div>
 
+                @if(isset($message))
+                <!-- Temporary Message -->
+                <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <div>
+                        <strong>Dashboard Update:</strong> {{ $message }}
+                        <br><small>The system is being updated with enhanced features. Please try again in a few minutes.</small>
+                    </div>
+                </div>
+                @endif
+
                 <!-- Stats Overview -->
                 <div class="row g-3 mb-4" id="statsContainer">
                     <div class="col-md-3">
