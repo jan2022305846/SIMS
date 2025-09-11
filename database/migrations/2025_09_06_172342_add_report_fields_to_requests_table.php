@@ -12,11 +12,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('requests', function (Blueprint $table) {
-            $table->integer('quantity_approved')->nullable()->after('quantity');
-            $table->timestamp('processed_at')->nullable()->after('claimed_date');
-            $table->unsignedBigInteger('processed_by')->nullable()->after('processed_at');
-            
-            $table->foreign('processed_by')->references('id')->on('users')->onDelete('set null');
+            if (!Schema::hasColumn('requests', 'quantity_approved')) {
+                $table->integer('quantity_approved')->nullable()->after('quantity');
+            }
+            if (!Schema::hasColumn('requests', 'processed_at')) {
+                $table->timestamp('processed_at')->nullable()->after('claimed_date');
+            }
+            if (!Schema::hasColumn('requests', 'processed_by')) {
+                $table->unsignedBigInteger('processed_by')->nullable()->after('processed_at');
+                
+                // Add foreign key constraint only if column was created
+                $table->foreign('processed_by')->references('id')->on('users')->onDelete('set null');
+            }
         });
     }
 

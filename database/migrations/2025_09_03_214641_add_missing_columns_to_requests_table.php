@@ -12,9 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('requests', function (Blueprint $table) {
-            $table->text('purpose')->nullable()->after('quantity');
-            $table->date('needed_date')->nullable()->after('purpose');
-            $table->text('admin_notes')->nullable()->after('remarks');
+            // Check if columns don't exist before adding them
+            if (!Schema::hasColumn('requests', 'purpose')) {
+                $table->text('purpose')->nullable()->after('quantity');
+            }
+            if (!Schema::hasColumn('requests', 'needed_date')) {
+                $table->date('needed_date')->nullable()->after('purpose');
+            }
+            if (!Schema::hasColumn('requests', 'admin_notes')) {
+                $table->text('admin_notes')->nullable()->after('remarks');
+            }
         });
     }
 
@@ -24,7 +31,16 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('requests', function (Blueprint $table) {
-            $table->dropColumn(['purpose', 'needed_date', 'admin_notes']);
+            // Check if columns exist before dropping them
+            if (Schema::hasColumn('requests', 'admin_notes')) {
+                $table->dropColumn('admin_notes');
+            }
+            if (Schema::hasColumn('requests', 'needed_date')) {
+                $table->dropColumn('needed_date');
+            }
+            if (Schema::hasColumn('requests', 'purpose')) {
+                $table->dropColumn('purpose');
+            }
         });
     }
 };
