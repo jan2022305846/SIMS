@@ -18,18 +18,45 @@ use Carbon\Carbon;
 class ReportsController extends Controller
 {
     /**
-     * Safe query execution that handles missing workflow_status column
+     * Check if workflow_status column exists
      */
-    private function safeWorkflowQuery($callback)
+    private function hasWorkflowColumn()
     {
-        try {
-            return $callback();
-        } catch (\Illuminate\Database\QueryException $e) {
-            if (str_contains($e->getMessage(), 'workflow_status')) {
-                // If workflow_status column doesn't exist, return 0 or fallback
-                return 0;
+        return Schema::hasColumn('requests', 'workflow_status');
+    }
+
+    /**
+     * Get appropriate status query based on available columns
+     */
+    private function getRequestsByStatus($query, $status)
+    {
+        if ($this->hasWorkflowColumn()) {
+            switch ($status) {
+                case 'pending':
+                    return $query->where('workflow_status', 'pending');
+                case 'fulfilled':
+                    return $query->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); });
+                case 'approved':
+                    return $query->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed']);
+                case 'declined':
+                    return $query->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin']);
+                default:
+                    return $query;
             }
-            throw $e;
+        } else {
+            // Fallback to old status column
+            switch ($status) {
+                case 'pending':
+                    return $query->where('status', 'pending');
+                case 'fulfilled':
+                    return $query->where('status', 'fulfilled');
+                case 'approved':
+                    return $query->where('status', 'approved');
+                case 'declined':
+                    return $query->where('status', 'declined');
+                default:
+                    return $query;
+            }
         }
     }
 
@@ -39,9 +66,7 @@ class ReportsController extends Controller
             'total_items' => Item::count(),
             'low_stock_items' => Item::whereRaw('current_stock <= minimum_stock')->count(),
             'total_requests_this_month' => SupplyRequest::whereMonth('created_at', Carbon::now()->month)->count(),
-            'pending_requests' => $this->safeWorkflowQuery(function() {
-                return SupplyRequest::where('workflow_status', 'pending')->count();
-            }),
+            'pending_requests' => $this->getRequestsByStatus(SupplyRequest::query(), 'pending')->count(),
             'total_value' => Item::sum('total_value'),
             'categories_count' => Category::count(),
         ];
@@ -96,7 +121,7 @@ class ReportsController extends Controller
             $chartData[] = [
                 'date' => $checkDate->format('M j'),
                 'requests' => SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd])->count(),
-                'disbursements' => $this->getStatusQuery(
+                'disbursements' => $this->getRequestsByStatus(
                     SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd]), 
                     'fulfilled'
                 )->count(),
@@ -116,11 +141,11 @@ class ReportsController extends Controller
             'chart_data' => $chartData,
             'summary' => [
                 'total_requests' => $todayRequests->count(),
-                'fulfilled_requests' => $this->getStatusQuery(
+                'fulfilled_requests' => $this->getRequestsByStatus(
                     SupplyRequest::whereBetween('created_at', [$startDate, $endDate]), 
                     'fulfilled'
                 )->count(),
-                'pending_requests' => $this->getStatusQuery(
+                'pending_requests' => $this->getRequestsByStatus(
                     SupplyRequest::whereBetween('created_at', [$startDate, $endDate]), 
                     'pending'
                 )->count(),
@@ -147,7 +172,7 @@ class ReportsController extends Controller
                 'date' => $weekStart->format('M j') . ' - ' . $weekEnd->format('M j'),
                 'requests' => SupplyRequest::whereBetween('created_at', [$weekStart, $weekEnd])->count(),
                 'disbursements' => SupplyRequest::whereBetween('created_at', [$weekStart, $weekEnd])
-                    ->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                    ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
                 'value' => SupplyRequest::whereBetween('created_at', [$weekStart, $weekEnd])
                     ->with('item')->get()->sum(function($req) {
                         return $req->quantity * ($req->item->unit_price ?? 0);
@@ -163,7 +188,7 @@ class ReportsController extends Controller
             'chart_data' => $chartData,
             'summary' => [
                 'total_requests' => $weekRequests->count(),
-                'fulfilled_requests' => $weekRequests->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'fulfilled_requests' => $weekRequests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
                 'pending_requests' => $weekRequests->where('workflow_status', 'pending')->count(),
                 'total_value' => $weekRequests->sum(function($req) {
                     return $req->quantity * ($req->item->unit_price ?? 0);
@@ -188,7 +213,7 @@ class ReportsController extends Controller
                 'date' => $monthStart->format('M Y'),
                 'requests' => SupplyRequest::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
                 'disbursements' => SupplyRequest::whereBetween('created_at', [$monthStart, $monthEnd])
-                    ->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                    ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
                 'value' => SupplyRequest::whereBetween('created_at', [$monthStart, $monthEnd])
                     ->with('item')->get()->sum(function($req) {
                         return $req->quantity * ($req->item->unit_price ?? 0);
@@ -204,7 +229,7 @@ class ReportsController extends Controller
             'chart_data' => $chartData,
             'summary' => [
                 'total_requests' => $monthRequests->count(),
-                'fulfilled_requests' => $monthRequests->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'fulfilled_requests' => $monthRequests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
                 'pending_requests' => $monthRequests->where('workflow_status', 'pending')->count(),
                 'total_value' => $monthRequests->sum(function($req) {
                     return $req->quantity * ($req->item->unit_price ?? 0);
@@ -229,7 +254,7 @@ class ReportsController extends Controller
                 'date' => $yearStart->format('Y'),
                 'requests' => SupplyRequest::whereBetween('created_at', [$yearStart, $yearEnd])->count(),
                 'disbursements' => SupplyRequest::whereBetween('created_at', [$yearStart, $yearEnd])
-                    ->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                    ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
                 'value' => SupplyRequest::whereBetween('created_at', [$yearStart, $yearEnd])
                     ->with('item')->get()->sum(function($req) {
                         return $req->quantity * ($req->item->unit_price ?? 0);
@@ -245,7 +270,7 @@ class ReportsController extends Controller
             'chart_data' => $chartData,
             'summary' => [
                 'total_requests' => $yearRequests->count(),
-                'fulfilled_requests' => $yearRequests->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'fulfilled_requests' => $yearRequests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
                 'pending_requests' => $yearRequests->where('workflow_status', 'pending')->count(),
                 'total_value' => $yearRequests->sum(function($req) {
                     return $req->quantity * ($req->item->unit_price ?? 0);
@@ -354,7 +379,7 @@ class ReportsController extends Controller
             'approved_requests' => $requests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
             'pending_requests' => $requests->where('workflow_status', 'pending')->count(),
             'declined_requests' => $requests->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin'])->count(),
-            'fulfilled_requests' => $requests->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+            'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
             'average_processing_time' => $this->calculateAverageProcessingTime($requests),
             'most_requested_items' => $this->getMostRequestedItems($requests),
             'requests_by_department' => $this->getRequestsByDepartment($requests),
@@ -683,7 +708,7 @@ class ReportsController extends Controller
         
         $disbursements = SupplyRequest::with(['user', 'item', 'item.category'])
             ->whereDate('updated_at', $date)
-            ->whereIn('workflow_status', ['fulfilled', 'claimed'])
+            ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })
             ->orderBy('updated_at', 'desc')
             ->get();
 
@@ -720,7 +745,7 @@ class ReportsController extends Controller
                 ->get(),
             'disbursements' => SupplyRequest::with(['user', 'item', 'item.category'])
                 ->whereBetween('updated_at', [$startDate, $endDate])
-                ->whereIn('workflow_status', ['fulfilled', 'claimed'])
+                ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })
                 ->get(),
             'new_items' => Item::with('category')
                 ->whereBetween('created_at', [$startDate, $endDate])
@@ -859,7 +884,7 @@ class ReportsController extends Controller
         while ($current <= $end) {
             $dayRequests = SupplyRequest::whereDate('created_at', $current)->count();
             $dayDisbursements = SupplyRequest::whereDate('updated_at', $current)
-                ->whereIn('workflow_status', ['fulfilled', 'claimed'])
+                ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })
                 ->count();
                 
             $breakdown[$current->format('Y-m-d')] = [
@@ -940,7 +965,7 @@ class ReportsController extends Controller
             $breakdown[Carbon::createFromDate($year, $month, 1)->format('M')] = [
                 'requests' => SupplyRequest::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
                 'disbursements' => SupplyRequest::whereBetween('updated_at', [$monthStart, $monthEnd])
-                    ->whereIn('workflow_status', ['fulfilled', 'claimed'])->count()
+                    ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count()
             ];
         }
         
@@ -985,7 +1010,7 @@ class ReportsController extends Controller
             'total_requested_value' => $requests->sum(function($req) {
                 return $req->quantity * ($req->item->unit_price ?? 0);
             }),
-            'total_disbursed_value' => $requests->whereIn('workflow_status', ['fulfilled', 'claimed'])
+            'total_disbursed_value' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })
                 ->sum(function($req) {
                     return $req->quantity * ($req->item->unit_price ?? 0);
                 }),
