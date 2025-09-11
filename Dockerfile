@@ -49,8 +49,7 @@ RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
     && chmod -R 775 storage bootstrap/cache
 
-# Generate application key (will be overridden by environment variable)
-RUN php artisan key:generate --show > /tmp/app-key.txt
+# Application key will be provided via APP_KEY environment variable
 
 # Don't cache config in Docker build - will be done at runtime if needed
 # RUN php artisan config:cache && php artisan route:cache
