@@ -42,11 +42,17 @@ services:
       - key: SESSION_DRIVER
         value: database
       - key: SESSION_LIFETIME
-        value: 120
+        value: 240
       - key: SESSION_ENCRYPT
         value: false
       - key: SESSION_PATH
         value: /
+      - key: SESSION_SECURE_COOKIE
+        value: true
+      - key: SESSION_HTTP_ONLY
+        value: true
+      - key: SESSION_SAME_SITE
+        value: lax
       - key: BROADCAST_CONNECTION
         value: log
       - key: FILESYSTEM_DISK
@@ -88,7 +94,7 @@ services:
 # - DB_USERNAME=sql12798069 (your current production username)  
 # - DB_PASSWORD=HekRxArZvq (your current production password)
 # - RUN_MIGRATIONS=true (your current production setting)
-# - SESSION_DOMAIN (your app domain)
+# - SESSION_DOMAIN=sims-laravel.onrender.com (IMPORTANT: Set this to fix 419 CSRF errors)
 # - MEMCACHED_HOST (if using memcached)
 # - REDIS_HOST (if using redis)
 # - MAIL_USERNAME (your email credentials)

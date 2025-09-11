@@ -21,7 +21,6 @@
       "SESSION_LIFETIME": "240",
       "SESSION_ENCRYPT": "false",
       "SESSION_PATH": "/",
-      "SESSION_DOMAIN": ".onrender.com",
       "SESSION_SECURE_COOKIE": "true",
       "SESSION_HTTP_ONLY": "true",
       "SESSION_SAME_SITE": "lax",
@@ -54,7 +53,8 @@
         "DB_DATABASE": "sql12798069",
         "DB_USERNAME": "sql12798069",
         "DB_PASSWORD": "HekRxArZvq",
-        "RUN_MIGRATIONS": "true"
+        "RUN_MIGRATIONS": "true",
+        "SESSION_DOMAIN": "sims-laravel.onrender.com"
       },
       "required": [
         "APP_KEY",
