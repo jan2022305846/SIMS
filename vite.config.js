@@ -11,4 +11,21 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    css: {
+        preprocessorOptions: {
+            scss: {
+                // Suppress deprecation warnings from Bootstrap
+                quietDeps: true,
+                silenceDeprecations: ['import', 'global-builtin', 'color-functions']
+            }
+        }
+    },
+    build: {
+        // Suppress warnings during build
+        terserOptions: {
+            compress: {
+                warnings: false
+            }
+        }
+    }
 });
