@@ -11,18 +11,37 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
 class ReportsController extends Controller
 {
+    /**
+     * Safe query execution that handles missing workflow_status column
+     */
+    private function safeWorkflowQuery($callback)
+    {
+        try {
+            return $callback();
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (str_contains($e->getMessage(), 'workflow_status')) {
+                // If workflow_status column doesn't exist, return 0 or fallback
+                return 0;
+            }
+            throw $e;
+        }
+    }
+
     public function index()
     {
         $stats = [
             'total_items' => Item::count(),
             'low_stock_items' => Item::whereRaw('current_stock <= minimum_stock')->count(),
             'total_requests_this_month' => SupplyRequest::whereMonth('created_at', Carbon::now()->month)->count(),
-            'pending_requests' => SupplyRequest::where('workflow_status', 'pending')->count(),
+            'pending_requests' => $this->safeWorkflowQuery(function() {
+                return SupplyRequest::where('workflow_status', 'pending')->count();
+            }),
             'total_value' => Item::sum('total_value'),
             'categories_count' => Category::count(),
         ];
@@ -77,8 +96,10 @@ class ReportsController extends Controller
             $chartData[] = [
                 'date' => $checkDate->format('M j'),
                 'requests' => SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd])->count(),
-                'disbursements' => SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd])
-                    ->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'disbursements' => $this->getStatusQuery(
+                    SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd]), 
+                    'fulfilled'
+                )->count(),
                 'value' => SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd])
                     ->with('item')->get()->sum(function($req) {
                         return $req->quantity * ($req->item->unit_price ?? 0);
@@ -95,8 +116,14 @@ class ReportsController extends Controller
             'chart_data' => $chartData,
             'summary' => [
                 'total_requests' => $todayRequests->count(),
-                'fulfilled_requests' => $todayRequests->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
-                'pending_requests' => $todayRequests->where('workflow_status', 'pending')->count(),
+                'fulfilled_requests' => $this->getStatusQuery(
+                    SupplyRequest::whereBetween('created_at', [$startDate, $endDate]), 
+                    'fulfilled'
+                )->count(),
+                'pending_requests' => $this->getStatusQuery(
+                    SupplyRequest::whereBetween('created_at', [$startDate, $endDate]), 
+                    'pending'
+                )->count(),
                 'total_value' => $todayRequests->sum(function($req) {
                     return $req->quantity * ($req->item->unit_price ?? 0);
                 }),
