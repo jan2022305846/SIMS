@@ -53,6 +53,14 @@ services:
         value: true
       - key: SESSION_SAME_SITE
         value: lax
+      - key: FORCE_HTTPS
+        value: true
+      - key: SECURE_COOKIES
+        value: true
+      - key: ASSET_URL
+        value: https://sims-laravel.onrender.com
+      - key: MIX_ASSET_URL
+        value: https://sims-laravel.onrender.com
       - key: BROADCAST_CONNECTION
         value: log
       - key: FILESYSTEM_DISK
