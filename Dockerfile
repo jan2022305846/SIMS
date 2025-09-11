@@ -64,12 +64,12 @@ RUN echo '<VirtualHost *:80>\n\
     </Directory>\n\
 </VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
-# Copy startup scripts
-COPY docker-start-simple.sh /usr/local/bin/start-simple.sh
-RUN chmod +x /usr/local/bin/start-simple.sh
+# Copy startup script
+COPY docker-start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
 
 # Expose port
 EXPOSE 80
 
-# Start Apache (use simple startup by default)
-CMD ["/usr/local/bin/start-simple.sh"]
+# Start Apache with Laravel setup
+CMD ["/usr/local/bin/start.sh"]
