@@ -28,13 +28,6 @@ class AppServiceProvider extends ServiceProvider
         // Force HTTPS in production to prevent mixed content warnings
         if (config('app.env') === 'production') {
             URL::forceScheme('https');
-            
-            // Force Vite to use HTTPS for assets in production
-            if (class_exists(\Illuminate\Foundation\Vite::class)) {
-                \Illuminate\Foundation\Vite::useScriptTagAttributes([
-                    'crossorigin' => 'anonymous',
-                ]);
-            }
         }
         
         // Trust proxy headers for proper HTTPS detection behind reverse proxy (Render)
