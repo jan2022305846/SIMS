@@ -11,11 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('items', function (Blueprint $table) {
-            $table->string('brand')->nullable()->after('price');
-            $table->string('supplier')->nullable()->after('brand');
-            $table->integer('minimum_stock')->default(1)->after('supplier');
-        });
+        // This migration has been superseded by 2025_09_06_174232_add_missing_columns_to_items_table
+        // which includes these columns and more. Skip to avoid conflicts.
+        return;
     }
 
     /**
@@ -23,8 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('items', function (Blueprint $table) {
-            $table->dropColumn(['brand', 'supplier', 'minimum_stock']);
-        });
+        // This migration was superseded, so no action needed on rollback
+        return;
     }
 };
