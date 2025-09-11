@@ -76,3 +76,25 @@ Thumbs.db
 # Docker local overrides
 docker-compose.override.yml
 .dockerignore.local
+
+# Cleanup and temporary files
+cleanup_backup/
+*.tmp
+*.temp
+test_*.php
+debug_*.php
+simulate_*.php
+*_backup.*
+*.sql.bak
+
+# Development and testing
+local_test/
+temp_files/
+scratch/
+CLEANUP_ANALYSIS.md
+
+# Old fix and migration files
+*FIX*.md
+*URGENT*.md
+*MIGRATION*.md
+*COMPATIBILITY*.md
