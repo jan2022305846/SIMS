@@ -217,6 +217,18 @@
                                                 </div>
                                                 <i class="fas fa-chevron-right text-muted"></i>
                                             </a>
+                                            <a href="{{ route('activity-logs.index') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="bg-purple bg-opacity-10 rounded-circle p-2 me-3">
+                                                        <i class="fas fa-history text-purple"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-medium">Activity Logs & Audit Trail</div>
+                                                        <small class="text-muted">Complete system activity tracking and audit logs</small>
+                                                    </div>
+                                                </div>
+                                                <i class="fas fa-chevron-right text-muted"></i>
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -325,3 +337,12 @@
     </div>
 </div>
 @endsection
+
+<style>
+    .bg-purple {
+        background-color: #8b5cf6 !important;
+    }
+    .text-purple {
+        color: #8b5cf6 !important;
+    }
+</style>

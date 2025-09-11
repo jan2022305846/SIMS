@@ -180,17 +180,41 @@
                                         </a>
                                     </li>
                                     <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('categories.*') ? 'active' : '' }}" 
-                                           href="{{ route('categories.index') }}"
-                                           style="{{ request()->routeIs('categories.*') ? 'color: #fcb315 !important; border-bottom: 2px solid #fcb315;' : 'color: white;' }}">
-                                            Categories
-                                        </a>
-                                    </li>
-                                    <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('requests.*') ? 'active' : '' }}" 
                                            href="{{ route('requests.manage') }}"
                                            style="{{ request()->routeIs('requests.*') ? 'color: #fcb315 !important; border-bottom: 2px solid #fcb315;' : 'color: white;' }}">
                                             Requests
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('reports*') || request()->routeIs('activity-logs*') ? 'active' : '' }}" 
+                                           href="{{ route('reports') }}"
+                                           style="{{ request()->routeIs('reports*') || request()->routeIs('activity-logs*') ? 'color: #fcb315 !important; border-bottom: 2px solid #fcb315;' : 'color: white;' }}">
+                                            Reports
+                                        </a>
+                                    </li>
+                                @endif
+
+                                @if(auth()->user()->role === 'office_head')
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('items.browse') ? 'active' : '' }}" 
+                                           href="{{ route('items.browse') }}"
+                                           style="{{ request()->routeIs('items.browse') ? 'color: #fcb315 !important; border-bottom: 2px solid #fcb315;' : 'color: white;' }}">
+                                            Browse Items
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('office-head.requests*') ? 'active' : '' }}" 
+                                           href="{{ route('office-head.requests') }}"
+                                           style="{{ request()->routeIs('office-head.requests*') ? 'color: #fcb315 !important; border-bottom: 2px solid #fcb315;' : 'color: white;' }}">
+                                            Office Requests
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('requests.my') ? 'active' : '' }}" 
+                                           href="{{ route('requests.my') }}"
+                                           style="{{ request()->routeIs('requests.my') ? 'color: #fcb315 !important; border-bottom: 2px solid #fcb315;' : 'color: white;' }}">
+                                            My Requests
                                         </a>
                                     </li>
                                     <li class="nav-item">
@@ -200,16 +224,9 @@
                                             Reports
                                         </a>
                                     </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('activity-logs*') ? 'active' : '' }}" 
-                                           href="{{ route('activity-logs.index') }}"
-                                           style="{{ request()->routeIs('activity-logs*') ? 'color: #fcb315 !important; border-bottom: 2px solid #fcb315;' : 'color: white;' }}">
-                                            Activity Logs
-                                        </a>
-                                    </li>
                                 @endif
 
-                                @if(in_array(auth()->user()->role, ['faculty', 'admin']))
+                                @if(auth()->user()->role === 'faculty')
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('items.browse') ? 'active' : '' }}" 
                                            href="{{ route('items.browse') }}"
