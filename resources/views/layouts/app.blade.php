@@ -308,5 +308,8 @@
         // The mobile menu should now work with Bootstrap's built-in collapse functionality
         // No custom JavaScript needed as Bootstrap handles the toggle automatically
     </script>
+
+    <!-- Additional Scripts Stack -->
+    @stack('scripts')
 </body>
 </html>

@@ -28,6 +28,24 @@ class QRCodeController extends Controller
     }
 
     /**
+     * Display QR code test page
+     */
+    public function test(): View
+    {
+        // Get some sample items for testing
+        $items = Item::with('category')->take(5)->get();
+        return view('qr.test', compact('items'));
+    }
+
+    /**
+     * Simple QR scanner test page
+     */
+    public function simpleTest(): View
+    {
+        return view('qr.simple-test');
+    }
+
+    /**
      * Generate QR code for an item
      */
     public function generate(Item $item): JsonResponse

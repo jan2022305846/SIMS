@@ -55,6 +55,24 @@ Route::middleware(['auth'])->group(function () {
         // Add explicit show route
         Route::get('requests/{request}/details', [RequestController::class, 'show'])->name('requests.show');
         
+        // Admin Reports
+        Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
+        Route::get('reports/dashboard', [ReportsController::class, 'dashboard'])->name('reports.dashboard');
+        Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
+        Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
+        Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
+        Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
+        Route::get('reports/department-report', [ReportsController::class, 'departmentReport'])->name('reports.department-report');
+        Route::get('reports/financial-summary', [ReportsController::class, 'financialSummary'])->name('reports.financial-summary');
+        Route::get('reports/user-activity', [ReportsController::class, 'userActivityReport'])->name('reports.user-activity');
+        Route::get('reports/custom-report', [ReportsController::class, 'customReport'])->name('reports.custom-report');
+        Route::get('reports/daily-transactions', [ReportsController::class, 'dailyTransactions'])->name('reports.daily-transactions');
+        Route::get('reports/daily-disbursement', [ReportsController::class, 'dailyDisbursement'])->name('reports.daily-disbursement');
+        Route::get('reports/weekly-summary', [ReportsController::class, 'weeklySummary'])->name('reports.weekly-summary');
+        Route::get('reports/weekly-requests', [ReportsController::class, 'weeklyRequests'])->name('reports.weekly-requests');
+        Route::get('reports/monthly-summary', [ReportsController::class, 'monthlySummary'])->name('reports.monthly-summary');
+        Route::get('reports/annual-summary', [ReportsController::class, 'annualSummary'])->name('reports.annual-summary');
+        
         Route::resource('requests', RequestController::class)->except(['create', 'store', 'show']);
     });
     
@@ -67,6 +85,8 @@ Route::middleware(['auth'])->group(function () {
         
         // Reports
         Route::get('reports', [ReportsController::class, 'index'])->name('reports');
+        Route::get('reports/dashboard', [ReportsController::class, 'dashboard'])->name('reports.dashboard');
+        Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
         Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
         Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
@@ -93,6 +113,8 @@ Route::middleware(['auth'])->group(function () {
         
         // QR Code scanner interface
         Route::get('qr/scanner', [QRCodeController::class, 'scanner'])->name('qr.scanner');
+        Route::get('qr/test', [QRCodeController::class, 'test'])->name('qr.test');
+        Route::get('qr/simple-test', [QRCodeController::class, 'simpleTest'])->name('qr.simple-test');
         Route::post('qr/scan', [QRCodeController::class, 'scan'])->name('qr.scan');
     });
     

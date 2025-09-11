@@ -30,6 +30,204 @@ class ReportsController extends Controller
         return view('admin.reports.index', compact('stats'));
     }
 
+    /**
+     * Reports Dashboard with Charts
+     */
+    public function dashboard(Request $request)
+    {
+        $period = $request->get('period', 'daily'); // daily, weekly, monthly, annually
+        $data = $this->getReportData($period);
+        
+        return view('admin.reports.dashboard', compact('data', 'period'));
+    }
+
+    /**
+     * Get report data based on period
+     */
+    private function getReportData($period)
+    {
+        $now = Carbon::now();
+        
+        switch ($period) {
+            case 'daily':
+                return $this->getDailyReportData($now);
+            case 'weekly': 
+                return $this->getWeeklyReportData($now);
+            case 'monthly':
+                return $this->getMonthlyReportData($now);
+            case 'annually':
+                return $this->getAnnualReportData($now);
+            default:
+                return $this->getDailyReportData($now);
+        }
+    }
+
+    private function getDailyReportData($date)
+    {
+        $startDate = $date->copy()->startOfDay();
+        $endDate = $date->copy()->endOfDay();
+        
+        // Get last 7 days for chart
+        $chartData = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $checkDate = $date->copy()->subDays($i);
+            $dayStart = $checkDate->copy()->startOfDay();
+            $dayEnd = $checkDate->copy()->endOfDay();
+            
+            $chartData[] = [
+                'date' => $checkDate->format('M j'),
+                'requests' => SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd])->count(),
+                'disbursements' => SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd])
+                    ->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'value' => SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd])
+                    ->with('item')->get()->sum(function($req) {
+                        return $req->quantity * ($req->item->unit_price ?? 0);
+                    })
+            ];
+        }
+        
+        // Today's data
+        $todayRequests = SupplyRequest::whereBetween('created_at', [$startDate, $endDate])->get();
+        
+        return [
+            'period' => 'Daily',
+            'current_date' => $date->format('F j, Y'),
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_requests' => $todayRequests->count(),
+                'fulfilled_requests' => $todayRequests->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'pending_requests' => $todayRequests->where('workflow_status', 'pending')->count(),
+                'total_value' => $todayRequests->sum(function($req) {
+                    return $req->quantity * ($req->item->unit_price ?? 0);
+                }),
+            ],
+            'records' => $todayRequests->load(['user', 'item', 'item.category'])
+        ];
+    }
+
+    private function getWeeklyReportData($date)
+    {
+        $startDate = $date->copy()->startOfWeek();
+        $endDate = $date->copy()->endOfWeek();
+        
+        // Get last 8 weeks for chart
+        $chartData = [];
+        for ($i = 7; $i >= 0; $i--) {
+            $weekStart = $date->copy()->subWeeks($i)->startOfWeek();
+            $weekEnd = $date->copy()->subWeeks($i)->endOfWeek();
+            
+            $chartData[] = [
+                'date' => $weekStart->format('M j') . ' - ' . $weekEnd->format('M j'),
+                'requests' => SupplyRequest::whereBetween('created_at', [$weekStart, $weekEnd])->count(),
+                'disbursements' => SupplyRequest::whereBetween('created_at', [$weekStart, $weekEnd])
+                    ->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'value' => SupplyRequest::whereBetween('created_at', [$weekStart, $weekEnd])
+                    ->with('item')->get()->sum(function($req) {
+                        return $req->quantity * ($req->item->unit_price ?? 0);
+                    })
+            ];
+        }
+        
+        $weekRequests = SupplyRequest::whereBetween('created_at', [$startDate, $endDate])->get();
+        
+        return [
+            'period' => 'Weekly',
+            'current_date' => $startDate->format('M j') . ' - ' . $endDate->format('M j, Y'),
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_requests' => $weekRequests->count(),
+                'fulfilled_requests' => $weekRequests->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'pending_requests' => $weekRequests->where('workflow_status', 'pending')->count(),
+                'total_value' => $weekRequests->sum(function($req) {
+                    return $req->quantity * ($req->item->unit_price ?? 0);
+                }),
+            ],
+            'records' => $weekRequests->load(['user', 'item', 'item.category'])
+        ];
+    }
+
+    private function getMonthlyReportData($date)
+    {
+        $startDate = $date->copy()->startOfMonth();
+        $endDate = $date->copy()->endOfMonth();
+        
+        // Get last 12 months for chart
+        $chartData = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $monthStart = $date->copy()->subMonths($i)->startOfMonth();
+            $monthEnd = $date->copy()->subMonths($i)->endOfMonth();
+            
+            $chartData[] = [
+                'date' => $monthStart->format('M Y'),
+                'requests' => SupplyRequest::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
+                'disbursements' => SupplyRequest::whereBetween('created_at', [$monthStart, $monthEnd])
+                    ->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'value' => SupplyRequest::whereBetween('created_at', [$monthStart, $monthEnd])
+                    ->with('item')->get()->sum(function($req) {
+                        return $req->quantity * ($req->item->unit_price ?? 0);
+                    })
+            ];
+        }
+        
+        $monthRequests = SupplyRequest::whereBetween('created_at', [$startDate, $endDate])->get();
+        
+        return [
+            'period' => 'Monthly',
+            'current_date' => $startDate->format('F Y'),
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_requests' => $monthRequests->count(),
+                'fulfilled_requests' => $monthRequests->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'pending_requests' => $monthRequests->where('workflow_status', 'pending')->count(),
+                'total_value' => $monthRequests->sum(function($req) {
+                    return $req->quantity * ($req->item->unit_price ?? 0);
+                }),
+            ],
+            'records' => $monthRequests->load(['user', 'item', 'item.category'])
+        ];
+    }
+
+    private function getAnnualReportData($date)
+    {
+        $startDate = $date->copy()->startOfYear();
+        $endDate = $date->copy()->endOfYear();
+        
+        // Get last 5 years for chart
+        $chartData = [];
+        for ($i = 4; $i >= 0; $i--) {
+            $yearStart = $date->copy()->subYears($i)->startOfYear();
+            $yearEnd = $date->copy()->subYears($i)->endOfYear();
+            
+            $chartData[] = [
+                'date' => $yearStart->format('Y'),
+                'requests' => SupplyRequest::whereBetween('created_at', [$yearStart, $yearEnd])->count(),
+                'disbursements' => SupplyRequest::whereBetween('created_at', [$yearStart, $yearEnd])
+                    ->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'value' => SupplyRequest::whereBetween('created_at', [$yearStart, $yearEnd])
+                    ->with('item')->get()->sum(function($req) {
+                        return $req->quantity * ($req->item->unit_price ?? 0);
+                    })
+            ];
+        }
+        
+        $yearRequests = SupplyRequest::whereBetween('created_at', [$startDate, $endDate])->get();
+        
+        return [
+            'period' => 'Annual',
+            'current_date' => $startDate->format('Y'),
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_requests' => $yearRequests->count(),
+                'fulfilled_requests' => $yearRequests->whereIn('workflow_status', ['fulfilled', 'claimed'])->count(),
+                'pending_requests' => $yearRequests->where('workflow_status', 'pending')->count(),
+                'total_value' => $yearRequests->sum(function($req) {
+                    return $req->quantity * ($req->item->unit_price ?? 0);
+                }),
+            ],
+            'records' => $yearRequests->load(['user', 'item', 'item.category'])
+        ];
+    }
+
     public function inventorySummary(Request $request)
     {
         $query = Item::with('category');
@@ -766,5 +964,16 @@ class ReportsController extends Controller
                 }),
             'current_inventory_value' => Item::sum('total_value'),
         ];
+    }
+
+    /**
+     * AJAX endpoint for dashboard data
+     */
+    public function dashboardData(Request $request)
+    {
+        $period = $request->get('period', 'daily');
+        $data = $this->getReportData($period);
+        
+        return response()->json($data);
     }
 }

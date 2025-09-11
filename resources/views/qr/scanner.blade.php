@@ -1,89 +1,132 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-4xl mx-auto">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h1 class="text-2xl font-bold text-gray-900">QR Code Scanner</h1>
-                <a href="{{ route('dashboard') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                    Back to Dashboard
-                </a>
-            </div>
-
-            <!-- Scanner Instructions -->
-            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-blue-700">
-                            <strong>Instructions:</strong> Position the QR code within the scanner frame. The scanner will automatically detect and process the code when it's clearly visible.
-                        </p>
-                    </div>
+<div class="container-fluid">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12">
+                <!-- Header -->
+                <div class="d-flex justify-content-between align-items-center mb-4 mt-5">
+                    <h2 class="h3 fw-semibold text-dark mb-0">
+                        <i class="fas fa-qrcode me-2 text-primary"></i>
+                        QR Code Scanner
+                    </h2>
+                    <a href="{{ route('dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                    </a>
                 </div>
-            </div>
 
-            <!-- QR Scanner Area -->
-            <div class="text-center">
-                <div id="qr-scanner" class="inline-block">
-                    <div id="qr-video-container" class="relative mx-auto mb-4">
-                        <video id="qr-video" class="w-full max-w-md rounded-lg border-2 border-gray-300" autoplay></video>
-                        <div class="absolute inset-0 border-4 border-red-500 opacity-50 rounded-lg pointer-events-none" id="qr-overlay">
-                            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 border-4 border-red-500 bg-transparent"></div>
+                <!-- Instructions -->
+                <div class="alert alert-info mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle fa-lg me-3"></i>
+                        <div>
+                            <h6 class="alert-heading mb-1">How to use the scanner</h6>
+                            <p class="mb-0">Click "Start Scanner" and position the QR code within the scanner frame. The scanner will automatically detect and process the code.</p>
                         </div>
                     </div>
-                    
-                    <div class="space-x-4">
-                        <button id="start-scanner" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-                            Start Scanner
-                        </button>
-                        <button id="stop-scanner" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" disabled>
-                            Stop Scanner
-                        </button>
+                </div>
+
+                <!-- Scanner Section -->
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-camera me-2"></i>
+                                    Camera Scanner
+                                </h5>
+                            </div>
+                            <div class="card-body text-center">
+                                <!-- Scanner Area -->
+                                <div id="qr-reader" style="width: 100%; max-width: 400px; margin: 0 auto;"></div>
+                                
+                                <!-- Scanner Controls -->
+                                <div class="mt-3">
+                                    <button id="start-scanner" class="btn btn-success me-2">
+                                        <i class="fas fa-play me-1"></i>Start Scanner
+                                    </button>
+                                    <button id="stop-scanner" class="btn btn-danger" disabled>
+                                        <i class="fas fa-stop me-1"></i>Stop Scanner
+                                    </button>
+                                </div>
+                                
+                                <!-- Status -->
+                                <div id="scanner-status" class="mt-3 text-muted"></div>
+                                
+                                <!-- Loading Spinner -->
+                                <div id="loading-spinner" class="mt-3 d-none">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2 text-muted">Initializing camera...</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Manual Input Option -->
-                <div class="mt-8 p-4 bg-gray-50 rounded-lg">
-                    <h3 class="text-lg font-semibold mb-4">Manual QR Code Input</h3>
-                    <div class="flex space-x-2">
-                        <input type="text" id="manual-qr-input" placeholder="Paste QR code data here..." 
-                               class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <button id="process-manual-qr" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Process
-                        </button>
+                <!-- Manual Input Section -->
+                <div class="row justify-content-center mt-4">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-keyboard me-2"></i>
+                                    Manual Input
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted mb-3">If the camera scanner isn't working, you can manually paste the QR code data here:</p>
+                                <div class="input-group">
+                                    <input type="text" id="manual-qr-input" class="form-control" 
+                                           placeholder="Paste QR code data here...">
+                                    <button id="process-manual-qr" class="btn btn-primary">
+                                        <i class="fas fa-search me-1"></i>Process
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Scanner Status -->
-            <div id="scanner-status" class="mt-4 text-center text-gray-600"></div>
+                <!-- Results Section -->
+                <div class="row justify-content-center mt-4">
+                    <div class="col-lg-8">
+                        <!-- Success Results -->
+                        <div id="scan-results" class="card border-success d-none">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    Scan Successful!
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="scan-results-content"></div>
+                                <div class="mt-3">
+                                    <button id="view-item" class="btn btn-primary me-2">
+                                        <i class="fas fa-eye me-1"></i>View Item Details
+                                    </button>
+                                    <button id="scan-another" class="btn btn-outline-secondary">
+                                        <i class="fas fa-qrcode me-1"></i>Scan Another
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
 
-            <!-- Scan Results -->
-            <div id="scan-results" class="mt-6 hidden">
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h3 class="text-lg font-semibold text-green-800 mb-2">Scan Successful!</h3>
-                    <div id="scan-results-content"></div>
-                    <div class="mt-4">
-                        <button id="view-item" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2">
-                            View Item Details
-                        </button>
-                        <button id="scan-another" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Scan Another
-                        </button>
+                        <!-- Error Results -->
+                        <div id="error-message" class="card border-danger d-none">
+                            <div class="card-header bg-danger text-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Error
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p id="error-text" class="text-danger mb-0"></p>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Error Messages -->
-            <div id="error-message" class="mt-4 hidden">
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <h3 class="text-lg font-semibold text-red-800 mb-2">Error</h3>
-                    <p id="error-text" class="text-red-700"></p>
                 </div>
             </div>
         </div>
@@ -93,10 +136,16 @@
 <!-- QR Scanner JavaScript -->
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
+// Debug: Test if script is loading
+console.log('QR Scanner script loaded');
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded');
+    
     let html5QrCode = null;
     let scannerStarted = false;
 
+    // Get DOM elements
     const startButton = document.getElementById('start-scanner');
     const stopButton = document.getElementById('stop-scanner');
     const statusDiv = document.getElementById('scanner-status');
@@ -104,57 +153,106 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorDiv = document.getElementById('error-message');
     const manualInput = document.getElementById('manual-qr-input');
     const processManualButton = document.getElementById('process-manual-qr');
+    const loadingSpinner = document.getElementById('loading-spinner');
 
-    // Initialize scanner
-    function initScanner() {
-        html5QrCode = new Html5Qrcode("qr-video-container");
-    }
+    // Debug: Check if elements exist
+    console.log('Start button:', startButton);
+    console.log('Stop button:', stopButton);
+    console.log('HTML5Qrcode available:', typeof Html5Qrcode !== 'undefined');
 
-    // Start scanner
+    // Start scanner function
     function startScanner() {
-        if (!html5QrCode) initScanner();
+        console.log('Starting scanner...');
+        
+        // Quick test - change button text to show it's working
+        startButton.textContent = 'Starting...';
+        startButton.disabled = true;
+        
+        showLoading(true);
+        hideMessages();
+        
+        // Initialize Html5Qrcode if not already done
+        if (!html5QrCode) {
+            try {
+                html5QrCode = new Html5Qrcode("qr-reader");
+                console.log('Html5Qrcode initialized successfully');
+            } catch (error) {
+                console.error('Error initializing Html5Qrcode:', error);
+                showError('Failed to initialize scanner: ' + error.message);
+                startButton.textContent = 'Start Scanner';
+                startButton.disabled = false;
+                showLoading(false);
+                return;
+            }
+        }
 
+        // Get cameras and start scanning
         Html5Qrcode.getCameras().then(devices => {
+            console.log('Cameras found:', devices.length);
+            
             if (devices && devices.length) {
                 const cameraId = devices[0].id;
+                console.log('Using camera:', cameraId);
+                
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0
+                };
                 
                 html5QrCode.start(
                     cameraId,
-                    {
-                        fps: 10,
-                        qrbox: { width: 250, height: 250 }
-                    },
+                    config,
                     (decodedText, decodedResult) => {
+                        console.log('QR Code detected:', decodedText);
                         processQRCode(decodedText);
                         stopScanner();
                     },
                     (errorMessage) => {
-                        // Handle scan errors silently
+                        // Handle scan errors silently - this happens frequently while scanning
+                        // console.log('Scan error (normal):', errorMessage);
                     }
                 ).then(() => {
+                    console.log('Scanner started successfully');
                     scannerStarted = true;
+                    startButton.innerHTML = '<i class="fas fa-play me-1"></i>Start Scanner';
                     startButton.disabled = true;
                     stopButton.disabled = false;
+                    showLoading(false);
                     statusDiv.textContent = 'Scanner active. Position QR code in the frame.';
+                    statusDiv.className = 'mt-3 text-success';
                 }).catch(err => {
-                    showError('Failed to start scanner: ' + err);
+                    console.error('Error starting scanner:', err);
+                    showLoading(false);
+                    startButton.innerHTML = '<i class="fas fa-play me-1"></i>Start Scanner';
+                    startButton.disabled = false;
+                    showError('Failed to start scanner: ' + err.message);
                 });
             } else {
-                showError('No cameras found.');
+                showLoading(false);
+                startButton.innerHTML = '<i class="fas fa-play me-1"></i>Start Scanner';
+                startButton.disabled = false;
+                showError('No cameras found. Please ensure you have a camera connected and grant camera permissions.');
             }
         }).catch(err => {
-            showError('Error accessing cameras: ' + err);
+            console.error('Error accessing cameras:', err);
+            showLoading(false);
+            startButton.innerHTML = '<i class="fas fa-play me-1"></i>Start Scanner';
+            startButton.disabled = false;
+            showError('Error accessing camera: ' + err.message + '. Please grant camera permissions and refresh the page.');
         });
     }
 
-    // Stop scanner
+    // Stop scanner function
     function stopScanner() {
         if (html5QrCode && scannerStarted) {
             html5QrCode.stop().then(() => {
+                console.log('Scanner stopped');
                 scannerStarted = false;
                 startButton.disabled = false;
                 stopButton.disabled = true;
                 statusDiv.textContent = 'Scanner stopped.';
+                statusDiv.className = 'mt-3 text-muted';
             }).catch(err => {
                 console.error('Error stopping scanner:', err);
             });
@@ -163,8 +261,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Process QR code data
     function processQRCode(qrData) {
+        console.log('Processing QR data:', qrData);
         hideMessages();
         statusDiv.textContent = 'Processing QR code...';
+        statusDiv.className = 'mt-3 text-info';
 
         fetch('{{ route("qr.scan") }}', {
             method: 'POST',
@@ -172,10 +272,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
-            body: JSON.stringify({ qr_data: qrData })
+            body: JSON.stringify({ 
+                qr_data: qrData,
+                location: 'QR Scanner Page',
+                scan_method: 'camera'
+            })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Server response:', data);
             statusDiv.textContent = '';
             
             if (data.success) {
@@ -185,6 +293,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
+            console.error('Network error:', error);
             statusDiv.textContent = '';
             showError('Network error: ' + error.message);
         });
@@ -196,56 +305,112 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const resultsContent = document.getElementById('scan-results-content');
         resultsContent.innerHTML = `
-            <div class="space-y-2">
-                <p><strong>Item:</strong> ${item.name}</p>
-                <p><strong>Category:</strong> ${item.category.name}</p>
-                <p><strong>Location:</strong> ${item.location}</p>
-                <p><strong>Current Stock:</strong> ${item.current_stock || item.quantity}</p>
-                <p><strong>Condition:</strong> ${item.condition}</p>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="fw-bold">Item Information</h6>
+                    <p><strong>Name:</strong> ${item.name}</p>
+                    <p><strong>Category:</strong> ${item.category ? item.category.name : 'N/A'}</p>
+                    <p><strong>Location:</strong> ${item.location || 'Not specified'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="fw-bold">Stock Information</h6>
+                    <p><strong>Current Stock:</strong> ${item.current_stock || item.quantity || 0}</p>
+                    <p><strong>Condition:</strong> ${item.condition || 'Good'}</p>
+                    <p><strong>Status:</strong> <span class="badge bg-success">Active</span></p>
+                </div>
             </div>
         `;
         
+        // Set up view item button
         document.getElementById('view-item').onclick = function() {
             window.location.href = redirectUrl;
         };
         
-        resultsDiv.classList.remove('hidden');
+        resultsDiv.classList.remove('d-none');
     }
 
     // Show error message
     function showError(message) {
         hideMessages();
         document.getElementById('error-text').textContent = message;
-        errorDiv.classList.remove('hidden');
+        errorDiv.classList.remove('d-none');
     }
 
     // Hide all messages
     function hideMessages() {
-        resultsDiv.classList.add('hidden');
-        errorDiv.classList.add('hidden');
+        resultsDiv.classList.add('d-none');
+        errorDiv.classList.add('d-none');
     }
 
-    // Event listeners
-    startButton.addEventListener('click', startScanner);
-    stopButton.addEventListener('click', stopScanner);
-    
-    processManualButton.addEventListener('click', function() {
-        const qrData = manualInput.value.trim();
-        if (qrData) {
-            processQRCode(qrData);
+    // Show/hide loading
+    function showLoading(show) {
+        if (show) {
+            loadingSpinner.classList.remove('d-none');
+            startButton.disabled = true;
         } else {
-            showError('Please enter QR code data.');
+            loadingSpinner.classList.add('d-none');
+            if (!scannerStarted) {
+                startButton.disabled = false;
+            }
         }
-    });
+    }
+
+    // Event listeners with debugging
+    if (startButton) {
+        startButton.addEventListener('click', function() {
+            console.log('Start button clicked');
+            startScanner();
+        });
+        console.log('Start button event listener added');
+    } else {
+        console.error('Start button not found!');
+    }
+    
+    if (stopButton) {
+        stopButton.addEventListener('click', function() {
+            console.log('Stop button clicked');
+            stopScanner();
+        });
+    }
+    
+    if (processManualButton) {
+        processManualButton.addEventListener('click', function() {
+            const qrData = manualInput.value.trim();
+            if (qrData) {
+                console.log('Processing manual input:', qrData);
+                processQRCode(qrData);
+            } else {
+                showError('Please enter QR code data.');
+            }
+        });
+    }
     
     document.getElementById('scan-another').addEventListener('click', function() {
+        console.log('Scan another clicked');
         hideMessages();
         manualInput.value = '';
         startScanner();
     });
 
-    // Initialize
-    initScanner();
+    // Test if HTML5 QR Code library is loaded
+    if (typeof Html5Qrcode === 'undefined') {
+        console.error('HTML5 QR Code library not loaded');
+        showError('QR Scanner library failed to load. Please refresh the page.');
+    } else {
+        console.log('QR Scanner library loaded successfully');
+        statusDiv.textContent = 'QR Scanner ready. Click "Start Scanner" to begin.';
+        statusDiv.className = 'mt-3 text-muted';
+    }
+
+    // Test button functionality immediately
+    console.log('Testing button click detection...');
+    if (startButton) {
+        startButton.onclick = function() {
+            console.log('Button clicked via onclick!');
+            alert('Button works! Now starting scanner...');
+            startScanner();
+        };
+    }
 });
 </script>
 @endsection
