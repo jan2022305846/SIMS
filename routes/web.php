@@ -15,6 +15,8 @@ use App\Http\Controllers\QRCodeController;
 Route::get('login', [CustomLoginController::class, 'showLoginForm'])->name('login');
 Route::post('login', [CustomLoginController::class, 'login']);
 Route::post('logout', [CustomLoginController::class, 'logout'])->name('logout');
+// Handle GET requests to logout (for bookmarks/direct access) - use same controller method
+Route::get('logout', [CustomLoginController::class, 'logout'])->name('logout.get');
 
 // Redirect root to dashboard
 Route::get('/', function () {

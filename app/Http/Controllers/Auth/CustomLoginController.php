@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Log;
 
 class CustomLoginController extends Controller
 {
@@ -100,5 +101,53 @@ class CustomLoginController extends Controller
             $this->username() => 'required|string',
             'password' => 'required|string',
         ]);
+    }
+
+    /**
+     * Log the user out of the application.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
+     */
+    public function logout(Request $request)
+    {
+        // Log the request method for debugging
+        Log::info('Logout request received', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'user_agent' => $request->userAgent(),
+            'ip' => $request->ip()
+        ]);
+
+        // Perform logout
+        $this->guard()->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        // If this was called from the loggedOut hook
+        if ($response = $this->loggedOut($request)) {
+            return $response;
+        }
+
+        // Handle JSON requests
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Logged out successfully'], 200);
+        }
+
+        // Redirect to login with success message
+        return redirect()->route('login')->with('success', 'You have been logged out successfully.');
+    }
+
+    /**
+     * The user has been logged out of the application.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return mixed
+     */
+    protected function loggedOut(Request $request)
+    {
+        // This method can be overridden to provide custom post-logout logic
+        return null;
     }
 }
