@@ -1,0 +1,187 @@
+/* ===========================================
+   DASHBOARD - CLEAN MINIMALISTIC DESIGN
+   Fixed Container Spacing Issues
+   =========================================== */
+
+/* Dashboard Cards - Simple and Clean */
+.dashboard-card,
+.card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px var(--shadow-sm);
+    transition: all 0.2s ease;
+    border-radius: 8px;
+}
+
+.dashboard-card:hover,
+.card:hover,
+.hover-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 12px var(--shadow-md);
+}
+
+/* Statistics Cards - Clean and Simple */
+.stats-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px var(--shadow-sm);
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.stats-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 12px var(--shadow-md);
+}
+
+.stats-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.75rem;
+}
+
+.stats-value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    line-height: 1.2;
+}
+
+.stats-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.stats-subtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+/* Clean Text Styling */
+.text-muted {
+    color: var(--text-muted);
+}
+
+.h1, .h2, .h3, .h4, .h5, .h6, 
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+}
+
+.text-dark {
+    color: var(--text-primary);
+}
+
+.text-secondary {
+    color: var(--text-secondary);
+}
+
+/* Simple Border Styling */
+.border-start {
+    border-color: var(--border-color);
+}
+
+.border-light {
+    border-color: var(--border-light);
+}
+
+/* Alert Styling */
+.alert-success {
+    background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+/* Clean Badge Styling */
+.badge {
+    border-radius: 4px;
+    font-weight: 500;
+    padding: 0.375rem 0.75rem;
+}
+
+.bg-primary {
+    background-color: var(--accent-primary);
+    color: white;
+}
+
+.bg-success {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.bg-warning {
+    background-color: var(--warning-primary);
+    color: var(--text-primary);
+}
+
+.bg-info {
+    background-color: var(--accent-primary);
+    color: white;
+}
+
+/* Simple Button Styling */
+.btn-warning {
+    background: var(--warning-primary);
+    border-color: var(--warning-primary);
+    color: var(--text-primary);
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-warning:hover {
+    background: var(--warning-light);
+    border-color: var(--warning-light);
+    color: var(--text-primary);
+}
+
+.btn-success {
+    background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.btn-danger {
+    background: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
+}
+
+/* QR Scanner - Clean Styling */
+#qr-reader {
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+#qr-reader video {
+    border-radius: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 576px) {
+    #qr-reader {
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .stats-value {
+        font-size: 1.5rem;
+    }
+    
+    .stats-icon {
+        width: 40px;
+        height: 40px;
+    }
+}
