@@ -1,12 +1,25 @@
 @extends('layouts.app')
 
+@push('styles')
+<style>
+body {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+.h-100 {
+    background: linear-gradient(135deg, #1a1851 0%, #0d4a77 100%) !important;
+    min-height: 100vh !important;
+    width: 100vw !important;
+}
+</style>
+@endpush
+
 @section('content')
-<div class="min-vh-100 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #1a1851 0%, #0d4a77 100%);">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-12 col-lg-10 col-xl-9">
-                <div class="card shadow-lg border-0 overflow-hidden">
-                    <div class="row g-0">
+<div class="container-fluid px-0">
+    <div class="row justify-content-center mx-0">
+        <div class="col-12 col-lg-10 col-xl-9">
+            <div class="card shadow-lg border-0 overflow-hidden">
+                <div class="row g-0">
                         <!-- Left Side - Branding -->
                         <div class="col-md-5 d-flex flex-column justify-content-center align-items-center p-5" 
                              style="background: linear-gradient(135deg, #1a1851 0%, #0d4a77 100%);">
@@ -100,5 +113,4 @@
             </div>
         </div>
     </div>
-</div>
 @endsection

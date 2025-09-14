@@ -1,8 +1,22 @@
 @extends('layouts.app')
 
+@push('styles')
+<style>
+body {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+.h-100 {
+    background: #f8f9fa !important;
+    min-height: 100vh !important;
+    width: 100vw !important;
+}
+</style>
+@endpush
+
 @section('content')
-<div class="container">
-    <div class="row justify-content-center">
+<div class="container-fluid px-0">
+    <div class="row justify-content-center mx-0">
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">{{ __('Register') }}</div>
@@ -73,5 +87,4 @@
             </div>
         </div>
     </div>
-</div>
 @endsection
