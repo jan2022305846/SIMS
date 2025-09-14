@@ -17,11 +17,6 @@
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-    <!-- Custom CSS -->
-    @auth
-        <link href="{{ asset('css/layout.css') }}" rel="stylesheet">
-    @endauth
-    
     <!-- Dark Mode Script - Load BEFORE page renders to prevent flash -->
     <script>
         // Apply dark mode immediately if it's stored in localStorage
@@ -67,11 +62,6 @@
 
     <!-- Bootstrap JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
-    
-    <!-- Custom JavaScript -->
-    @auth
-        <script src="{{ asset('js/layout.js') }}"></script>
-    @endauth
     
     <!-- Page-specific scripts -->
     @stack('scripts')

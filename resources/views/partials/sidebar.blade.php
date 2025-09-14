@@ -1,12 +1,19 @@
 {{-- Sidebar Component --}}
 <nav id="sidebar" class="sidebar">
     <div class="sidebar-header">
-        {{-- Remove the Supply Office label --}}
+        <div class="brand-icon">S</div>
+        <div class="brand-text">Supply Office</div>
+        <button class="sidebar-close-btn" onclick="toggleMobileSidebar()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
     </div>
     
     <div class="sidebar-nav">
         {{-- Dashboard Link --}}
-        <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+        <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" data-tooltip="Dashboard">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="3" width="7" height="7"></rect>
                 <rect x="14" y="3" width="7" height="7"></rect>
@@ -18,7 +25,7 @@
 
         {{-- Admin Only Links --}}
         @if(Auth::user()->role === 'admin')
-            <a href="{{ route('items.index') }}" class="nav-link {{ request()->routeIs('items.*') ? 'active' : '' }}">
+            <a href="{{ route('items.index') }}" class="nav-link {{ request()->routeIs('items.*') ? 'active' : '' }}" data-tooltip="Items">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                     <polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline>
@@ -27,7 +34,7 @@
                 <span>Items</span>
             </a>
 
-            <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+            <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" data-tooltip="Users">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
@@ -38,7 +45,7 @@
 
         {{-- Shared Links (All Roles) --}}
         @if(Auth::user()->role === 'admin')
-            <a href="{{ route('requests.index') }}" class="nav-link {{ request()->routeIs('requests.*') ? 'active' : '' }}">
+            <a href="{{ route('requests.index') }}" class="nav-link {{ request()->routeIs('requests.*') ? 'active' : '' }}" data-tooltip="Requests">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14,2 14,8 20,8"></polyline>
@@ -49,7 +56,7 @@
                 <span>Requests</span>
             </a>
         @elseif(Auth::user()->role === 'office_head')
-            <a href="{{ route('office-head.requests') }}" class="nav-link {{ request()->routeIs('office-head.requests*') ? 'active' : '' }}">
+            <a href="{{ route('office-head.requests') }}" class="nav-link {{ request()->routeIs('office-head.requests*') ? 'active' : '' }}" data-tooltip="Requests">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14,2 14,8 20,8"></polyline>
@@ -60,7 +67,7 @@
                 <span>Requests</span>
             </a>
         @else
-            <a href="{{ route('requests.my') }}" class="nav-link {{ request()->routeIs('requests.my') ? 'active' : '' }}">
+            <a href="{{ route('requests.my') }}" class="nav-link {{ request()->routeIs('requests.my') ? 'active' : '' }}" data-tooltip="My Requests">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14,2 14,8 20,8"></polyline>
@@ -74,7 +81,7 @@
 
         {{-- Faculty/Office Head Browse Items --}}
         @if(Auth::user()->role === 'faculty' || Auth::user()->role === 'office_head')
-            <a href="{{ route('items.browse') }}" class="nav-link {{ request()->routeIs('items.browse') ? 'active' : '' }}">
+            <a href="{{ route('items.browse') }}" class="nav-link {{ request()->routeIs('items.browse') ? 'active' : '' }}" data-tooltip="Browse Items">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="11" cy="11" r="8"></circle>
                     <path d="M21 21l-4.35-4.35"></path>
@@ -85,7 +92,7 @@
 
         {{-- Reports Section --}}
         @if(Auth::user()->role === 'admin')
-            <a href="{{ route('reports') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+            <a href="{{ route('reports') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" data-tooltip="Reports">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="20" x2="18" y2="10"></line>
                     <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -94,7 +101,7 @@
                 <span>Reports</span>
             </a>
         @elseif(Auth::user()->role === 'office_head')
-            <a href="{{ route('reports') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+            <a href="{{ route('reports') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" data-tooltip="Reports">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="20" x2="18" y2="10"></line>
                     <line x1="12" y1="20" x2="12" y2="4"></line>
