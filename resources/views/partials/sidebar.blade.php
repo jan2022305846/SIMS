@@ -76,7 +76,7 @@
                 <span>Requests</span>
             </a>
         @else
-            <a href="{{ route('requests.my') }}" class="nav-link {{ request()->routeIs('requests.my') ? 'active' : '' }}" data-tooltip="My Requests">
+            <a href="{{ route('faculty.requests.index') }}" class="nav-link {{ request()->routeIs('faculty.requests.*') ? 'active' : '' }}" data-tooltip="My Requests">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14,2 14,8 20,8"></polyline>
@@ -90,7 +90,7 @@
 
         {{-- Faculty/Office Head Browse Items --}}
         @if(Auth::user()->role === 'faculty' || Auth::user()->role === 'office_head')
-            <a href="{{ route('items.browse') }}" class="nav-link {{ request()->routeIs('items.browse') ? 'active' : '' }}" data-tooltip="Browse Items">
+            <a href="{{ route('faculty.items.index') }}" class="nav-link {{ request()->routeIs('faculty.items.*') ? 'active' : '' }}" data-tooltip="Browse Items">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="11" cy="11" r="8"></circle>
                     <path d="M21 21l-4.35-4.35"></path>

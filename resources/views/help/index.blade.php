@@ -74,7 +74,7 @@
                                 <div>
                                     <h6 class="fw-bold">Submit a Request</h6>
                                     <p class="text-muted small mb-0">Create a new supply request with the items you need.</p>
-                                    <a href="{{ route('requests.create') }}" class="btn btn-sm btn-outline-success mt-2">New Request</a>
+                                    <a href="{{ route('faculty.requests.create') }}" class="btn btn-sm btn-outline-success mt-2">New Request</a>
                                 </div>
                             </div>
                         </div>

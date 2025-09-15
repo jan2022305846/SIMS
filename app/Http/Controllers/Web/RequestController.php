@@ -154,7 +154,7 @@ class RequestController extends Controller
 
             DB::commit();
 
-            return redirect()->route('requests.show', $supplyRequest)
+            return redirect()->route('faculty.requests.show', $supplyRequest)
                 ->with('success', 'Request submitted successfully!');
 
         } catch (\Exception $e) {
@@ -233,7 +233,7 @@ class RequestController extends Controller
             'timestamp' => now(),
         ]);
 
-        return redirect()->route('requests.show', $request)
+        return redirect()->route('requests.details', $request)
             ->with('success', 'Request updated successfully!');
     }
 

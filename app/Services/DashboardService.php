@@ -39,10 +39,10 @@ class DashboardService
     {
         return [
             'statistics' => $this->getStatistics($user),
-            'low_stock_items' => $this->getLowStockItems(10),
+            'low_stock_items' => $this->getLowStockItems(10, $user),
             'pending_requests' => $this->getPendingRequests($user, 10),
             'recent_activities' => $this->getRecentActivities($user, 10),
-            'expiring_items' => $this->getExpiringItems(10),
+            'expiring_items' => $this->getExpiringItems(10, $user),
             'quick_actions' => $this->getQuickActions($user),
             'system_health' => $this->getSystemHealth(),
             'stock_overview' => $this->getStockOverview(),
@@ -125,12 +125,14 @@ class DashboardService
         ];
     }
 
-    /**
-     * Get low stock items with details
+        /**
+     * Get items that are low on stock.
      * 
+     * @param int|null $limit Optional limit on results
+     * @param User|null $user Optional user context for URL generation
      * @return Collection<Item> Items with added properties: stock_percentage, stock_status, url
      */
-    public function getLowStockItems($limit = null): Collection
+    public function getLowStockItems($limit = null, $user = null): Collection
     {
         $query = Item::with(['category'])
             ->whereRaw('current_stock <= minimum_stock')
@@ -141,7 +143,7 @@ class DashboardService
             $query->limit($limit);
         }
 
-        return $query->get()->map(function ($item) {
+        return $query->get()->map(function ($item) use ($user) {
             $stockPercentage = $item->minimum_stock > 0 
                 ? ($item->current_stock / $item->minimum_stock) * 100 
                 : 0;
@@ -149,7 +151,13 @@ class DashboardService
             // Add calculated properties to the model instance using setAttribute
             $item->setAttribute('stock_percentage', round($stockPercentage, 1));
             $item->setAttribute('stock_status', $stockPercentage <= 25 ? 'critical' : 'low');
-            $item->setAttribute('url', route('items.show', $item->id));
+            
+            // Generate appropriate URL based on user role
+            if ($user && $user->role === 'faculty') {
+                $item->setAttribute('url', route('faculty.items.show', $item->id));
+            } else {
+                $item->setAttribute('url', route('items.show', $item->id));
+            }
             
             return $item;
         });
@@ -173,7 +181,7 @@ class DashboardService
             $query->limit($limit);
         }
 
-        return $query->get()->map(function ($request) {
+        return $query->get()->map(function ($request) use ($user) {
             return [
                 'id' => $request->id,
                 'user_name' => $request->user->name,
@@ -183,7 +191,9 @@ class DashboardService
                 'items_count' => $request->items->count(),
                 'created_at' => $request->created_at,
                 'days_pending' => $request->created_at->diffInDays(now()),
-                'url' => route('requests.details', $request->id)
+                'url' => $user->role === 'faculty' 
+                    ? route('faculty.requests.show', $request->id)
+                    : route('requests.details', $request->id)
             ];
         });
     }
@@ -220,9 +230,11 @@ class DashboardService
     /**
      * Get expiring items
      * 
+     * @param int|null $limit Optional limit on results
+     * @param User|null $user Optional user context for URL generation
      * @return Collection<Item> Items with added properties: days_until_expiry, status, url
      */
-    public function getExpiringItems($limit = null): Collection
+    public function getExpiringItems($limit = null, $user = null): Collection
     {
         $query = Item::with(['category'])
             ->whereNotNull('expiry_date')
@@ -233,7 +245,7 @@ class DashboardService
             $query->limit($limit);
         }
 
-        return $query->get()->map(function ($item) {
+        return $query->get()->map(function ($item) use ($user) {
             $daysUntilExpiry = Carbon::parse($item->expiry_date)->diffInDays(now(), false);
             $status = $daysUntilExpiry <= 0 ? 'expired' : 
                      ($daysUntilExpiry <= 30 ? 'expiring_soon' : 'expiring_later');
@@ -241,7 +253,13 @@ class DashboardService
             // Add calculated properties to the model instance using setAttribute
             $item->setAttribute('days_until_expiry', abs($daysUntilExpiry));
             $item->setAttribute('status', $status);
-            $item->setAttribute('url', route('items.show', $item->id));
+            
+            // Generate appropriate URL based on user role
+            if ($user && $user->role === 'faculty') {
+                $item->setAttribute('url', route('faculty.items.show', $item->id));
+            } else {
+                $item->setAttribute('url', route('items.show', $item->id));
+            }
             
             return $item;
         });
@@ -293,21 +311,21 @@ class DashboardService
                     'title' => 'New Request',
                     'description' => 'Submit a new supply request',
                     'icon' => 'fas fa-plus-circle',
-                    'url' => route('requests.create'),
+                    'url' => route('faculty.requests.create'),
                     'color' => 'primary'
                 ],
                 [
                     'title' => 'My Requests',
                     'description' => 'View your request history',
                     'icon' => 'fas fa-list',
-                    'url' => route('requests.index'),
+                    'url' => route('faculty.requests.index'),
                     'color' => 'info'
                 ],
                 [
                     'title' => 'Browse Items',
                     'description' => 'Browse available inventory',
                     'icon' => 'fas fa-boxes',
-                    'url' => route('items.index'),
+                    'url' => route('faculty.items.index'),
                     'color' => 'success'
                 ]
             ];

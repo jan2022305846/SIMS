@@ -331,7 +331,7 @@
                                 <div class="card-body">
                                     <div class="d-grid gap-2">
                                         @if(!$item->isOutOfStock())
-                                        <a href="{{ route('requests.create', ['item_id' => $item->id]) }}" 
+                                        <a href="{{ route('faculty.requests.create', ['item_id' => $item->id]) }}" 
                                            class="btn btn-success">
                                             <i class="fas fa-plus me-1"></i>
                                             Request This Item

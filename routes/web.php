@@ -176,6 +176,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('faculty/requests', [RequestController::class, 'myRequests'])->name('faculty.requests.my');
         Route::get('faculty/requests/create', [RequestController::class, 'create'])->name('faculty.requests.create');
         Route::post('faculty/requests', [RequestController::class, 'store'])->name('faculty.requests.store');
+        Route::get('faculty/requests/{request}', [RequestController::class, 'show'])->name('faculty.requests.show');
         
         // Faculty acknowledgment access (for their own requests)
         Route::get('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'show'])->name('faculty.requests.acknowledgment.show');

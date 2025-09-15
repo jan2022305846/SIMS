@@ -5,7 +5,7 @@
         <h2 class="h3 fw-semibold text-dark mb-0">
             Browse Items
         </h2>
-        <a href="{{ route('requests.create') }}" 
+        <a href="{{ route('faculty.requests.create') }}" 
            class="btn btn-warning fw-bold">
             <i class="fas fa-plus me-1"></i>
             Request Items
@@ -92,7 +92,7 @@
 
                             <div class="mt-auto">
                                 @if($item->quantity > 0)
-                                    <a href="{{ route('requests.create', ['item_id' => $item->id]) }}" 
+                                    <a href="{{ route('faculty.requests.create', ['item_id' => $item->id]) }}" 
                                        class="btn btn-warning w-100 fw-bold">
                                         <i class="fas fa-plus me-1"></i>
                                         Request This Item
