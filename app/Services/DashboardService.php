@@ -367,10 +367,10 @@ class DashboardService
                     'id' => $category->id,
                     'name' => $category->name,
                     'description' => $category->description,
-                    'total_items' => $category->items_count,
-                    'total_stock' => $item->total_stock ?? 0,
-                    'total_value' => $item->total_value ?? 0,
-                    'low_stock_count' => $item->low_stock_count ?? 0
+                    'total_items' => $category->getAttribute('items_count'),
+                    'total_stock' => $item ? $item->getAttribute('total_stock') : 0,
+                    'total_value' => $item ? $item->getAttribute('total_value') : 0,
+                    'low_stock_count' => $item ? $item->getAttribute('low_stock_count') : 0
                 ];
             });
     }
