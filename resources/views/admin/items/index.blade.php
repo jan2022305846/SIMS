@@ -28,7 +28,7 @@
                 <div class="card shadow-sm">
                     <div class="card-body">
                         <!-- Search and Filter -->
-                        <form method="GET" action="{{ route('items.index') }}" class="mb-4">
+                        <form id="searchForm" method="GET" action="{{ route('items.index') }}" class="mb-4">
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <div class="input-group">
@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const categoryFilter = document.querySelector('select[name="category"]');
     const stockFilter = document.querySelector('select[name="stock"]');
     const searchInput = document.querySelector('input[name="search"]');
-    const form = document.querySelector('form');
+    const form = document.getElementById('searchForm'); // Target specific form
     const loadingOverlay = document.getElementById('loading-overlay');
 
     function showLoading() {
@@ -257,13 +257,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Check if form exists
+    if (!form) {
+        console.error('Search form not found!');
+        return;
+    }
+
     // Auto-submit on select change
     categoryFilter.addEventListener('change', function() {
+        console.log('Category filter changed to:', this.value);
+        console.log('Form action:', form.action);
+        console.log('Form method:', form.method);
         showLoading();
         form.submit();
     });
 
     stockFilter.addEventListener('change', function() {
+        console.log('Stock filter changed to:', this.value);
+        console.log('Form action:', form.action);
+        console.log('Form method:', form.method);
         showLoading();
         form.submit();
     });

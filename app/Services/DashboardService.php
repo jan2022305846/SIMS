@@ -127,6 +127,8 @@ class DashboardService
 
     /**
      * Get low stock items with details
+     * 
+     * @return Collection<Item> Items with added properties: stock_percentage, stock_status, url
      */
     public function getLowStockItems($limit = null): Collection
     {
@@ -144,10 +146,10 @@ class DashboardService
                 ? ($item->current_stock / $item->minimum_stock) * 100 
                 : 0;
 
-            // Add calculated properties to the model instance
-            $item->stock_percentage = round($stockPercentage, 1);
-            $item->stock_status = $stockPercentage <= 25 ? 'critical' : 'low';
-            $item->url = route('items.show', $item->id);
+            // Add calculated properties to the model instance using setAttribute
+            $item->setAttribute('stock_percentage', round($stockPercentage, 1));
+            $item->setAttribute('stock_status', $stockPercentage <= 25 ? 'critical' : 'low');
+            $item->setAttribute('url', route('items.show', $item->id));
             
             return $item;
         });
@@ -217,6 +219,8 @@ class DashboardService
 
     /**
      * Get expiring items
+     * 
+     * @return Collection<Item> Items with added properties: days_until_expiry, status, url
      */
     public function getExpiringItems($limit = null): Collection
     {
@@ -234,10 +238,10 @@ class DashboardService
             $status = $daysUntilExpiry <= 0 ? 'expired' : 
                      ($daysUntilExpiry <= 30 ? 'expiring_soon' : 'expiring_later');
 
-            // Add calculated properties to the model instance
-            $item->days_until_expiry = abs($daysUntilExpiry);
-            $item->status = $status;
-            $item->url = route('items.show', $item->id);
+            // Add calculated properties to the model instance using setAttribute
+            $item->setAttribute('days_until_expiry', abs($daysUntilExpiry));
+            $item->setAttribute('status', $status);
+            $item->setAttribute('url', route('items.show', $item->id));
             
             return $item;
         });

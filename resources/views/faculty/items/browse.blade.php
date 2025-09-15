@@ -132,7 +132,6 @@
                                 </div>
                     </div>
                 </div>
-            @endforelse
         </div>
 
         <!-- Pagination -->
@@ -150,4 +149,3 @@
 @endsection
     </div>
 </div>
-@endsection

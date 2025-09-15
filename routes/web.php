@@ -15,7 +15,6 @@ use App\Http\Controllers\Web\AcknowledgmentController;
 use App\Http\Controllers\Web\HelpController;
 use App\Http\Controllers\Web\BackupController;
 use App\Http\Controllers\Web\RestoreController;
-use App\Http\Controllers\Web\SearchController;
 use App\Http\Controllers\QRCodeController;
 
 // Custom Authentication Routes
@@ -69,15 +68,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/restore/analyze', [RestoreController::class, 'analyze'])->name('admin.restore.analyze');
         Route::post('/restore/safety-backup', [RestoreController::class, 'createSafetyBackup'])->name('admin.restore.safety-backup');
         Route::post('/restore/execute', [RestoreController::class, 'restore'])->name('admin.restore.execute');
-        
-        // Global Search Routes (Admin only)
-        Route::get('/search', [SearchController::class, 'index'])->name('admin.search.index');
-        Route::get('/search/api', [SearchController::class, 'search'])->name('admin.search.api');
-        Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->name('admin.search.suggestions');
-        Route::get('/search/export', [SearchController::class, 'export'])->name('admin.search.export');
-        Route::get('/search/export/csv', [SearchController::class, 'exportCsv'])->name('admin.search.export.csv');
-        Route::get('/search/export/excel', [SearchController::class, 'exportExcel'])->name('admin.search.export.excel');
-        Route::get('/search/export/pdf', [SearchController::class, 'exportPdf'])->name('admin.search.export.pdf');
     });
     
     // Admin routes
@@ -121,10 +111,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
         Route::get('reports/dashboard', [ReportsController::class, 'dashboard'])->name('reports.dashboard');
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
-        Route::get('reports/expiry', [\App\Http\Controllers\Web\ExpiryReportsController::class, 'index'])->name('reports.expiry');
-        Route::get('reports/expiry/export', [\App\Http\Controllers\Web\ExpiryReportsController::class, 'exportCsv'])->name('reports.expiry.export');
-        Route::get('reports/usage', [\App\Http\Controllers\Web\UsageReportsController::class, 'index'])->name('reports.usage');
-        Route::get('reports/usage/export', [\App\Http\Controllers\Web\UsageReportsController::class, 'exportCsv'])->name('reports.usage.export');
+        Route::get('reports/expiry', [ExpiryReportsController::class, 'index'])->name('reports.expiry');
+        Route::get('reports/expiry/export', [ExpiryReportsController::class, 'exportCsv'])->name('reports.expiry.export');
+        Route::get('reports/usage', [UsageReportsController::class, 'index'])->name('reports.usage');
+        Route::get('reports/usage/export', [UsageReportsController::class, 'exportCsv'])->name('reports.usage.export');
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
         Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
         Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
@@ -153,10 +143,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports', [ReportsController::class, 'index'])->name('reports');
         Route::get('reports/dashboard', [ReportsController::class, 'dashboard'])->name('reports.dashboard');
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
-        Route::get('reports/expiry', [\App\Http\Controllers\Web\ExpiryReportsController::class, 'index'])->name('reports.expiry');
-        Route::get('reports/expiry/export', [\App\Http\Controllers\Web\ExpiryReportsController::class, 'exportCsv'])->name('reports.expiry.export');
-        Route::get('reports/usage', [\App\Http\Controllers\Web\UsageReportsController::class, 'index'])->name('reports.usage');
-        Route::get('reports/usage/export', [\App\Http\Controllers\Web\UsageReportsController::class, 'exportCsv'])->name('reports.usage.export');
+        Route::get('reports/expiry', [ExpiryReportsController::class, 'index'])->name('reports.expiry');
+        Route::get('reports/expiry/export', [ExpiryReportsController::class, 'exportCsv'])->name('reports.expiry.export');
+        Route::get('reports/usage', [UsageReportsController::class, 'index'])->name('reports.usage');
+        Route::get('reports/usage/export', [UsageReportsController::class, 'exportCsv'])->name('reports.usage.export');
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
         Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
         Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
@@ -176,10 +166,16 @@ Route::middleware(['auth'])->group(function () {
     
     // Faculty routes (includes admin access)
     Route::middleware(['faculty'])->group(function () {
-        Route::get('browse-items', [ItemController::class, 'browse'])->name('items.browse');
-        Route::get('my-requests', [RequestController::class, 'myRequests'])->name('requests.my');
-        Route::get('requests/create', [RequestController::class, 'create'])->name('requests.create');
-        Route::post('requests', [RequestController::class, 'store'])->name('requests.store');
+        // Items browsing for faculty
+        Route::get('browse-items', [ItemController::class, 'browse'])->name('faculty.items.index');
+        Route::get('faculty/items', [ItemController::class, 'browse'])->name('faculty.items.browse');
+        Route::get('faculty/items/{item}', [ItemController::class, 'show'])->name('faculty.items.show');
+        
+        // Requests
+        Route::get('my-requests', [RequestController::class, 'myRequests'])->name('faculty.requests.index');
+        Route::get('faculty/requests', [RequestController::class, 'myRequests'])->name('faculty.requests.my');
+        Route::get('faculty/requests/create', [RequestController::class, 'create'])->name('faculty.requests.create');
+        Route::post('faculty/requests', [RequestController::class, 'store'])->name('faculty.requests.store');
         
         // Faculty acknowledgment access (for their own requests)
         Route::get('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'show'])->name('faculty.requests.acknowledgment.show');
