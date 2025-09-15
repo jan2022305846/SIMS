@@ -28,6 +28,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @method bool canRequestForOffice()
  * @method bool canApproveRequests()
  * @method bool canScanQR()
+ * 
+ * Note: There is NO 'position' property - use 'department' instead
  */
 class User extends Authenticatable
 {

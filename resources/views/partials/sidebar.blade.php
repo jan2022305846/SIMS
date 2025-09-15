@@ -41,6 +41,23 @@
                 </svg>
                 <span>Users</span>
             </a>
+
+            <a href="{{ route('admin.search.index') }}" class="nav-link {{ request()->routeIs('admin.search.*') ? 'active' : '' }}" data-tooltip="Global Search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="M21 21l-4.35-4.35"></path>
+                </svg>
+                <span>Search</span>
+            </a>
+
+            <a href="{{ route('admin.backup.index') }}" class="nav-link {{ request()->routeIs('admin.backup.*') || request()->routeIs('admin.restore.*') ? 'active' : '' }}" data-tooltip="Backup & Restore">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7,10 12,15 17,10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Backup</span>
+            </a>
         @endif
 
         {{-- Shared Links (All Roles) --}}

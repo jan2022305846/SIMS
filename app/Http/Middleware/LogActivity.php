@@ -8,6 +8,7 @@ use Symfony\Component\HttpFoundation\Response;
 use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class LogActivity
 {
@@ -21,8 +22,14 @@ class LogActivity
         $response = $next($request);
 
         // Only log for authenticated users and successful requests
-        if (Auth::check() && $response->getStatusCode() < 400) {
-            $this->logActivity($request, $response);
+        // Add try-catch to handle database connection issues gracefully
+        try {
+            if (Auth::check() && $response->getStatusCode() < 400) {
+                $this->logActivity($request, $response);
+            }
+        } catch (\Exception $e) {
+            // Log the error but don't break the application flow
+            Log::warning('Failed to log activity: ' . $e->getMessage());
         }
 
         return $response;
@@ -30,42 +37,51 @@ class LogActivity
 
     protected function logActivity(Request $request, Response $response): void
     {
-        $method = $request->method();
-        $path = $request->path();
-        $user = Auth::user();
-        
-        // Skip logging for certain routes
-        $skipRoutes = [
-            'build/assets',
-            'favicon.ico',
-        ];
-
-        foreach ($skipRoutes as $skipRoute) {
-            if (str_contains($path, $skipRoute)) {
-                return;
-            }
-        }
-
-        // Generate description based on the request
-        $description = $this->generateDescription($method, $path, $request);
-
-        if ($description) {
-            $log = ActivityLog::log($description)
-                ->inLog('user_activity')
-                ->withProperties([
-                    'method' => $method,
-                    'path' => $path,
-                    'url' => $request->fullUrl(),
-                    'status_code' => $response->getStatusCode(),
-                    'user_agent' => $request->userAgent(),
-                    'ip_address' => $request->ip(),
-                ]);
+        try {
+            $method = $request->method();
+            $path = $request->path();
+            $user = Auth::user();
             
-            if ($user instanceof User) {
-                $log->causedBy($user);
+            // Skip logging for certain routes
+            $skipRoutes = [
+                'build/assets',
+                'favicon.ico',
+            ];
+
+            foreach ($skipRoutes as $skipRoute) {
+                if (str_contains($path, $skipRoute)) {
+                    return;
+                }
             }
-            
-            $log->save();
+
+            // Generate description based on the request
+            $description = $this->generateDescription($method, $path, $request);
+
+            if ($description) {
+                $log = ActivityLog::log($description)
+                    ->inLog('user_activity')
+                    ->withProperties([
+                        'method' => $method,
+                        'path' => $path,
+                        'url' => $request->fullUrl(),
+                        'status_code' => $response->getStatusCode(),
+                        'user_agent' => $request->userAgent(),
+                        'ip_address' => $request->ip(),
+                    ]);
+                
+                if ($user instanceof User) {
+                    $log->causedBy($user);
+                }
+                
+                $log->save();
+            }
+        } catch (\Exception $e) {
+            // If logging fails, continue silently to avoid breaking the app
+            Log::warning('Failed to save activity log: ' . $e->getMessage(), [
+                'path' => $request->path() ?? '',
+                'method' => $request->method() ?? '',
+                'user_id' => Auth::id() ?? null
+            ]);
         }
     }
 

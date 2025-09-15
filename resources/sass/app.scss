@@ -206,12 +206,51 @@ body {
 body {
     margin: 0 !important;
     padding: 0 !important;
-    padding-top: 64px !important;
-    padding-left: 70px !important;
     background: var(--bg-secondary) !important;
     color: var(--text-primary) !important;
     font-family: 'Poppins', sans-serif !important;
     transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Sidebar padding only for authenticated users */
+body.authenticated {
+    padding-top: 64px !important;
+    padding-left: 70px !important;
+}
+
+/* Guest layout - no sidebar padding, full screen */
+body.guest {
+    padding: 0 !important;
+    margin: 0 !important;
+    height: 100vh !important;
+    overflow-x: hidden !important;
+}
+
+/* Ensure guest main content takes full space */
+body.guest main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+}
+
+/* Guest page container overrides */
+body.guest .container-fluid {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+body.guest .row {
+    margin: 0 !important;
+}
+
+body.guest .h-100 {
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 /* Remove Bootstrap's default background */
@@ -814,9 +853,32 @@ body {
 
 /* Mobile Breakpoints */
 @media (max-width: 768px) {
-    body {
+    body.authenticated {
         padding-left: 0 !important;
         padding-top: 64px !important;
+    }
+    
+    body.guest {
+        padding: 0 !important;
+        margin: 0 !important;
+        height: 100vh !important;
+        overflow-x: hidden !important;
+    }
+    
+    /* Mobile auth page fixes */
+    body.guest main {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+    }
+    
+    body.guest .container-fluid,
+    body.guest .h-100 {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
     }
     
     /* Mobile-specific sidebar - hidden by default */
@@ -926,7 +988,7 @@ body {
         width: 220px; /* Slightly smaller expansion for tablets */
     }
     
-    body {
+    body.authenticated {
         padding-left: 70px !important;
     }
     

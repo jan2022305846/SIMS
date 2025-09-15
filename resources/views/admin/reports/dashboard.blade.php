@@ -55,7 +55,7 @@
                         <div class="card text-center border-primary">
                             <div class="card-body">
                                 <i class="fas fa-clipboard-list fa-2x text-primary mb-2"></i>
-                                <h4 class="mb-0" id="totalRequests">{{ $data['total_requests'] }}</h4>
+                                <h4 class="mb-0" id="totalRequests">{{ $data['total_requests'] ?? 0 }}</h4>
                                 <small class="text-muted">Requests</small>
                             </div>
                         </div>
@@ -64,7 +64,7 @@
                         <div class="card text-center border-success">
                             <div class="card-body">
                                 <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                                <h4 class="mb-0" id="completedRequests">{{ $data['completed_requests'] }}</h4>
+                                <h4 class="mb-0" id="completedRequests">{{ $data['completed_requests'] ?? 0 }}</h4>
                                 <small class="text-muted">Completed</small>
                             </div>
                         </div>
@@ -73,7 +73,7 @@
                         <div class="card text-center border-warning">
                             <div class="card-body">
                                 <i class="fas fa-clock fa-2x text-warning mb-2"></i>
-                                <h4 class="mb-0" id="pendingRequests">{{ $data['pending_requests'] }}</h4>
+                                <h4 class="mb-0" id="pendingRequests">{{ $data['pending_requests'] ?? 0 }}</h4>
                                 <small class="text-muted">Pending</small>
                             </div>
                         </div>
@@ -82,7 +82,7 @@
                         <div class="card text-center border-info">
                             <div class="card-body">
                                 <i class="fas fa-boxes fa-2x text-info mb-2"></i>
-                                <h4 class="mb-0" id="itemsRequested">{{ $data['items_requested'] }}</h4>
+                                <h4 class="mb-0" id="itemsRequested">{{ $data['items_requested'] ?? 0 }}</h4>
                                 <small class="text-muted">Items</small>
                             </div>
                         </div>
@@ -145,15 +145,21 @@
                                             </tr>
                                         </thead>
                                         <tbody id="dataTableBody">
-                                            @foreach($data['chart_data']['labels'] as $index => $label)
-                                            <tr>
-                                                <td>{{ $label }}</td>
-                                                <td>{{ $data['chart_data']['requests'][$index] ?? 0 }}</td>
-                                                <td>{{ $data['chart_data']['completed'][$index] ?? 0 }}</td>
-                                                <td>{{ $data['chart_data']['pending'][$index] ?? 0 }}</td>
-                                                <td>{{ $data['chart_data']['items'][$index] ?? 0 }}</td>
-                                            </tr>
-                                            @endforeach
+                                            @if(isset($data['chart_data']['labels']))
+                                                @foreach($data['chart_data']['labels'] as $index => $label)
+                                                <tr>
+                                                    <td>{{ $label }}</td>
+                                                    <td>{{ $data['chart_data']['requests'][$index] ?? 0 }}</td>
+                                                    <td>{{ $data['chart_data']['completed'][$index] ?? 0 }}</td>
+                                                    <td>{{ $data['chart_data']['pending'][$index] ?? 0 }}</td>
+                                                    <td>{{ $data['chart_data']['items'][$index] ?? 0 }}</td>
+                                                </tr>
+                                                @endforeach
+                                            @else
+                                                <tr>
+                                                    <td colspan="5" class="text-center text-muted">No data available</td>
+                                                </tr>
+                                            @endif
                                         </tbody>
                                     </table>
                                 </div>
@@ -214,7 +220,11 @@ let currentPeriod = '{{ $period }}';
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    initializeCharts(@json($data['chart_data']));
+    @if(isset($data['chart_data']))
+        initializeCharts(@json($data['chart_data']));
+    @else
+        initializeEmptyCharts();
+    @endif
     setupPeriodButtons();
 });
 
@@ -276,24 +286,24 @@ function updateButtonStates(activePeriod) {
 
 // Update stats cards
 function updateStats(data) {
-    document.getElementById('totalRequests').textContent = data.total_requests;
-    document.getElementById('completedRequests').textContent = data.completed_requests;
-    document.getElementById('pendingRequests').textContent = data.pending_requests;
-    document.getElementById('itemsRequested').textContent = data.items_requested;
+    document.getElementById('totalRequests').textContent = data.total_requests || 0;
+    document.getElementById('completedRequests').textContent = data.completed_requests || 0;
+    document.getElementById('pendingRequests').textContent = data.pending_requests || 0;
+    document.getElementById('itemsRequested').textContent = data.items_requested || 0;
 }
 
 // Update charts
 function updateCharts(chartData) {
     // Update requests chart
-    requestsChart.data.labels = chartData.labels;
-    requestsChart.data.datasets[0].data = chartData.requests;
-    requestsChart.data.datasets[1].data = chartData.completed;
-    requestsChart.data.datasets[2].data = chartData.pending;
+    requestsChart.data.labels = chartData.labels || [];
+    requestsChart.data.datasets[0].data = chartData.requests || [];
+    requestsChart.data.datasets[1].data = chartData.completed || [];
+    requestsChart.data.datasets[2].data = chartData.pending || [];
     requestsChart.update('active');
     
     // Update items chart
-    itemsChart.data.labels = chartData.labels;
-    itemsChart.data.datasets[0].data = chartData.items;
+    itemsChart.data.labels = chartData.labels || [];
+    itemsChart.data.datasets[0].data = chartData.items || [];
     itemsChart.update('active');
 }
 
@@ -309,18 +319,22 @@ function updateTable(chartData, period) {
     tableBody.innerHTML = '';
     
     // Add new rows
-    chartData.labels.forEach((label, index) => {
-        const row = `
-            <tr>
-                <td>${label}</td>
-                <td>${chartData.requests[index] || 0}</td>
-                <td>${chartData.completed[index] || 0}</td>
-                <td>${chartData.pending[index] || 0}</td>
-                <td>${chartData.items[index] || 0}</td>
-            </tr>
-        `;
-        tableBody.innerHTML += row;
-    });
+    if (chartData.labels && chartData.labels.length > 0) {
+        chartData.labels.forEach((label, index) => {
+            const row = `
+                <tr>
+                    <td>${label}</td>
+                    <td>${chartData.requests[index] || 0}</td>
+                    <td>${chartData.completed[index] || 0}</td>
+                    <td>${chartData.pending[index] || 0}</td>
+                    <td>${chartData.items[index] || 0}</td>
+                </tr>
+            `;
+            tableBody.innerHTML += row;
+        });
+    } else {
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No data available</td></tr>';
+    }
 }
 
 // Initialize charts
@@ -330,25 +344,25 @@ function initializeCharts(chartData) {
     requestsChart = new Chart(requestsCtx, {
         type: 'bar',
         data: {
-            labels: chartData.labels,
+            labels: chartData.labels || [],
             datasets: [
                 {
                     label: 'Total Requests',
-                    data: chartData.requests,
+                    data: chartData.requests || [],
                     backgroundColor: 'rgba(54, 162, 235, 0.7)',
                     borderColor: 'rgba(54, 162, 235, 1)',
                     borderWidth: 1
                 },
                 {
                     label: 'Completed',
-                    data: chartData.completed,
+                    data: chartData.completed || [],
                     backgroundColor: 'rgba(75, 192, 192, 0.7)',
                     borderColor: 'rgba(75, 192, 192, 1)',
                     borderWidth: 1
                 },
                 {
                     label: 'Pending',
-                    data: chartData.pending,
+                    data: chartData.pending || [],
                     backgroundColor: 'rgba(255, 206, 86, 0.7)',
                     borderColor: 'rgba(255, 206, 86, 1)',
                     borderWidth: 1
@@ -374,10 +388,10 @@ function initializeCharts(chartData) {
     itemsChart = new Chart(itemsCtx, {
         type: 'line',
         data: {
-            labels: chartData.labels,
+            labels: chartData.labels || [],
             datasets: [{
                 label: 'Items Requested',
-                data: chartData.items,
+                data: chartData.items || [],
                 borderColor: 'rgba(255, 99, 132, 1)',
                 backgroundColor: 'rgba(255, 99, 132, 0.2)',
                 borderWidth: 2,
@@ -397,6 +411,17 @@ function initializeCharts(chartData) {
                 duration: 750
             }
         }
+    });
+}
+
+// Initialize empty charts
+function initializeEmptyCharts() {
+    initializeCharts({
+        labels: [],
+        requests: [],
+        completed: [],
+        pending: [],
+        items: []
     });
 }
 

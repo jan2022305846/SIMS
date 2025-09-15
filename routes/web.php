@@ -9,6 +9,13 @@ use App\Http\Controllers\Web\CategoryController;
 use App\Http\Controllers\Web\ItemController;
 use App\Http\Controllers\Web\RequestController;
 use App\Http\Controllers\Web\ReportsController;
+use App\Http\Controllers\Web\ExpiryReportsController;
+use App\Http\Controllers\Web\UsageReportsController;
+use App\Http\Controllers\Web\AcknowledgmentController;
+use App\Http\Controllers\Web\HelpController;
+use App\Http\Controllers\Web\BackupController;
+use App\Http\Controllers\Web\RestoreController;
+use App\Http\Controllers\Web\SearchController;
 use App\Http\Controllers\QRCodeController;
 
 // Custom Authentication Routes
@@ -25,8 +32,53 @@ Route::get('/', function () {
 
 // Protected routes
 Route::middleware(['auth'])->group(function () {
+    // Enhanced Dashboard Routes
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/dashboard/scan-qr', [DashboardController::class, 'scanQR'])->name('dashboard.scan-qr');
+    
+    // Dashboard AJAX endpoints
+    Route::get('/dashboard/api/low-stock-alerts', [DashboardController::class, 'lowStockAlerts'])->name('dashboard.api.low-stock');
+    Route::get('/dashboard/api/pending-requests', [DashboardController::class, 'pendingRequests'])->name('dashboard.api.pending-requests');
+    Route::get('/dashboard/api/recent-activities', [DashboardController::class, 'recentActivities'])->name('dashboard.api.activities');
+    Route::get('/dashboard/api/statistics', [DashboardController::class, 'statistics'])->name('dashboard.api.statistics');
+    Route::get('/dashboard/api/quick-actions', [DashboardController::class, 'quickActions'])->name('dashboard.api.quick-actions');
+    Route::get('/dashboard/api/stock-overview', [DashboardController::class, 'stockOverview'])->name('dashboard.api.stock-overview');
+    Route::get('/dashboard/api/notifications', [DashboardController::class, 'notifications'])->name('dashboard.api.notifications');
+    
+    // Admin-only dashboard endpoints
+    Route::middleware(['admin'])->group(function () {
+        Route::get('/dashboard/api/system-health', [DashboardController::class, 'systemHealth'])->name('dashboard.api.system-health');
+    });
+    
+    // Help System Routes
+    Route::get('/help', [HelpController::class, 'index'])->name('help.index');
+    Route::get('/help/{topic}', [HelpController::class, 'show'])->name('help.show');
+    Route::get('/help/api/search', [HelpController::class, 'search'])->name('help.search');
+    
+    // Backup & Restore Routes (Admin only)
+    Route::middleware(['admin'])->group(function () {
+        Route::get('/backup', [BackupController::class, 'index'])->name('admin.backup.index');
+        Route::post('/backup/create', [BackupController::class, 'create'])->name('admin.backup.create');
+        Route::post('/backup/create-full', [BackupController::class, 'createFullBackup'])->name('admin.backup.create-full');
+        Route::post('/backup/create-selective', [BackupController::class, 'createSelectiveBackup'])->name('admin.backup.create-selective');
+        Route::get('/backup/download/{filename}', [BackupController::class, 'download'])->name('admin.backup.download');
+        Route::delete('/backup/delete/{filename}', [BackupController::class, 'delete'])->name('admin.backup.delete');
+        
+        Route::get('/restore', [RestoreController::class, 'index'])->name('admin.restore.index');
+        Route::post('/restore/upload', [RestoreController::class, 'upload'])->name('admin.restore.upload');
+        Route::post('/restore/analyze', [RestoreController::class, 'analyze'])->name('admin.restore.analyze');
+        Route::post('/restore/safety-backup', [RestoreController::class, 'createSafetyBackup'])->name('admin.restore.safety-backup');
+        Route::post('/restore/execute', [RestoreController::class, 'restore'])->name('admin.restore.execute');
+        
+        // Global Search Routes (Admin only)
+        Route::get('/search', [SearchController::class, 'index'])->name('admin.search.index');
+        Route::get('/search/api', [SearchController::class, 'search'])->name('admin.search.api');
+        Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->name('admin.search.suggestions');
+        Route::get('/search/export', [SearchController::class, 'export'])->name('admin.search.export');
+        Route::get('/search/export/csv', [SearchController::class, 'exportCsv'])->name('admin.search.export.csv');
+        Route::get('/search/export/excel', [SearchController::class, 'exportExcel'])->name('admin.search.export.excel');
+        Route::get('/search/export/pdf', [SearchController::class, 'exportPdf'])->name('admin.search.export.pdf');
+    });
     
     // Admin routes
     Route::middleware(['admin'])->group(function () {
@@ -37,6 +89,7 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('categories', CategoryController::class);
         
         // Items
+        Route::get('items/summary', [ItemController::class, 'summary'])->name('items.summary');
         Route::get('items/low-stock', [ItemController::class, 'lowStock'])->name('items.low-stock');
         Route::get('items/expiring-soon', [ItemController::class, 'expiringSoon'])->name('items.expiring-soon');
         Route::get('items/trashed', [ItemController::class, 'trashed'])->name('items.trashed');
@@ -57,10 +110,21 @@ Route::middleware(['auth'])->group(function () {
         // Add explicit show route
         Route::get('requests/{request}/details', [RequestController::class, 'show'])->name('requests.show');
         
+        // Request Acknowledgments (Digital Signatures)
+        Route::get('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'show'])->name('requests.acknowledgment.show');
+        Route::post('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'store'])->name('requests.acknowledgment.store');
+        Route::get('requests/{request}/receipt', [AcknowledgmentController::class, 'receipt'])->name('requests.acknowledgment.receipt');
+        Route::get('requests/{request}/receipt/download', [AcknowledgmentController::class, 'downloadReceipt'])->name('requests.acknowledgment.download');
+        Route::get('requests/{request}/verify', [AcknowledgmentController::class, 'verify'])->name('requests.acknowledgment.verify');
+        
         // Admin Reports
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
         Route::get('reports/dashboard', [ReportsController::class, 'dashboard'])->name('reports.dashboard');
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
+        Route::get('reports/expiry', [\App\Http\Controllers\Web\ExpiryReportsController::class, 'index'])->name('reports.expiry');
+        Route::get('reports/expiry/export', [\App\Http\Controllers\Web\ExpiryReportsController::class, 'exportCsv'])->name('reports.expiry.export');
+        Route::get('reports/usage', [\App\Http\Controllers\Web\UsageReportsController::class, 'index'])->name('reports.usage');
+        Route::get('reports/usage/export', [\App\Http\Controllers\Web\UsageReportsController::class, 'exportCsv'])->name('reports.usage.export');
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
         Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
         Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
@@ -89,6 +153,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports', [ReportsController::class, 'index'])->name('reports');
         Route::get('reports/dashboard', [ReportsController::class, 'dashboard'])->name('reports.dashboard');
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
+        Route::get('reports/expiry', [\App\Http\Controllers\Web\ExpiryReportsController::class, 'index'])->name('reports.expiry');
+        Route::get('reports/expiry/export', [\App\Http\Controllers\Web\ExpiryReportsController::class, 'exportCsv'])->name('reports.expiry.export');
+        Route::get('reports/usage', [\App\Http\Controllers\Web\UsageReportsController::class, 'index'])->name('reports.usage');
+        Route::get('reports/usage/export', [\App\Http\Controllers\Web\UsageReportsController::class, 'exportCsv'])->name('reports.usage.export');
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
         Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
         Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
@@ -113,6 +181,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('requests/create', [RequestController::class, 'create'])->name('requests.create');
         Route::post('requests', [RequestController::class, 'store'])->name('requests.store');
         
+        // Faculty acknowledgment access (for their own requests)
+        Route::get('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'show'])->name('faculty.requests.acknowledgment.show');
+        Route::post('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'store'])->name('faculty.requests.acknowledgment.store');
+        Route::get('requests/{request}/receipt', [AcknowledgmentController::class, 'receipt'])->name('faculty.requests.acknowledgment.receipt');
+        Route::get('requests/{request}/receipt/download', [AcknowledgmentController::class, 'downloadReceipt'])->name('faculty.requests.acknowledgment.download');
+        
         // QR Code scanner interface
         Route::get('qr/scanner', [QRCodeController::class, 'scanner'])->name('qr.scanner');
         Route::get('qr/test', [QRCodeController::class, 'test'])->name('qr.test');
@@ -129,6 +203,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('activity-logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity-logs.index');
         Route::get('activity-logs/{activityLog}', [App\Http\Controllers\ActivityLogController::class, 'show'])->name('activity-logs.show');
         Route::get('activity-logs/analytics/dashboard', [App\Http\Controllers\ActivityLogController::class, 'analytics'])->name('activity-logs.analytics');
+        Route::get('activity-logs/security/report', [App\Http\Controllers\ActivityLogController::class, 'securityReport'])->name('activity-logs.security');
+        Route::get('activity-logs/export/csv', [App\Http\Controllers\ActivityLogController::class, 'export'])->name('activity-logs.export');
+        Route::get('activity-logs/live/feed', [App\Http\Controllers\ActivityLogController::class, 'liveFeed'])->name('activity-logs.live-feed');
         Route::post('activity-logs/cleanup', [App\Http\Controllers\ActivityLogController::class, 'cleanup'])->name('activity-logs.cleanup');
         Route::get('users/{user}/activity', [App\Http\Controllers\ActivityLogController::class, 'userActivity'])->name('activity-logs.user-activity');
     });

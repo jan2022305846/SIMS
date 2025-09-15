@@ -91,8 +91,8 @@
                 </div>
             </div>
 
-            <!-- Statistics Cards - Enhanced and Bigger -->
-            <div class="row g-4">
+            <!-- Enhanced Statistics Cards -->
+            <div class="row g-4 mb-4">
                 @if(Auth::user()->role === 'admin')
                     <!-- Total Items Card -->
                     <div class="col-xl-3 col-lg-6 col-md-6">
@@ -107,9 +107,9 @@
                                     </div>
                                     <div class="flex-grow-1">
                                         <h6 class="text-muted text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">Total Items</h6>
-                                        <h2 class="stats-value">{{ $totalItems ?? 0 }}</h2>
+                                        <h2 class="stats-value">{{ number_format($totalItems ?? 0) }}</h2>
                                         <small class="text-success">
-                                            <i class="fas fa-arrow-up me-1"></i>Active inventory
+                                            <i class="fas fa-chart-line me-1"></i>{{ number_format($totalCategories ?? 0) }} categories
                                         </small>
                                     </div>
                                 </div>
@@ -117,7 +117,7 @@
                         </div>
                     </div>
 
-                    <!-- Total Users Card -->
+                    <!-- Stock Value Card -->
                     <div class="col-xl-3 col-lg-6 col-md-6">
                         <div class="card h-100 border-0 shadow-sm hover-lift">
                             <div class="card-body p-4">
@@ -125,14 +125,14 @@
                                     <div class="flex-shrink-0 me-3">
                                         <div class="bg-success bg-gradient rounded-circle d-flex align-items-center justify-content-center" 
                                              style="width: 70px; height: 70px;">
-                                            <i class="fas fa-users fa-xl text-white"></i>
+                                            <i class="fas fa-peso-sign fa-xl text-white"></i>
                                         </div>
                                     </div>
                                     <div class="flex-grow-1">
-                                        <h6 class="text-muted text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">Total Users</h6>
-                                        <h2 class="stats-value">{{ $totalUsers ?? 0 }}</h2>
+                                        <h6 class="text-muted text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">Total Stock Value</h6>
+                                        <h2 class="stats-value">₱{{ number_format($totalStockValue ?? 0, 2) }}</h2>
                                         <small class="text-info">
-                                            <i class="fas fa-user-check me-1"></i>Registered members
+                                            <i class="fas fa-calculator me-1"></i>Current inventory value
                                         </small>
                                     </div>
                                 </div>
@@ -153,9 +153,9 @@
                                     </div>
                                     <div class="flex-grow-1">
                                         <h6 class="text-muted text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">Pending Requests</h6>
-                                        <h2 class="stats-value">{{ $pendingRequests ?? 0 }}</h2>
+                                        <h2 class="stats-value">{{ number_format($pendingRequests ?? 0) }}</h2>
                                         <small class="text-warning">
-                                            <i class="fas fa-hourglass-half me-1"></i>Awaiting approval
+                                            <i class="fas fa-trending-up me-1"></i>{{ number_format($totalRequestsThisMonth ?? 0) }} this month
                                         </small>
                                     </div>
                                 </div>
@@ -163,7 +163,7 @@
                         </div>
                     </div>
 
-                    <!-- Low Stock Items Card -->
+                    <!-- Alert Summary Card -->
                     <div class="col-xl-3 col-lg-6 col-md-6">
                         <div class="card h-100 border-0 shadow-sm hover-lift">
                             <div class="card-body p-4">
@@ -175,10 +175,10 @@
                                         </div>
                                     </div>
                                     <div class="flex-grow-1">
-                                        <h6 class="text-muted text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">Low Stock Alert</h6>
-                                        <h2 class="stats-value">{{ $lowStockItems ?? 0 }}</h2>
+                                        <h6 class="text-muted text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">Alerts</h6>
+                                        <h2 class="stats-value">{{ number_format(($lowStockItems ?? 0) + ($expiringItems ?? 0)) }}</h2>
                                         <small class="text-danger">
-                                            <i class="fas fa-arrow-down me-1"></i>Need restocking
+                                            <i class="fas fa-exclamation-circle me-1"></i>{{ $lowStockItems ?? 0 }} low stock, {{ $expiringItems ?? 0 }} expiring
                                         </small>
                                     </div>
                                 </div>
@@ -200,7 +200,7 @@
                                     </div>
                                     <div class="flex-grow-1">
                                         <h6 class="text-muted text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">My Requests</h6>
-                                        <h2 class="stats-value">{{ $myRequests ?? 0 }}</h2>
+                                        <h2 class="stats-value">{{ number_format($myRequests ?? 0) }}</h2>
                                         <small class="text-info">
                                             <i class="fas fa-list me-1"></i>Total submitted
                                         </small>
@@ -223,7 +223,7 @@
                                     </div>
                                     <div class="flex-grow-1">
                                         <h6 class="text-muted text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">Pending</h6>
-                                        <h2 class="stats-value">{{ $myPendingRequests ?? 0 }}</h2>
+                                        <h2 class="stats-value">{{ number_format($myPendingRequests ?? 0) }}</h2>
                                         <small class="text-warning">
                                             <i class="fas fa-hourglass-half me-1"></i>Under review
                                         </small>
@@ -246,7 +246,7 @@
                                     </div>
                                     <div class="flex-grow-1">
                                         <h6 class="text-muted text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">Approved</h6>
-                                        <h2 class="stats-value">{{ $myApprovedRequests ?? 0 }}</h2>
+                                        <h2 class="stats-value">{{ number_format($myApprovedRequests ?? 0) }}</h2>
                                         <small class="text-success">
                                             <i class="fas fa-thumbs-up me-1"></i>Ready for pickup
                                         </small>
@@ -257,6 +257,149 @@
                     </div>
                 @endif
             </div>
+
+            @if(Auth::user()->role === 'admin')
+                <!-- Admin Dashboard - Alerts & Analytics Section -->
+                <div class="row g-4 mb-4">
+                    <!-- Low Stock Alerts -->
+                    <div class="col-xl-6">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-header bg-transparent border-0 pb-0">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                                        Low Stock Alerts
+                                    </h5>
+                                    <a href="{{ route('items.low-stock') }}" class="btn btn-sm btn-outline-warning">
+                                        View All
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                @if($lowStockAlerts && $lowStockAlerts->count() > 0)
+                                    <div class="list-group list-group-flush">
+                                        @foreach($lowStockAlerts->take(5) as $item)
+                                            <div class="list-group-item border-0 px-0 py-2">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="flex-grow-1">
+                                                        <h6 class="mb-1 fw-semibold">{{ $item->name }}</h6>
+                                                        <small class="text-muted">{{ $item->category->name }}</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <span class="badge bg-warning">{{ $item->current_stock }} left</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                        <p class="text-muted mb-0">All items are well stocked!</p>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expiring Items -->
+                    <div class="col-xl-6">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-header bg-transparent border-0 pb-0">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-calendar-times text-danger me-2"></i>
+                                        Expiring Soon
+                                    </h5>
+                                    <a href="{{ route('items.expiring-soon') }}" class="btn btn-sm btn-outline-danger">
+                                        View All
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                @if($expiringSoonItems && $expiringSoonItems->count() > 0)
+                                    <div class="list-group list-group-flush">
+                                        @foreach($expiringSoonItems->take(5) as $item)
+                                            <div class="list-group-item border-0 px-0 py-2">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="flex-grow-1">
+                                                        <h6 class="mb-1 fw-semibold">{{ $item->name }}</h6>
+                                                        <small class="text-muted">{{ $item->category->name }}</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        @php
+                                                            $daysLeft = \Carbon\Carbon::now()->diffInDays($item->expiry_date, false);
+                                                        @endphp
+                                                        <span class="badge bg-danger">
+                                                            {{ $daysLeft <= 0 ? 'Expired' : $daysLeft . ' days' }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-calendar-check fa-3x text-success mb-3"></i>
+                                        <p class="text-muted mb-0">No items expiring soon!</p>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Section -->
+                <div class="row g-4 mb-4">
+                    <!-- Weekly Request Trends -->
+                    <div class="col-xl-8">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-header bg-transparent border-0 pb-0">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-chart-line text-primary me-2"></i>
+                                    Weekly Request Trends
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="requestTrendsChart" height="80"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Categories -->
+                    <div class="col-xl-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-header bg-transparent border-0 pb-0">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-tags text-info me-2"></i>
+                                    Top Categories
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                @if($topCategories && $topCategories->count() > 0)
+                                    <div class="list-group list-group-flush">
+                                        @foreach($topCategories as $category)
+                                            <div class="list-group-item border-0 px-0 py-2">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="flex-grow-1">
+                                                        <h6 class="mb-0 fw-semibold">{{ $category->name }}</h6>
+                                                    </div>
+                                                    <span class="badge bg-info">{{ $category->items_count }} items</span>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted mb-0">No categories found</p>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 </div>

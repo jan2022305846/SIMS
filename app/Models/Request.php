@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property array|null $attachments
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
+ * @property-read \App\Models\RequestAcknowledgment|null $acknowledgment
  */
 class Request extends Model
 {
@@ -114,6 +115,11 @@ class Request extends Model
     public function claimedBy()
     {
         return $this->belongsTo(User::class, 'claimed_by_id');
+    }
+
+    public function acknowledgment(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(RequestAcknowledgment::class);
     }
 
     // Workflow Methods

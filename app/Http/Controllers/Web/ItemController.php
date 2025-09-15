@@ -7,6 +7,7 @@ use App\Models\Item;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class ItemController extends Controller
 {
@@ -194,6 +195,86 @@ class ItemController extends Controller
         $categories = Category::all();
 
         return view('faculty.items.browse', compact('items', 'categories'));
+    }
+
+    /**
+     * Display items summary for availability checking.
+     */
+    public function summary(Request $request)
+    {
+        $query = Item::with(['category'])
+            ->selectRaw('*, (current_stock / NULLIF(maximum_stock, 0) * 100) as stock_percentage');
+
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('brand', 'like', "%{$search}%")
+                  ->orWhere('location', 'like', "%{$search}%");
+            });
+        }
+
+        // Category filter
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Stock status filter
+        if ($request->filled('stock_status')) {
+            switch ($request->stock_status) {
+                case 'in_stock':
+                    $query->where('current_stock', '>', 0)
+                          ->whereRaw('current_stock > minimum_stock');
+                    break;
+                case 'low_stock':
+                    $query->whereRaw('current_stock <= minimum_stock')
+                          ->where('current_stock', '>', 0);
+                    break;
+                case 'out_of_stock':
+                    $query->where('current_stock', '<=', 0);
+                    break;
+                case 'critical':
+                    $query->whereRaw('current_stock <= (minimum_stock * 0.5)');
+                    break;
+            }
+        }
+
+        // Location filter
+        if ($request->filled('location')) {
+            $query->where('location', 'like', "%{$request->location}%");
+        }
+
+        // Sorting
+        $sortField = $request->get('sort', 'name');
+        $sortDirection = $request->get('direction', 'asc');
+        
+        if ($sortField === 'category_name') {
+            $query->join('categories', 'items.category_id', '=', 'categories.id')
+                  ->orderBy('categories.name', $sortDirection)
+                  ->select('items.*', 'categories.name as category_name');
+        } else {
+            $query->orderBy($sortField, $sortDirection);
+        }
+
+        $items = $query->paginate(20)->appends($request->query());
+        
+        // Get summary statistics
+        $totalItems = Item::count();
+        $availableItems = Item::where('current_stock', '>', 0)->count();
+        $lowStockItems = Item::whereRaw('current_stock <= minimum_stock')->where('current_stock', '>', 0)->count();
+        $outOfStockItems = Item::where('current_stock', '<=', 0)->count();
+        $totalValue = Item::sum(DB::raw('current_stock * unit_price'));
+        
+        // Get all categories and locations for filters
+        $categories = Category::orderBy('name')->get();
+        $locations = Item::distinct()->orderBy('location')->pluck('location')->filter();
+        
+        return view('admin.items.summary', compact(
+            'items', 'categories', 'locations',
+            'totalItems', 'availableItems', 'lowStockItems', 'outOfStockItems', 'totalValue'
+        ));
     }
 
     /**
