@@ -11,7 +11,7 @@
             Custom Report Builder
         </h1>
         <div class="d-none d-sm-inline-block">
-            <a href="{{ route('reports.index') }}" class="btn btn-sm btn-outline-secondary">
+            <a href="{{ route('reports') }}" class="btn btn-sm btn-outline-secondary">
                 <i class="fas fa-arrow-left fa-sm"></i> Back to Reports
             </a>
         </div>

@@ -5,8 +5,10 @@
 @endpush
 
 @push('scripts')
+    @if(Auth::user()->role !== 'faculty')
     <!-- QR Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    @endif
     <!-- Dashboard JavaScript -->
     <script src="{{ asset('js/dashboard.js') }}"></script>
 @endpush
@@ -20,7 +22,7 @@
                 <div class="card-body p-4">
                     <div class="row align-items-center">
                         <!-- Welcome Section -->
-                        <div class="col-lg-6">
+                        <div class="col-lg-{{ Auth::user()->role === 'faculty' ? '12' : '6' }}">
                             <div class="pe-lg-4">
                                 <h2 class="fw-bold mb-3">
                                     <i class="fas fa-tachometer-alt me-2" style="color: var(--accent-primary);"></i>
@@ -56,7 +58,8 @@
                             </div>
                         </div>
                         
-                        <!-- QR Scanner Section -->
+                        <!-- QR Scanner Section - Only for Admin and Office Head -->
+                        @if(Auth::user()->role !== 'faculty')
                         <div class="col-lg-6">
                             <div class="ps-lg-4 border-start border-2">
                                 <div class="d-flex align-items-center mb-3">
@@ -87,6 +90,7 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>

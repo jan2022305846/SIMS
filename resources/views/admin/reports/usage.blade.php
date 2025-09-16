@@ -11,7 +11,7 @@
                 <div class="page-title-right">
                     <ol class="breadcrumb m-0">
                         <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('reports.index') }}">Reports</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('reports') }}">Reports</a></li>
                         <li class="breadcrumb-item active">Usage Reports</li>
                     </ol>
                 </div>

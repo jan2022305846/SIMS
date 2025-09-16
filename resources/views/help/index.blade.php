@@ -62,7 +62,7 @@
                                 <div>
                                     <h6 class="fw-bold">Browse Available Items</h6>
                                     <p class="text-muted small mb-0">Explore the inventory to see what supplies are available for request.</p>
-                                    <a href="{{ route('items.browse') }}" class="btn btn-sm btn-outline-primary mt-2">Start Browsing</a>
+                                    <a href="{{ route('faculty.items.index') }}" class="btn btn-sm btn-outline-primary mt-2">Start Browsing</a>
                                 </div>
                             </div>
                         </div>
@@ -86,7 +86,7 @@
                                 <div>
                                     <h6 class="fw-bold">Track Your Requests</h6>
                                     <p class="text-muted small mb-0">Monitor the status of your submitted requests.</p>
-                                    <a href="{{ route('requests.my') }}" class="btn btn-sm btn-outline-info mt-2">My Requests</a>
+                                    <a href="{{ route('faculty.requests.index') }}" class="btn btn-sm btn-outline-info mt-2">My Requests</a>
                                 </div>
                             </div>
                         </div>
@@ -135,7 +135,7 @@
                                 <div>
                                     <h6 class="fw-bold">Generate Reports</h6>
                                     <p class="text-muted small mb-0">Access comprehensive reports and analytics.</p>
-                                    <a href="{{ route('reports.index') }}" class="btn btn-sm btn-outline-info mt-2">View Reports</a>
+                                    <a href="{{ route('reports') }}" class="btn btn-sm btn-outline-info mt-2">View Reports</a>
                                 </div>
                             </div>
                         </div>

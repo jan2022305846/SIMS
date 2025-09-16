@@ -19,7 +19,7 @@
         <!-- Search and Filters -->
         <div class="card shadow-sm mb-4">
             <div class="card-body">
-                <form method="GET" action="{{ route('items.browse') }}" class="row g-3">
+                <form method="GET" action="{{ route('faculty.items.index') }}" class="row g-3">
                     <div class="col-md-6">
                         <input type="text" 
                                name="search" 

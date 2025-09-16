@@ -19,7 +19,7 @@
                     <a href="{{ route('reports.expiry.export', request()->query()) }}" class="btn btn-success">
                         <i class="fas fa-download me-1"></i>Export CSV
                     </a>
-                    <a href="{{ route('reports.index') }}" class="btn btn-outline-secondary">
+                    <a href="{{ route('reports') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-1"></i>All Reports
                     </a>
                 </div>

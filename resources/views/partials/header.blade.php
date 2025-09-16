@@ -15,6 +15,12 @@
             </div>
         </div>
         <div class="header-right">
+            <!-- Time and Date Display -->
+            <div class="time-date-display">
+                <div class="current-time" id="current-time">00:00:00</div>
+                <div class="current-date" id="current-date">Jan,01,2025</div>
+            </div>
+            
             <!-- Dark Mode Toggle -->
             <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
                 <div class="toggle-icon">
@@ -42,3 +48,37 @@
         </div>
     </div>
 </div>
+
+{{-- Time and Date Update Script --}}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function updateTimeDate() {
+        const now = new Date();
+        
+        // Format time as hh:mm:ss
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const timeString = `${hours}:${minutes}:${seconds}`;
+        
+        // Format date as M,D,Y (e.g., Sep,17,2025)
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const month = monthNames[now.getMonth()];
+        const day = String(now.getDate()).padStart(2, '0');
+        const year = now.getFullYear();
+        const dateString = `${month},${day},${year}`;
+        
+        // Update the display elements
+        const timeElement = document.getElementById('current-time');
+        const dateElement = document.getElementById('current-date');
+        
+        if (timeElement) timeElement.textContent = timeString;
+        if (dateElement) dateElement.textContent = dateString;
+    }
+    
+    // Update immediately and then every second
+    updateTimeDate();
+    setInterval(updateTimeDate, 1000);
+});
+</script>
