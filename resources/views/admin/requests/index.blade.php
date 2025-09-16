@@ -288,16 +288,6 @@
                                                                 <i class="fas fa-print"></i>
                                                             </a>
                                                         @endif
-                                                        
-                                                        @if(!$request->isDeclined() && !$request->isClaimed())
-                                                            <button type="button" 
-                                                                    class="btn btn-outline-danger" 
-                                                                    data-bs-toggle="modal" 
-                                                                    data-bs-target="#declineModal{{ $request->id }}"
-                                                                    title="Decline Request">
-                                                                <i class="fas fa-times"></i>
-                                                            </button>
-                                                        @endif
                                                     @elseif(auth()->user()->role === 'office_head')
                                                         <!-- Office Head Actions -->
                                                         @if($request->canBeApprovedByOfficeHead())
@@ -307,14 +297,6 @@
                                                                     data-bs-target="#approveModal{{ $request->id }}"
                                                                     title="Approve Request">
                                                                 <i class="fas fa-check"></i>
-                                                            </button>
-                                                            
-                                                            <button type="button" 
-                                                                    class="btn btn-outline-danger" 
-                                                                    data-bs-toggle="modal" 
-                                                                    data-bs-target="#declineModal{{ $request->id }}"
-                                                                    title="Decline Request">
-                                                                <i class="fas fa-times"></i>
                                                             </button>
                                                         @endif
                                                     @endif
@@ -392,35 +374,7 @@
     @endif
 @endforeach
 
-<!-- Decline Modals -->
-@foreach($requests as $request)
-    @if(!$request->isDeclined() && !$request->isClaimed() && (auth()->user()->isAdmin() || (auth()->user()->isOfficeHead() && $request->canBeApprovedByOfficeHead())))
-        <div class="modal fade" id="declineModal{{ $request->id }}" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Decline Request</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <form method="POST" action="{{ auth()->user()->isAdmin() ? route('requests.decline', $request) : route('requests.decline-office-head', $request) }}">>
-                        @csrf
-                        <div class="modal-body">
-                            <p>Please provide a reason for declining this request:</p>
-                            <div class="mb-3">
-                                <label for="reason{{ $request->id }}" class="form-label">Reason <span class="text-danger">*</span></label>
-                                <textarea class="form-control" id="reason{{ $request->id }}" name="reason" rows="3" placeholder="Explain why this request is being declined..." required></textarea>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-danger">Decline Request</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    @endif
-@endforeach
+
 
 <style>
     .bg-purple {
@@ -534,4 +488,53 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     </script>
 @endif
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Auto-submit form on select change
+    const statusFilter = document.getElementById('status');
+    const priorityFilter = document.getElementById('priority');
+    const departmentFilter = document.getElementById('department');
+    const searchInput = document.getElementById('search');
+    const form = document.getElementById('filterForm');
+
+    statusFilter.addEventListener('change', function() {
+        form.submit();
+    });
+    
+    priorityFilter.addEventListener('change', function() {
+        form.submit();
+    });
+    
+    departmentFilter.addEventListener('change', function() {
+        form.submit();
+    });
+
+    // Auto-submit on search with debounce
+    let searchTimeout;
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            form.submit();
+        }, 1000); // 1 second delay
+    });
+
+    // Submit on Enter key
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            clearTimeout(searchTimeout);
+            form.submit();
+        }
+    });
+});
+</script>
+@endpush
+
 @endsection

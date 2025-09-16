@@ -120,7 +120,7 @@
                                     </span>
                                 </td>
                                 <td>{{ number_format($backup['size'] / 1024, 2) }} KB</td>
-                                <td>{{ $backup['created_at']->format('M d, Y H:i') }}</td>
+                                <td>{{ $backup['created_at']->format('M d, Y g:i A') }}</td>
                                 <td>
                                     <span class="badge badge-success">
                                         <i class="fas fa-check-circle"></i> Valid

@@ -143,6 +143,11 @@ class Request extends Model
         return $this->workflow_status === 'fulfilled';
     }
 
+    public function canBeAcknowledgedByRequester()
+    {
+        return $this->workflow_status === 'fulfilled' && !$this->acknowledgment;
+    }
+
     public function approveByOfficeHead(User $user, ?string $notes = null)
     {
         $this->update([

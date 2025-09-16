@@ -85,14 +85,14 @@ class RequestController extends Controller
         $items = Item::where('current_stock', '>', 0)->get();
         $departments = [
             'IT Department',
-            'HR Department', 
+            'HR Department',
             'Finance Department',
             'Operations Department',
             'Marketing Department',
             'Engineering Department'
         ];
 
-        return view('admin.requests.create', compact('items', 'departments'));
+        return view('faculty.requests.create', compact('items', 'departments'));
     }
 
     public function store(Request $request)
@@ -148,8 +148,8 @@ class RequestController extends Controller
             Log::create([
                 'user_id' => Auth::id(),
                 'action' => 'create',
-                'description' => 'Created request for ' . $validatedData['quantity'] . ' ' . $item->name . ' (Priority: ' . $validatedData['priority'] . ')',
-                'timestamp' => now(),
+                'details' => 'Created request for ' . $validatedData['quantity'] . ' ' . $item->name . ' (Priority: ' . $validatedData['priority'] . ')',
+                'created_at' => now(),
             ]);
 
             DB::commit();
@@ -172,6 +172,11 @@ class RequestController extends Controller
         $user = Auth::user();
         if ($user->role === 'faculty' && $request->user_id !== $user->id) {
             abort(403, 'Unauthorized access to this request.');
+        }
+
+        // Return appropriate view based on user role
+        if ($user->role === 'faculty') {
+            return view('faculty.requests.show', compact('request'));
         }
 
         return view('admin.requests.show', compact('request'));
@@ -229,11 +234,11 @@ class RequestController extends Controller
         Log::create([
             'user_id' => Auth::id(),
             'action' => 'update',
-            'description' => 'Updated request for ' . $item->name,
-            'timestamp' => now(),
+            'details' => 'Updated request for ' . $item->name,
+            'created_at' => now(),
         ]);
 
-        return redirect()->route('requests.details', $request)
+        return redirect()->route('requests.show', $request)
             ->with('success', 'Request updated successfully!');
     }
 
@@ -255,12 +260,18 @@ class RequestController extends Controller
 
         $supplyRequest->approveByOfficeHead(Auth::user(), $validatedData['office_head_notes'] ?? null);
 
-        // Create log entry
+        // Load item relationship if not already loaded
+        if (!$supplyRequest->relationLoaded('item')) {
+            $supplyRequest->load('item');
+        }
+
+        // Create log entry with null check
+        $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
         Log::create([
             'user_id' => Auth::id(),
             'action' => 'approve',
-            'description' => 'Approved request by office head for ' . $supplyRequest->item->name,
-            'timestamp' => now(),
+            'details' => 'Approved request by office head for ' . $itemName,
+            'created_at' => now(),
         ]);
 
         return back()->with('success', 'Request approved by office head successfully!');
@@ -280,12 +291,18 @@ class RequestController extends Controller
 
         $supplyRequest->approveByAdmin(Auth::user());
 
-        // Create log entry
+        // Load item relationship if not already loaded
+        if (!$supplyRequest->relationLoaded('item')) {
+            $supplyRequest->load('item');
+        }
+
+        // Create log entry with null check
+        $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
         Log::create([
             'user_id' => Auth::id(),
             'action' => 'approve',
-            'description' => 'Approved request by admin for ' . $supplyRequest->item->name,
-            'timestamp' => now(),
+            'details' => 'Approved request by admin for ' . $itemName,
+            'created_at' => now(),
         ]);
 
         return back()->with('success', 'Request approved by administrator successfully!');
@@ -303,21 +320,32 @@ class RequestController extends Controller
             return back()->withErrors(['error' => 'This request cannot be fulfilled at this stage.']);
         }
 
-        // Check stock availability one more time
-        if ($supplyRequest->item->current_stock < $supplyRequest->quantity) {
-            return back()->withErrors(['error' => 'Insufficient stock to fulfill this request.']);
+        // Load item relationship if not already loaded
+        if (!$supplyRequest->relationLoaded('item')) {
+            $supplyRequest->load('item');
+        }
+
+        // Check stock availability one more time with null check
+        if (!$supplyRequest->item || $supplyRequest->item->current_stock < $supplyRequest->quantity) {
+            return back()->withErrors(['error' => 'Insufficient stock to fulfill this request or item not found.']);
         }
 
         DB::beginTransaction();
         try {
             $supplyRequest->fulfill(Auth::user());
 
-            // Create log entry
+            // Load item relationship if not already loaded
+            if (!$supplyRequest->relationLoaded('item')) {
+                $supplyRequest->load('item');
+            }
+
+            // Create log entry with null check
+            $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
             Log::create([
                 'user_id' => Auth::id(),
                 'action' => 'fulfill',
-                'description' => 'Fulfilled request for ' . $supplyRequest->quantity . ' ' . $supplyRequest->item->name . '. Claim slip: ' . $supplyRequest->claim_slip_number,
-                'timestamp' => now(),
+                'details' => 'Fulfilled request for ' . $supplyRequest->quantity . ' ' . $itemName . '. Claim slip: ' . $supplyRequest->claim_slip_number,
+                'created_at' => now(),
             ]);
 
             DB::commit();
@@ -344,12 +372,18 @@ class RequestController extends Controller
 
         $supplyRequest->markAsClaimed(Auth::user());
 
-        // Create log entry
+        // Load item relationship if not already loaded
+        if (!$supplyRequest->relationLoaded('item')) {
+            $supplyRequest->load('item');
+        }
+
+        // Create log entry with null check
+        $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
         Log::create([
             'user_id' => Auth::id(),
             'action' => 'claim',
-            'description' => 'Marked request as claimed for ' . $supplyRequest->item->name,
-            'timestamp' => now(),
+            'details' => 'Marked request as claimed for ' . $itemName,
+            'created_at' => now(),
         ]);
 
         return back()->with('success', 'Request marked as claimed successfully!');
@@ -375,12 +409,18 @@ class RequestController extends Controller
 
         $supplyRequest->decline(Auth::user(), $validatedData['reason']);
 
-        // Create log entry
+        // Load item relationship if not already loaded
+        if (!$supplyRequest->relationLoaded('item')) {
+            $supplyRequest->load('item');
+        }
+
+        // Create log entry with null check
+        $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
         Log::create([
             'user_id' => Auth::id(),
             'action' => 'decline',
-            'description' => 'Declined request for ' . $supplyRequest->item->name . '. Reason: ' . $validatedData['reason'],
-            'timestamp' => now(),
+            'details' => 'Declined request for ' . $itemName . '. Reason: ' . $validatedData['reason'],
+            'created_at' => now(),
         ]);
 
         return back()->with('success', 'Request declined successfully!');
@@ -396,12 +436,18 @@ class RequestController extends Controller
             abort(403, 'This request cannot be deleted.');
         }
 
-        // Create log entry before deletion
+        // Load item relationship if not already loaded
+        if (!$request->relationLoaded('item')) {
+            $request->load('item');
+        }
+
+        // Create log entry before deletion with null check
+        $itemName = $request->item ? $request->item->name : 'Unknown Item';
         Log::create([
             'user_id' => Auth::id(),
             'action' => 'delete',
-            'description' => 'Deleted request for ' . $request->item->name,
-            'timestamp' => now(),
+            'details' => 'Deleted request for ' . $itemName,
+            'created_at' => now(),
         ]);
 
         $request->delete();
@@ -427,7 +473,39 @@ class RequestController extends Controller
 
     public function myRequests(Request $request)
     {
-        return $this->index($request);
+        $query = SupplyRequest::with(['user', 'item', 'officeHeadApprover', 'adminApprover'])
+            ->latest();
+
+        // Faculty can only see their own requests
+        $query->where('user_id', Auth::id());
+
+        // Apply search filter
+        if ($request->has('search') && $request->search) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->whereHas('item', function($itemQuery) use ($searchTerm) {
+                    $itemQuery->where('name', 'like', "%{$searchTerm}%");
+                })
+                ->orWhere('purpose', 'like', "%{$searchTerm}%")
+                ->orWhere('claim_slip_number', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply status filter
+        if ($request->has('status') && $request->status) {
+            if ($request->status === 'declined') {
+                $query->where(function($q) {
+                    $q->where('workflow_status', 'declined_by_office_head')
+                      ->orWhere('workflow_status', 'declined_by_admin');
+                });
+            } else {
+                $query->where('workflow_status', $request->status);
+            }
+        }
+
+        $requests = $query->paginate(15);
+
+        return view('faculty.requests.index', compact('requests'));
     }
 
     public function updateStatus(Request $httpRequest, SupplyRequest $request)

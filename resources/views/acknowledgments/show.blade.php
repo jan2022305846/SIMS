@@ -95,16 +95,14 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($request->items as $item)
                                 <tr>
-                                    <td class="fw-bold">{{ $item->name }}</td>
-                                    <td>{{ $item->category->name ?? 'N/A' }}</td>
-                                    <td>{{ $item->pivot->quantity_requested }}</td>
-                                    <td>{{ $item->pivot->quantity_approved ?? $item->pivot->quantity_requested }}</td>
-                                    <td>{{ $item->unit }}</td>
-                                    <td>{{ $item->description ?? 'N/A' }}</td>
+                                    <td class="fw-bold">{{ $request->item->name }}</td>
+                                    <td>{{ $request->item->category->name ?? 'N/A' }}</td>
+                                    <td>{{ $request->quantity }}</td>
+                                    <td>{{ $request->quantity_approved ?? $request->quantity }}</td>
+                                    <td>{{ $request->item->unit }}</td>
+                                    <td>{{ $request->item->description ?? 'N/A' }}</td>
                                 </tr>
-                                @endforeach
                             </tbody>
                         </table>
                     </div>

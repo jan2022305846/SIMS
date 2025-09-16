@@ -182,16 +182,29 @@ class ItemController extends Controller
     {
         $query = Item::with('category');
 
-        if ($request->has('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('description', 'like', '%' . $request->search . '%');
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('brand', 'like', "%{$search}%");
+            });
         }
 
-        if ($request->has('category_id')) {
+        // Category filter
+        if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
         }
 
         $items = $query->paginate(12);
+
+        // Build clean query parameters (remove empty values)
+        $cleanQuery = array_filter($request->only(['search', 'category_id']), function($value) {
+            return $value !== null && $value !== '';
+        });
+
+        $items->appends($cleanQuery);
         $categories = Category::all();
 
         return view('faculty.items.browse', compact('items', 'categories'));

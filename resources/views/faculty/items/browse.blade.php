@@ -19,16 +19,17 @@
         <!-- Search and Filters -->
         <div class="card shadow-sm mb-4">
             <div class="card-body">
-                <form method="GET" action="{{ route('faculty.items.index') }}" class="row g-3">
+                <form method="GET" action="{{ route('faculty.items.index') }}" class="row g-3" id="filterForm">
                     <div class="col-md-6">
                         <input type="text" 
                                name="search" 
                                value="{{ request('search') }}"
                                placeholder="Search items..." 
-                               class="form-control">
+                               class="form-control"
+                               id="searchInput">
                     </div>
-                    <div class="col-md-3">
-                        <select name="category_id" class="form-select">
+                    <div class="col-md-4">
+                        <select name="category_id" class="form-select" id="categorySelect">
                             <option value="">All Categories</option>
                             @foreach($categories as $category)
                                 <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>
@@ -37,11 +38,18 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-search me-1"></i>
-                            Search
-                        </button>
+                    <div class="col-md-2">
+                        <div class="d-flex gap-1">
+                            <button type="submit" class="btn btn-primary flex-fill">
+                                <i class="fas fa-search me-1"></i>
+                                Filter
+                            </button>
+                            @if(request()->hasAny(['search', 'category_id']))
+                                <a href="{{ route('faculty.items.index') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                            @endif
+                        </div>
                     </div>
                 </form>
             </div>
@@ -147,5 +155,45 @@
     </div>
 </div>
 @endsection
-    </div>
-</div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('filterForm');
+    const searchInput = document.getElementById('searchInput');
+    const categorySelect = document.getElementById('categorySelect');
+
+    let searchTimeout;
+
+    // Auto-submit on category changes
+    categorySelect.addEventListener('change', function() {
+        if (searchInput.value.trim() || categorySelect.selectedIndex > 1) {
+            filterForm.submit();
+        }
+    });
+
+    // Debounced search
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            if (this.value.length >= 2 || this.value.length === 0) {
+                filterForm.submit();
+            }
+        }, 500);
+    });
+
+    // Prevent form submission with only empty values
+    filterForm.addEventListener('submit', function(e) {
+        const searchVal = searchInput.value.trim();
+        const categoryVal = categorySelect.value;
+
+        // If all fields are empty, redirect to clean URL
+        if (!searchVal && !categoryVal) {
+            e.preventDefault();
+            window.location.href = '{{ route("faculty.items.index") }}';
+            return false;
+        }
+    });
+});
+</script>
+@endpush

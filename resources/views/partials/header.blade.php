@@ -15,12 +15,6 @@
             </div>
         </div>
         <div class="header-right">
-            <!-- Time and Date Display -->
-            <div class="time-date-display">
-                <div class="current-time" id="current-time">00:00:00</div>
-                <div class="current-date" id="current-date">Jan,01,2025</div>
-            </div>
-            
             <!-- Dark Mode Toggle -->
             <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
                 <div class="toggle-icon">
@@ -40,10 +34,15 @@
                     </svg>
                 </div>
             </button>
-            
+            <!-- User Info Display -->              
             <div class="user-info">
                 <span class="user-name">{{ Auth::user()->name }}</span>
                 <span class="user-role">{{ ucfirst(Auth::user()->role) }}</span>
+            </div>
+            <!-- Time and Date Display -->
+            <div class="time-date-display">
+                <div class="current-time" id="current-time">00:00:00</div>
+                <div class="current-date" id="current-date">Jan,01,2025</div>
             </div>
         </div>
     </div>
@@ -55,11 +54,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateTimeDate() {
         const now = new Date();
         
-        // Format time as hh:mm:ss
-        const hours = String(now.getHours()).padStart(2, '0');
+        // Format time as hh:mm:ss AM/PM (12-hour format)
+        let hours = now.getHours();
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
-        const timeString = `${hours}:${minutes}:${seconds}`;
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        
+        // Convert to 12-hour format
+        hours = hours % 12;
+        hours = hours ? hours : 12; // the hour '0' should be '12'
+        const timeString = `${hours}:${minutes}:${seconds} ${ampm}`;
         
         // Format date as M,D,Y (e.g., Sep,17,2025)
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 

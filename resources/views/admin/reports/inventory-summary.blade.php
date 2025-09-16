@@ -226,7 +226,7 @@
                                             <span class="badge badge-success">Adequate</span>
                                         @endif
                                     </td>
-                                    <td>{{ $item->updated_at->format('M d, Y H:i') }}</td>
+                                    <td>{{ $item->updated_at->format('M d, Y g:i A') }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

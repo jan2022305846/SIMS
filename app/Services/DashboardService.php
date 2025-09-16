@@ -168,7 +168,7 @@ class DashboardService
      */
     public function getPendingRequests($user, $limit = null): Collection
     {
-        $query = SupplyRequest::with(['user', 'items'])
+        $query = SupplyRequest::with(['user', 'item'])
             ->where('status', 'pending')
             ->orderBy('created_at', 'desc');
 
@@ -188,12 +188,12 @@ class DashboardService
                 'department' => $request->user->department ?? 'N/A',
                 'purpose' => $request->purpose,
                 'priority' => $request->priority,
-                'items_count' => $request->items->count(),
+                'items_count' => $request->item ? 1 : 0,
                 'created_at' => $request->created_at,
                 'days_pending' => $request->created_at->diffInDays(now()),
                 'url' => $user->role === 'faculty' 
                     ? route('faculty.requests.show', $request->id)
-                    : route('requests.details', $request->id)
+                    : route('requests.show', $request->id)
             ];
         });
     }
@@ -476,7 +476,7 @@ class DashboardService
      */
     public function getUserRequests($user, $limit = null): Collection
     {
-        $query = SupplyRequest::with(['items'])
+        $query = SupplyRequest::with(['item'])
             ->where('user_id', $user->id)
             ->orderBy('created_at', 'desc');
 

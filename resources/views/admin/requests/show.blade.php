@@ -223,7 +223,7 @@
                                 @endif
                                 
                                 @if(!$request->isDeclined() && !$request->isClaimed())
-                                    <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#declineModal">
+                                    <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#declineModal" id="declineBtn">
                                         <i class="fas fa-times me-2"></i>Decline Request
                                     </button>
                                 @endif
@@ -385,31 +385,41 @@
 
 <!-- Decline Modal -->
 @if(!$request->isDeclined() && !$request->isClaimed() && (auth()->user()->isAdmin() || (auth()->user()->isOfficeHead() && $request->canBeApprovedByOfficeHead())))
-    <div class="modal fade" id="declineModal" tabindex="-1">
-        <div class="modal-dialog">
+    <div class="modal fade" id="declineModal" tabindex="-1" aria-labelledby="declineModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Decline Request</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title" id="declineModalLabel">Decline Request</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" action="{{ auth()->user()->isAdmin() ? route('requests.decline', $request) : route('requests.decline-office-head', $request) }}">>
+                <form method="POST" action="{{ auth()->user()->isAdmin() ? route('requests.decline', $request) : route('requests.decline-office-head', $request) }}" id="declineForm">
                     @csrf
                     <div class="modal-body">
-                        <p>Please provide a reason for declining this request:</p>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Warning:</strong> This action cannot be undone. The request will be permanently declined.
+                        </div>
                         <div class="mb-3">
-                            <label for="reason" class="form-label">Reason <span class="text-danger">*</span></label>
-                            <textarea class="form-control" id="reason" name="reason" rows="3" placeholder="Explain why this request is being declined..." required></textarea>
+                            <label for="reason" class="form-label">Reason for declining <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="reason" name="reason" rows="4" placeholder="Please provide a detailed reason for declining this request..." required></textarea>
+                            <div class="form-text">This reason will be visible to the requestor.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-danger">Decline Request</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </button>
+                        <button type="submit" class="btn btn-danger" id="declineSubmitBtn">
+                            <i class="fas fa-ban me-2"></i>Decline Request
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 @endif
+
+
 
 <style>
     .bg-purple {
@@ -468,6 +478,15 @@
     .timeline-item.declined .timeline-content {
         border-left-color: #dc3545;
         background: #f8d7da;
+    }
+
+    /* Modal improvements */
+    .modal {
+        z-index: 1060 !important;
+    }
+    
+    .modal-backdrop {
+        z-index: 1050 !important;
     }
 </style>
 
@@ -528,7 +547,114 @@
             setTimeout(() => {
                 document.body.removeChild(toastContainer);
             }, 5000);
-        });
-    </script>
+});
+</script>
 @endif
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize modal management
+    initializeModalManagement();
+    
+    const declineForm = document.getElementById('declineForm');
+    const declineSubmitBtn = document.getElementById('declineSubmitBtn');
+    
+    if (declineForm && declineSubmitBtn) {
+        declineForm.addEventListener('submit', function() {
+            // Show loading state
+            declineSubmitBtn.disabled = true;
+            declineSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        });
+    }
+});
+
+// Comprehensive modal backdrop management
+function initializeModalManagement() {
+    let cleanupInterval;
+    let modalOpen = false;
+    
+    // Clean up on page load
+    forceCleanupModalState();
+    
+    // Override Bootstrap modal show method to ensure clean state
+    const originalModalShow = bootstrap.Modal.prototype.show;
+    bootstrap.Modal.prototype.show = function() {
+        forceCleanupModalState();
+        modalOpen = true;
+        // Stop periodic cleanup when modal is open
+        if (cleanupInterval) {
+            clearInterval(cleanupInterval);
+        }
+        return originalModalShow.call(this);
+    };
+    
+    // Override Bootstrap modal hide method to ensure clean state
+    const originalModalHide = bootstrap.Modal.prototype.hide;
+    bootstrap.Modal.prototype.hide = function() {
+        const result = originalModalHide.call(this);
+        modalOpen = false;
+        // Clean up after a short delay to allow Bootstrap to finish
+        setTimeout(() => {
+            forceCleanupModalState();
+            // Restart periodic cleanup when modal is closed
+            cleanupInterval = setInterval(() => {
+                if (!modalOpen) {
+                    forceCleanupModalState();
+                }
+            }, 5000);
+        }, 100);
+        return result;
+    };
+    
+    // Intercept modal trigger clicks
+    document.addEventListener('click', function(e) {
+        const modalTrigger = e.target.closest('[data-bs-toggle="modal"]');
+        if (modalTrigger) {
+            forceCleanupModalState();
+        }
+    });
+    
+    // Start periodic cleanup initially
+    cleanupInterval = setInterval(() => {
+        if (!modalOpen) {
+            forceCleanupModalState();
+        }
+    }, 5000);
+}
+
+// Force cleanup of all modal-related elements and state
+function forceCleanupModalState() {
+    // Remove all modal backdrops
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(backdrop => {
+        if (backdrop.parentNode) {
+            backdrop.parentNode.removeChild(backdrop);
+        }
+    });
+    
+    // Reset body modal state
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+    
+    // Ensure no modals are stuck in show state
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.classList.remove('show');
+        modal.style.display = '';
+        modal.setAttribute('aria-hidden', 'true');
+        modal.removeAttribute('aria-modal');
+        modal.removeAttribute('role');
+    });
+    
+    // Clean up any orphaned modal dialogs
+    const modalDialogs = document.querySelectorAll('.modal-dialog');
+    modalDialogs.forEach(dialog => {
+        dialog.style.transform = '';
+    });
+}
+</script>
+@endpush
+
 @endsection
