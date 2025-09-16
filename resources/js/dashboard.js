@@ -61,7 +61,22 @@ const DashboardQR = {
                 console.log('📷 Cameras found:', devices.length);
                 
                 if (devices && devices.length) {
-                    const cameraId = devices[0].id;
+                    // Prefer back camera on mobile devices
+                    let cameraId = devices[0].id;
+                    
+                    // Look for back/environment camera on mobile
+                    for (let device of devices) {
+                        if (device.label && (
+                            device.label.toLowerCase().includes('back') ||
+                            device.label.toLowerCase().includes('environment') ||
+                            device.label.toLowerCase().includes('rear')
+                        )) {
+                            cameraId = device.id;
+                            console.log('📷 Found back camera:', device.label);
+                            break;
+                        }
+                    }
+                    
                     console.log('📷 Using camera:', cameraId);
                     
                     html5QrCode.start(

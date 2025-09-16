@@ -195,15 +195,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 let cameraId = devices[0].id;
                 
                 // Look for back/environment camera on mobile
+                // Try multiple patterns to find the back camera
                 for (let device of devices) {
-                    if (device.label && (
-                        device.label.toLowerCase().includes('back') ||
-                        device.label.toLowerCase().includes('environment') ||
-                        device.label.toLowerCase().includes('rear')
-                    )) {
-                        cameraId = device.id;
-                        console.log('Found back camera:', device.label);
-                        break;
+                    if (device.label) {
+                        const label = device.label.toLowerCase();
+                        // Check for various back camera naming patterns
+                        if (label.includes('back') ||
+                            label.includes('environment') ||
+                            label.includes('rear') ||
+                            label.includes('world') ||
+                            (label.includes('camera') && label.includes('1')) ||
+                            (label.includes('cam') && label.includes('1'))) {
+                            cameraId = device.id;
+                            console.log('Found back camera:', device.label);
+                            break;
+                        }
                     }
                 }
                 
