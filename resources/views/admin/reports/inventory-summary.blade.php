@@ -14,7 +14,7 @@
             <button class="btn btn-sm btn-primary shadow-sm" onclick="window.print()">
                 <i class="fas fa-download fa-sm text-white-50"></i> Generate Report
             </button>
-            <a href="{{ route('reports') }}" class="btn btn-sm btn-outline-secondary">
+            <a href="{{ route('reports.index') }}" class="btn btn-sm btn-outline-secondary">
                 <i class="fas fa-arrow-left fa-sm"></i> Back to Reports
             </a>
         </div>

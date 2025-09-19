@@ -85,7 +85,7 @@
 
         {{-- Reports Section --}}
         @if(Auth::user()->role === 'admin')
-            <a href="{{ route('reports') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+            <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="20" x2="18" y2="10"></line>
                     <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -94,7 +94,7 @@
                 <span>Reports</span>
             </a>
         @elseif(Auth::user()->role === 'office_head')
-            <a href="{{ route('reports') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+            <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="20" x2="18" y2="10"></line>
                     <line x1="12" y1="20" x2="12" y2="4"></line>

@@ -9,8 +9,6 @@ use App\Http\Controllers\Web\CategoryController;
 use App\Http\Controllers\Web\ItemController;
 use App\Http\Controllers\Web\RequestController;
 use App\Http\Controllers\Web\ReportsController;
-use App\Http\Controllers\Web\ExpiryReportsController;
-use App\Http\Controllers\Web\UsageReportsController;
 use App\Http\Controllers\Web\AcknowledgmentController;
 use App\Http\Controllers\Web\HelpController;
 use App\Http\Controllers\Web\BackupController;
@@ -109,19 +107,12 @@ Route::middleware(['auth'])->group(function () {
         
         // Admin Reports
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
-        Route::get('reports/dashboard', [ReportsController::class, 'dashboard'])->name('reports.dashboard');
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
-        Route::get('reports/expiry', [ExpiryReportsController::class, 'index'])->name('reports.expiry');
-        Route::get('reports/expiry/export', [ExpiryReportsController::class, 'exportCsv'])->name('reports.expiry.export');
-        Route::get('reports/usage', [UsageReportsController::class, 'index'])->name('reports.usage');
-        Route::get('reports/usage/export', [UsageReportsController::class, 'exportCsv'])->name('reports.usage.export');
+        Route::get('reports/daily-csv', [ReportsController::class, 'dailyCsv'])->name('reports.daily-csv');
+        Route::get('reports/weekly-csv', [ReportsController::class, 'weeklyCsv'])->name('reports.weekly-csv');
+        Route::get('reports/annual-csv', [ReportsController::class, 'annualCsv'])->name('reports.annual-csv');
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
         Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
-        Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
-        Route::get('reports/department-report', [ReportsController::class, 'departmentReport'])->name('reports.department-report');
-        Route::get('reports/financial-summary', [ReportsController::class, 'financialSummary'])->name('reports.financial-summary');
-        Route::get('reports/user-activity', [ReportsController::class, 'userActivityReport'])->name('reports.user-activity');
-        Route::get('reports/custom-report', [ReportsController::class, 'customReport'])->name('reports.custom-report');
         Route::get('reports/daily-transactions', [ReportsController::class, 'dailyTransactions'])->name('reports.daily-transactions');
         Route::get('reports/daily-disbursement', [ReportsController::class, 'dailyDisbursement'])->name('reports.daily-disbursement');
         Route::get('reports/weekly-summary', [ReportsController::class, 'weeklySummary'])->name('reports.weekly-summary');
@@ -140,20 +131,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('requests/{request}', [RequestController::class, 'show'])->name('office-head.requests.show');
         
         // Reports
-        Route::get('reports', [ReportsController::class, 'index'])->name('reports');
-        Route::get('reports/dashboard', [ReportsController::class, 'dashboard'])->name('reports.dashboard');
+        Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
-        Route::get('reports/expiry', [ExpiryReportsController::class, 'index'])->name('reports.expiry');
-        Route::get('reports/expiry/export', [ExpiryReportsController::class, 'exportCsv'])->name('reports.expiry.export');
-        Route::get('reports/usage', [UsageReportsController::class, 'index'])->name('reports.usage');
-        Route::get('reports/usage/export', [UsageReportsController::class, 'exportCsv'])->name('reports.usage.export');
+        Route::get('reports/daily-csv', [ReportsController::class, 'dailyCsv'])->name('reports.daily-csv');
+        Route::get('reports/weekly-csv', [ReportsController::class, 'weeklyCsv'])->name('reports.weekly-csv');
+        Route::get('reports/annual-csv', [ReportsController::class, 'annualCsv'])->name('reports.annual-csv');
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
         Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
-        Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
-        Route::get('reports/department-report', [ReportsController::class, 'departmentReport'])->name('reports.department-report');
-        Route::get('reports/financial-summary', [ReportsController::class, 'financialSummary'])->name('reports.financial-summary');
-        Route::get('reports/user-activity', [ReportsController::class, 'userActivityReport'])->name('reports.user-activity');
-        Route::get('reports/custom-report', [ReportsController::class, 'customReport'])->name('reports.custom-report');
         
         // New Daily, Weekly, Monthly, Annual Reports
         Route::get('reports/daily-transactions', [ReportsController::class, 'dailyTransactions'])->name('reports.daily-transactions');

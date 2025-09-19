@@ -293,7 +293,7 @@ class DashboardService
                     'title' => 'Generate Reports',
                     'description' => 'View detailed reports and analytics',
                     'icon' => 'fas fa-chart-bar',
-                    'url' => route('reports'),
+                    'url' => route('reports.index'),
                     'color' => 'info'
                 ],
                 [

@@ -135,7 +135,7 @@
                                 <div>
                                     <h6 class="fw-bold">Generate Reports</h6>
                                     <p class="text-muted small mb-0">Access comprehensive reports and analytics.</p>
-                                    <a href="{{ route('reports') }}" class="btn btn-sm btn-outline-info mt-2">View Reports</a>
+                                    <a href="{{ route('reports.index') }}" class="btn btn-sm btn-outline-info mt-2">View Reports</a>
                                 </div>
                             </div>
                         </div>

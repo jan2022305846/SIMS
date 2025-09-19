@@ -19,17 +19,24 @@ class ReportsController extends Controller
 {
     /**
      * Check if workflow_status column exists (MySQL 5.5 compatible)
+     * Cache the result to avoid repeated queries
      */
     private function hasWorkflowColumn()
     {
-        try {
-            // Use a simple query that works with MySQL 5.5
-            $result = DB::select("SHOW COLUMNS FROM requests LIKE 'workflow_status'");
-            return count($result) > 0;
-        } catch (\Exception $e) {
-            // If there's any error, assume column doesn't exist
-            return false;
+        static $hasColumn = null;
+        
+        if ($hasColumn === null) {
+            try {
+                // Use a simple query that works with MySQL 5.5
+                $result = DB::select("SHOW COLUMNS FROM requests LIKE 'workflow_status'");
+                $hasColumn = count($result) > 0;
+            } catch (\Exception $e) {
+                // If there's any error, assume column doesn't exist
+                $hasColumn = false;
+            }
         }
+        
+        return $hasColumn;
     }
 
     /**
@@ -67,8 +74,27 @@ class ReportsController extends Controller
         }
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        // Handle period parameter for dashboard functionality
+        $period = $request->get('period', 'daily');
+
+        // Check if workflow_status column exists
+        if (!$this->hasWorkflowColumn()) {
+            $data = [
+                'total_requests' => 0,
+                'completed_requests' => 0,
+                'pending_requests' => 0,
+                'items_requested' => 0,
+                'chart_data' => [],
+            ];
+            $message = 'Dashboard temporarily unavailable while database is being updated.';
+        } else {
+            $data = $this->getReportData($period);
+            $message = null;
+        }
+
+        // Get basic stats for the stats cards
         $stats = [
             'total_items' => Item::count(),
             'low_stock_items' => Item::whereRaw('current_stock <= minimum_stock')->count(),
@@ -78,38 +104,7 @@ class ReportsController extends Controller
             'categories_count' => Category::count(),
         ];
 
-        return view('admin.reports.index', compact('stats'));
-    }
-
-    /**
-     * Reports Dashboard with Charts
-     */
-    public function dashboard(Request $request)
-    {
-        // Check if workflow_status column exists
-        if (!$this->hasWorkflowColumn()) {
-            return view('admin.reports.dashboard', [
-                'data' => [
-                    'period' => 'Daily',
-                    'current_date' => Carbon::now()->format('F j, Y'),
-                    'chart_data' => [],
-                    'summary' => [
-                        'total_requests' => 0,
-                        'fulfilled_requests' => 0,
-                        'pending_requests' => 0,
-                        'total_value' => 0,
-                    ],
-                    'records' => collect([]),
-                ],
-                'period' => 'daily',
-                'message' => 'Dashboard temporarily unavailable while database is being updated.'
-            ]);
-        }
-
-        $period = $request->get('period', 'daily'); // daily, weekly, monthly, annually
-        $data = $this->getReportData($period);
-        
-        return view('admin.reports.dashboard', compact('data', 'period'));
+        return view('admin.reports.index', compact('stats', 'data', 'period', 'message'));
     }
 
     /**
@@ -124,8 +119,6 @@ class ReportsController extends Controller
                 return $this->getDailyReportData($now);
             case 'weekly': 
                 return $this->getWeeklyReportData($now);
-            case 'monthly':
-                return $this->getMonthlyReportData($now);
             case 'annually':
                 return $this->getAnnualReportData($now);
             default:
@@ -138,49 +131,73 @@ class ReportsController extends Controller
         $startDate = $date->copy()->startOfDay();
         $endDate = $date->copy()->endOfDay();
         
-        // Get last 7 days for chart
+        // Get last 7 days for chart - use single query with date grouping
         $chartData = [];
+        
+        // Get all requests for the last 7 days in one query
+        $requestsQuery = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+            ->whereBetween('requests.created_at', [$date->copy()->subDays(6)->startOfDay(), $endDate])
+            ->groupByRaw('DATE(requests.created_at)')
+            ->orderByRaw('DATE(requests.created_at)');
+        
+        if ($this->hasWorkflowColumn()) {
+            $requestsData = $requestsQuery->get()->keyBy('date');
+        } else {
+            // Fallback for old status column
+            $requestsData = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+                ->whereBetween('requests.created_at', [$date->copy()->subDays(6)->startOfDay(), $endDate])
+                ->groupByRaw('DATE(requests.created_at)')
+                ->orderByRaw('DATE(requests.created_at)')
+                ->get()
+                ->keyBy('date');
+        }
+        
+        // Build chart data for last 7 days
         for ($i = 6; $i >= 0; $i--) {
             $checkDate = $date->copy()->subDays($i);
-            $dayStart = $checkDate->copy()->startOfDay();
-            $dayEnd = $checkDate->copy()->endOfDay();
+            $dateKey = $checkDate->format('Y-m-d');
+            
+            $data = $requestsData->get($dateKey);
             
             $chartData[] = [
                 'date' => $checkDate->format('M j'),
-                'requests' => SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd])->count(),
-                'disbursements' => $this->getRequestsByStatus(
-                    SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd]), 
-                    'fulfilled'
-                )->count(),
-                'value' => SupplyRequest::whereBetween('created_at', [$dayStart, $dayEnd])
-                    ->with('item')->get()->sum(function($req) {
-                        return $req->quantity * ($req->item->unit_price ?? 0);
-                    })
+                'requests' => $data ? (int)$data->total_requests : 0,
+                'disbursements' => $data ? (int)$data->fulfilled_requests : 0,
+                'value' => $data ? (float)$data->total_value : 0
             ];
         }
         
-        // Today's data
-        $todayRequests = SupplyRequest::whereBetween('created_at', [$startDate, $endDate])->get();
+        // Today's data - get all records for display
+        $todayRequests = SupplyRequest::with(['user', 'item', 'item.category'])
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
+        
+        // Calculate today's summary using the same efficient query
+        $todaySummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN workflow_status IN ("pending") THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+            ->whereBetween('requests.created_at', [$startDate, $endDate]);
+        
+        if (!$this->hasWorkflowColumn()) {
+            $todaySummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+                ->whereBetween('requests.created_at', [$startDate, $endDate]);
+        }
+        
+        $summaryData = $todaySummary->first();
         
         return [
             'period' => 'Daily',
             'current_date' => $date->format('F j, Y'),
             'chart_data' => $chartData,
             'summary' => [
-                'total_requests' => $todayRequests->count(),
-                'fulfilled_requests' => $this->getRequestsByStatus(
-                    SupplyRequest::whereBetween('created_at', [$startDate, $endDate]), 
-                    'fulfilled'
-                )->count(),
-                'pending_requests' => $this->getRequestsByStatus(
-                    SupplyRequest::whereBetween('created_at', [$startDate, $endDate]), 
-                    'pending'
-                )->count(),
-                'total_value' => $todayRequests->sum(function($req) {
-                    return $req->quantity * ($req->item->unit_price ?? 0);
-                }),
+                'total_requests' => (int)($summaryData->total_requests ?? 0),
+                'fulfilled_requests' => (int)($summaryData->fulfilled_requests ?? 0),
+                'pending_requests' => (int)($summaryData->pending_requests ?? 0),
+                'total_value' => (float)($summaryData->total_value ?? 0),
             ],
-            'records' => $todayRequests->load(['user', 'item', 'item.category'])
+            'records' => $todayRequests
         ];
     }
 
@@ -189,39 +206,80 @@ class ReportsController extends Controller
         $startDate = $date->copy()->startOfWeek();
         $endDate = $date->copy()->endOfWeek();
         
-        // Get last 8 weeks for chart
+        // Get all requests for the last 8 weeks in one query
+        $requestsQuery = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+            ->whereBetween('requests.created_at', [$date->copy()->subWeeks(7)->startOfWeek(), $endDate])
+            ->groupByRaw('DATE(requests.created_at)')
+            ->orderByRaw('DATE(requests.created_at)');
+        
+        if ($this->hasWorkflowColumn()) {
+            $requestsData = $requestsQuery->get()->groupBy(function($item) {
+                $date = Carbon::parse($item->date);
+                return $date->format('Y-W') . sprintf('%02d', $date->weekOfYear);
+            });
+        } else {
+            // Fallback for old status column
+            $requestsData = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+                ->whereBetween('requests.created_at', [$date->copy()->subWeeks(7)->startOfWeek(), $endDate])
+                ->groupByRaw('DATE(requests.created_at)')
+                ->orderByRaw('DATE(requests.created_at)')
+                ->get()
+                ->groupBy(function($item) {
+                    $date = Carbon::parse($item->date);
+                    return $date->format('Y-W') . sprintf('%02d', $date->weekOfYear);
+                });
+        }
+        
+        // Build chart data for last 8 weeks
         $chartData = [];
         for ($i = 7; $i >= 0; $i--) {
             $weekStart = $date->copy()->subWeeks($i)->startOfWeek();
-            $weekEnd = $date->copy()->subWeeks($i)->endOfWeek();
+            $weekKey = $weekStart->format('Y-W') . sprintf('%02d', $weekStart->weekOfYear);
+            
+            $weekData = $requestsData->get($weekKey, collect());
+            $totalRequests = $weekData->sum('total_requests');
+            $fulfilledRequests = $weekData->sum('fulfilled_requests');
+            $totalValue = $weekData->sum('total_value');
             
             $chartData[] = [
-                'date' => $weekStart->format('M j') . ' - ' . $weekEnd->format('M j'),
-                'requests' => SupplyRequest::whereBetween('created_at', [$weekStart, $weekEnd])->count(),
-                'disbursements' => SupplyRequest::whereBetween('created_at', [$weekStart, $weekEnd])
-                    ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
-                'value' => SupplyRequest::whereBetween('created_at', [$weekStart, $weekEnd])
-                    ->with('item')->get()->sum(function($req) {
-                        return $req->quantity * ($req->item->unit_price ?? 0);
-                    })
+                'date' => $weekStart->format('M j') . ' - ' . $weekStart->copy()->endOfWeek()->format('M j'),
+                'requests' => (int)$totalRequests,
+                'disbursements' => (int)$fulfilledRequests,
+                'value' => (float)$totalValue
             ];
         }
         
-        $weekRequests = SupplyRequest::whereBetween('created_at', [$startDate, $endDate])->get();
+        // Current week requests for display
+        $weekRequests = SupplyRequest::with(['user', 'item', 'item.category'])
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
+        
+        // Calculate current week summary
+        $weekSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN workflow_status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+            ->whereBetween('requests.created_at', [$startDate, $endDate]);
+        
+        if (!$this->hasWorkflowColumn()) {
+            $weekSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+                ->whereBetween('requests.created_at', [$startDate, $endDate]);
+        }
+        
+        $summaryData = $weekSummary->first();
         
         return [
             'period' => 'Weekly',
             'current_date' => $startDate->format('M j') . ' - ' . $endDate->format('M j, Y'),
             'chart_data' => $chartData,
             'summary' => [
-                'total_requests' => $weekRequests->count(),
-                'fulfilled_requests' => $weekRequests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
-                'pending_requests' => $weekRequests->where('workflow_status', 'pending')->count(),
-                'total_value' => $weekRequests->sum(function($req) {
-                    return $req->quantity * ($req->item->unit_price ?? 0);
-                }),
+                'total_requests' => (int)($summaryData->total_requests ?? 0),
+                'fulfilled_requests' => (int)($summaryData->fulfilled_requests ?? 0),
+                'pending_requests' => (int)($summaryData->pending_requests ?? 0),
+                'total_value' => (float)($summaryData->total_value ?? 0),
             ],
-            'records' => $weekRequests->load(['user', 'item', 'item.category'])
+            'records' => $weekRequests
         ];
     }
 
@@ -271,39 +329,70 @@ class ReportsController extends Controller
         $startDate = $date->copy()->startOfYear();
         $endDate = $date->copy()->endOfYear();
         
-        // Get last 5 years for chart
+        // Get all requests for the last 5 years in one query
+        $requestsQuery = SupplyRequest::selectRaw('YEAR(requests.created_at) as year, COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+            ->whereBetween('requests.created_at', [$date->copy()->subYears(4)->startOfYear(), $endDate])
+            ->groupByRaw('YEAR(requests.created_at)')
+            ->orderByRaw('YEAR(requests.created_at)');
+        
+        if ($this->hasWorkflowColumn()) {
+            $requestsData = $requestsQuery->get()->keyBy('year');
+        } else {
+            // Fallback for old status column
+            $requestsData = SupplyRequest::selectRaw('YEAR(requests.created_at) as year, COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+                ->whereBetween('requests.created_at', [$date->copy()->subYears(4)->startOfYear(), $endDate])
+                ->groupByRaw('YEAR(requests.created_at)')
+                ->orderByRaw('YEAR(requests.created_at)')
+                ->get()
+                ->keyBy('year');
+        }
+        
+        // Build chart data for last 5 years
         $chartData = [];
         for ($i = 4; $i >= 0; $i--) {
-            $yearStart = $date->copy()->subYears($i)->startOfYear();
-            $yearEnd = $date->copy()->subYears($i)->endOfYear();
+            $year = $date->copy()->subYears($i)->year;
+            
+            $data = $requestsData->get($year);
             
             $chartData[] = [
-                'date' => $yearStart->format('Y'),
-                'requests' => SupplyRequest::whereBetween('created_at', [$yearStart, $yearEnd])->count(),
-                'disbursements' => SupplyRequest::whereBetween('created_at', [$yearStart, $yearEnd])
-                    ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
-                'value' => SupplyRequest::whereBetween('created_at', [$yearStart, $yearEnd])
-                    ->with('item')->get()->sum(function($req) {
-                        return $req->quantity * ($req->item->unit_price ?? 0);
-                    })
+                'date' => (string)$year,
+                'requests' => $data ? (int)$data->total_requests : 0,
+                'disbursements' => $data ? (int)$data->fulfilled_requests : 0,
+                'value' => $data ? (float)$data->total_value : 0
             ];
         }
         
-        $yearRequests = SupplyRequest::whereBetween('created_at', [$startDate, $endDate])->get();
+        // Current year requests for display
+        $yearRequests = SupplyRequest::with(['user', 'item', 'item.category'])
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get();
+        
+        // Calculate current year summary
+        $yearSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN workflow_status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+            ->whereBetween('requests.created_at', [$startDate, $endDate]);
+        
+        if (!$this->hasWorkflowColumn()) {
+            $yearSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
+                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+                ->whereBetween('requests.created_at', [$startDate, $endDate]);
+        }
+        
+        $summaryData = $yearSummary->first();
         
         return [
             'period' => 'Annual',
-            'current_date' => $startDate->format('Y'),
+            'current_date' => (string)$date->year,
             'chart_data' => $chartData,
             'summary' => [
-                'total_requests' => $yearRequests->count(),
-                'fulfilled_requests' => $yearRequests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
-                'pending_requests' => $yearRequests->where('workflow_status', 'pending')->count(),
-                'total_value' => $yearRequests->sum(function($req) {
-                    return $req->quantity * ($req->item->unit_price ?? 0);
-                }),
+                'total_requests' => (int)($summaryData->total_requests ?? 0),
+                'fulfilled_requests' => (int)($summaryData->fulfilled_requests ?? 0),
+                'pending_requests' => (int)($summaryData->pending_requests ?? 0),
+                'total_value' => (float)($summaryData->total_value ?? 0),
             ],
-            'records' => $yearRequests->load(['user', 'item', 'item.category'])
+            'records' => $yearRequests
         ];
     }
 
@@ -557,51 +646,6 @@ class ReportsController extends Controller
         }
 
         return view('admin.reports.user-activity', compact('logs', 'activityStats', 'dateFrom', 'dateTo'));
-    }
-
-    public function customReport(Request $request)
-    {
-        if (!$request->has('report_type')) {
-            return view('admin.reports.custom-report');
-        }
-
-        // This method allows users to create custom reports by combining different data sources
-        $reportType = $request->report_type;
-        $dateFrom = $request->date_from ?? Carbon::now()->subMonth()->toDateString();
-        $dateTo = $request->date_to ?? Carbon::now()->toDateString();
-
-        $data = [];
-
-        if (in_array('items', $reportType)) {
-            $data['items'] = Item::with('category')->get();
-        }
-
-        if (in_array('requests', $reportType)) {
-            $data['requests'] = SupplyRequest::with(['user', 'item'])
-                ->whereBetween('created_at', [$dateFrom, $dateTo])
-                ->get();
-        }
-
-        if (in_array('users', $reportType)) {
-            $data['users'] = User::with(['requests' => function($q) use ($dateFrom, $dateTo) {
-                $q->whereBetween('created_at', [$dateFrom, $dateTo]);
-            }])->get();
-        }
-
-        if (in_array('logs', $reportType)) {
-            $data['logs'] = Log::with('user')
-                ->whereBetween('timestamp', [$dateFrom, $dateTo])
-                ->get();
-        }
-
-        if ($request->input('format') === 'pdf') {
-            $pdf = Pdf::loadView('admin.reports.pdf.custom-report', compact('data', 'reportType', 'dateFrom', 'dateTo'))
-                ->setPaper('a4', 'landscape');
-            
-            return $pdf->download('custom-report-' . date('Y-m-d') . '.pdf');
-        }
-
-        return view('admin.reports.custom-report', compact('data', 'reportType', 'dateFrom', 'dateTo'));
     }
 
     // Helper methods for analytics calculations
@@ -1071,5 +1115,140 @@ class ReportsController extends Controller
         $data = $this->getReportData($period);
         
         return response()->json($data);
+    }
+
+    /**
+     * Export daily report as CSV
+     */
+    public function dailyCsv(Request $request)
+    {
+        $date = $request->get('date', Carbon::today()->toDateString());
+        $data = $this->getDailyReportData(Carbon::parse($date));
+
+        $filename = 'daily-report-' . $date . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($data) {
+            $file = fopen('php://output', 'w');
+
+            // CSV headers
+            fputcsv($file, ['Date', 'Requests', 'Fulfilled', 'Pending', 'Total Value']);
+
+            // Chart data
+            foreach ($data['chart_data'] as $row) {
+                fputcsv($file, [
+                    $row['date'],
+                    $row['requests'],
+                    $row['disbursements'],
+                    $data['summary']['pending_requests'] ?? 0,
+                    number_format($row['value'], 2)
+                ]);
+            }
+
+            // Summary row
+            fputcsv($file, []);
+            fputcsv($file, ['Summary', '', '', '', '']);
+            fputcsv($file, ['Total Requests', $data['summary']['total_requests'], '', '', '']);
+            fputcsv($file, ['Fulfilled Requests', $data['summary']['fulfilled_requests'], '', '', '']);
+            fputcsv($file, ['Pending Requests', $data['summary']['pending_requests'], '', '', '']);
+            fputcsv($file, ['Total Value', '', '', '', number_format($data['summary']['total_value'], 2)]);
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export weekly report as CSV
+     */
+    public function weeklyCsv(Request $request)
+    {
+        $date = $request->get('date', Carbon::now()->toDateString());
+        $data = $this->getWeeklyReportData(Carbon::parse($date));
+
+        $filename = 'weekly-report-' . Carbon::parse($date)->startOfWeek()->format('Y-m-d') . '-to-' . Carbon::parse($date)->endOfWeek()->format('Y-m-d') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($data) {
+            $file = fopen('php://output', 'w');
+
+            // CSV headers
+            fputcsv($file, ['Week', 'Requests', 'Fulfilled', 'Pending', 'Total Value']);
+
+            // Chart data
+            foreach ($data['chart_data'] as $row) {
+                fputcsv($file, [
+                    $row['date'],
+                    $row['requests'],
+                    $row['disbursements'],
+                    $data['summary']['pending_requests'] ?? 0,
+                    number_format($row['value'], 2)
+                ]);
+            }
+
+            // Summary row
+            fputcsv($file, []);
+            fputcsv($file, ['Summary', '', '', '', '']);
+            fputcsv($file, ['Total Requests', $data['summary']['total_requests'], '', '', '']);
+            fputcsv($file, ['Fulfilled Requests', $data['summary']['fulfilled_requests'], '', '', '']);
+            fputcsv($file, ['Pending Requests', $data['summary']['pending_requests'], '', '', '']);
+            fputcsv($file, ['Total Value', '', '', '', number_format($data['summary']['total_value'], 2)]);
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export annual report as CSV
+     */
+    public function annualCsv(Request $request)
+    {
+        $year = $request->get('year', Carbon::now()->year);
+        $data = $this->getAnnualReportData(Carbon::createFromDate($year, 1, 1));
+
+        $filename = 'annual-report-' . $year . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($data, $year) {
+            $file = fopen('php://output', 'w');
+
+            // CSV headers
+            fputcsv($file, ['Year', 'Requests', 'Fulfilled', 'Pending', 'Total Value']);
+
+            // Chart data
+            foreach ($data['chart_data'] as $row) {
+                fputcsv($file, [
+                    $row['date'],
+                    $row['requests'],
+                    $row['disbursements'],
+                    $data['summary']['pending_requests'] ?? 0,
+                    number_format($row['value'], 2)
+                ]);
+            }
+
+            // Summary row
+            fputcsv($file, []);
+            fputcsv($file, ['Summary', '', '', '', '']);
+            fputcsv($file, ['Total Requests', $data['summary']['total_requests'], '', '', '']);
+            fputcsv($file, ['Fulfilled Requests', $data['summary']['fulfilled_requests'], '', '', '']);
+            fputcsv($file, ['Pending Requests', $data['summary']['pending_requests'], '', '', '']);
+            fputcsv($file, ['Total Value', '', '', '', number_format($data['summary']['total_value'], 2)]);
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }
