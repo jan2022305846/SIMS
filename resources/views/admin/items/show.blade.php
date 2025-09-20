@@ -184,40 +184,6 @@
                                 </div>
                             </div>
 
-                            <!-- Pricing Information -->
-                            @if($item->unit_price || $item->price)
-                            <div class="card border-light mb-4">
-                                <div class="card-header bg-light">
-                                    <h5 class="card-title mb-0">
-                                        <i class="fas fa-peso-sign me-2"></i>
-                                        Pricing Information
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row g-3">
-                                        @if($item->unit_price)
-                                        <div class="col-md-4">
-                                            <p class="text-muted small mb-1">Unit Price</p>
-                                            <p class="h5 mb-0 text-success fw-bold">₱{{ number_format($item->unit_price, 2) }}</p>
-                                        </div>
-                                        @endif
-                                        @if($item->total_value)
-                                        <div class="col-md-4">
-                                            <p class="text-muted small mb-1">Total Value</p>
-                                            <p class="h5 mb-0 text-primary fw-bold">₱{{ number_format($item->total_value, 2) }}</p>
-                                        </div>
-                                        @endif
-                                        @if($item->price)
-                                        <div class="col-md-4">
-                                            <p class="text-muted small mb-1">Legacy Price</p>
-                                            <p class="h6 mb-0 text-muted">₱{{ number_format($item->price, 2) }}</p>
-                                        </div>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-
                             <!-- Important Dates -->
                             <div class="card border-light mb-4">
                                 <div class="card-header bg-light">
@@ -273,14 +239,17 @@
                                 </div>
                                 <div class="card-body text-center">
                                     <div id="qr-code-container">
-                                        <div class="bg-light p-4 rounded mb-3">
-                                            <p class="text-muted mb-0">Click to generate QR code</p>
+                                        <div class="bg-light p-4 rounded mb-3 text-center">
+                                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <p class="text-muted mb-0 mt-2">Generating QR code...</p>
                                         </div>
                                     </div>
                                     <button onclick="generateQRCode()" 
                                             class="btn btn-primary w-100 mb-2">
                                         <i class="fas fa-qrcode me-1"></i>
-                                        Generate QR Code
+                                        Regenerate QR Code
                                     </button>
                                     <p class="text-muted small mb-2">QR ID: {{ $item->qr_code }}</p>
                                     @can('admin')
@@ -360,6 +329,17 @@
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Generate QR code automatically when page loads
+    generateQRCode();
+    
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
 function generateQRCode() {
     const itemId = {{ $item->id }};
     
@@ -367,7 +347,7 @@ function generateQRCode() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         }
     })
     .then(response => response.json())
@@ -376,11 +356,21 @@ function generateQRCode() {
             document.getElementById('qr-code-container').innerHTML = 
                 `<img src="${data.qr_code}" alt="QR Code for {{ $item->name }}" class="img-fluid border rounded" style="max-width: 200px;">`;
         } else {
-            alert('Failed to generate QR code: ' + data.message);
+            document.getElementById('qr-code-container').innerHTML = 
+                `<div class="bg-light p-4 rounded mb-3 text-center">
+                    <i class="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
+                    <p class="text-muted mb-0">Failed to generate QR code</p>
+                    <small class="text-muted">${data.message}</small>
+                </div>`;
         }
     })
     .catch(error => {
-        alert('Error generating QR code: ' + error.message);
+        document.getElementById('qr-code-container').innerHTML = 
+            `<div class="bg-light p-4 rounded mb-3 text-center">
+                <i class="fas fa-exclamation-triangle text-danger fa-2x mb-2"></i>
+                <p class="text-muted mb-0">Error generating QR code</p>
+                <small class="text-muted">${error.message}</small>
+            </div>`;
     });
 }
 </script>

@@ -278,7 +278,6 @@ class ItemController extends Controller
         $availableItems = Item::where('current_stock', '>', 0)->count();
         $lowStockItems = Item::whereRaw('current_stock <= minimum_stock')->where('current_stock', '>', 0)->count();
         $outOfStockItems = Item::where('current_stock', '<=', 0)->count();
-        $totalValue = Item::sum(DB::raw('current_stock * unit_price'));
         
         // Get all categories and locations for filters
         $categories = Category::orderBy('name')->get();
@@ -286,7 +285,7 @@ class ItemController extends Controller
         
         return view('admin.items.summary', compact(
             'items', 'categories', 'locations',
-            'totalItems', 'availableItems', 'lowStockItems', 'outOfStockItems', 'totalValue'
+            'totalItems', 'availableItems', 'lowStockItems', 'outOfStockItems'
         ));
     }
 
@@ -301,6 +300,27 @@ class ItemController extends Controller
             ->paginate(10);
 
         return view('admin.items.low-stock', compact('items'));
+    }
+
+    /**
+     * Restock an item.
+     */
+    public function restock(Request $request, Item $item)
+    {
+        $request->validate([
+            'additional_quantity' => 'required|integer|min:1'
+        ]);
+
+        $item->increment('quantity', $request->additional_quantity);
+        $item->increment('current_stock', $request->additional_quantity);
+
+        // Update total value if unit price exists
+        if ($item->unit_price) {
+            $item->updateTotalValue();
+        }
+
+        return redirect()->back()
+            ->with('success', "Successfully added {$request->additional_quantity} units to {$item->name}.");
     }
 
     /**
@@ -335,5 +355,40 @@ class ItemController extends Controller
 
         return redirect()->route('items.trashed')
             ->with('success', 'Item restored successfully.');
+    }
+
+    /**
+     * Verify barcode and return item details.
+     */
+    public function verifyBarcode($barcode)
+    {
+        $item = Item::with('category')
+            ->where('barcode', $barcode)
+            ->orWhere('qr_code', $barcode)
+            ->first();
+
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Item not found with this barcode.'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'item' => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'barcode' => $item->barcode,
+                'brand' => $item->brand,
+                'category' => $item->category ? $item->category->name : 'N/A',
+                'current_stock' => $item->current_stock,
+                'minimum_stock' => $item->minimum_stock,
+                'unit' => $item->unit,
+                'location' => $item->location,
+                'condition' => $item->condition,
+                'description' => $item->description,
+            ]
+        ]);
     }
 }

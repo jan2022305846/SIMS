@@ -33,17 +33,17 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
+
         // Get dashboard data using the service
         $dashboardData = $this->dashboardService->getDashboardData($user);
-        
+
         // Flatten the data structure for backward compatibility with the view
         $flattenedData = $this->flattenDashboardData($dashboardData, $user);
-        
+
         if ($user->role === 'admin' || $user->role === 'office_head') {
-            return view('dashboard', $flattenedData);
+            return view('admin.dashboard.dashboard', $flattenedData);
         } else {
-            return view('dashboard', $flattenedData);
+            return view('faculty.dashboard.dashboard', $flattenedData);
         }
     }
 
@@ -149,147 +149,6 @@ class DashboardController extends Controller
         $notifications = $this->dashboardService->getNotifications(Auth::user());
         
         return response()->json($notifications);
-    }
-
-    /**
-     * Get comprehensive admin dashboard data
-     */
-    private function getAdminDashboardData()
-    {
-        // Basic Statistics
-        $totalItems = Item::count();
-        $totalUsers = User::count();
-        $totalCategories = Category::count();
-        
-        // Stock Analysis
-        $lowStockItems = Item::whereRaw('current_stock <= minimum_stock')->count();
-        $outOfStockItems = Item::where('current_stock', 0)->count();
-        $totalStockValue = Item::sum(DB::raw('current_stock * unit_price'));
-        
-        // Request Analytics
-        $pendingRequests = Request::where('status', 'pending')->count();
-        $approvedRequests = Request::where('status', 'approved')->count();
-        $totalRequestsThisMonth = Request::whereMonth('created_at', Carbon::now()->month)
-            ->whereYear('created_at', Carbon::now()->year)->count();
-        $dailyRequestsThisWeek = Request::whereBetween('created_at', [
-            Carbon::now()->startOfWeek(),
-            Carbon::now()->endOfWeek()
-        ])->count();
-        
-        // Expiry Analysis
-        $expiringItems = Item::whereNotNull('expiry_date')
-            ->whereBetween('expiry_date', [Carbon::now(), Carbon::now()->addDays(30)])
-            ->count();
-        $expiredItems = Item::whereNotNull('expiry_date')
-            ->where('expiry_date', '<', Carbon::now())->count();
-        
-        // Activity Analytics
-        $todayScans = ItemScanLog::whereDate('created_at', today())->count();
-        $totalScans = ItemScanLog::count();
-        $recentActivities = ActivityLog::with('causer')
-            ->latest()
-            ->limit(5)
-            ->get();
-        
-        // Recent Items & Requests
-        $recentRequests = Request::with(['user', 'item'])
-            ->latest()
-            ->limit(5)
-            ->get();
-        $recentScans = ItemScanLog::with(['item', 'user'])
-            ->latest()
-            ->limit(5)
-            ->get();
-        
-        // Low Stock Alert Items (detailed)
-        $lowStockAlerts = Item::with('category')
-            ->whereRaw('current_stock <= minimum_stock')
-            ->orderBy('current_stock')
-            ->limit(10)
-            ->get();
-            
-        // Expiring Soon Items (detailed)
-        $expiringSoonItems = Item::with('category')
-            ->whereNotNull('expiry_date')
-            ->whereBetween('expiry_date', [Carbon::now(), Carbon::now()->addDays(30)])
-            ->orderBy('expiry_date')
-            ->limit(10)
-            ->get();
-        
-        // Top Categories by Item Count
-        $topCategories = Category::withCount('items')
-            ->orderBy('items_count', 'desc')
-            ->limit(5)
-            ->get();
-        
-        // Most Requested Items
-        $mostRequestedItems = Item::withCount(['requests' => function($query) {
-            $query->whereMonth('created_at', Carbon::now()->month);
-        }])
-        ->orderBy('requests_count', 'desc')
-        ->limit(5)
-        ->get();
-        
-        // Weekly request trends (last 7 days)
-        $weeklyRequestTrends = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i);
-            $weeklyRequestTrends[] = [
-                'date' => $date->format('M j'),
-                'count' => Request::whereDate('created_at', $date)->count()
-            ];
-        }
-
-        return view('dashboard', compact(
-            'totalItems', 'totalUsers', 'totalCategories',
-            'lowStockItems', 'outOfStockItems', 'totalStockValue',
-            'pendingRequests', 'approvedRequests', 'totalRequestsThisMonth', 'dailyRequestsThisWeek',
-            'expiringItems', 'expiredItems',
-            'todayScans', 'totalScans', 'recentActivities',
-            'recentRequests', 'recentScans',
-            'lowStockAlerts', 'expiringSoonItems',
-            'topCategories', 'mostRequestedItems', 'weeklyRequestTrends'
-        ));
-    }
-
-    /**
-     * Get user dashboard data (faculty/office_head)
-     */
-    private function getUserDashboardData()
-    {
-        $user = Auth::user();
-        
-        // User's request statistics
-        $myRequests = Request::where('user_id', $user->id)->count();
-        $myPendingRequests = Request::where('user_id', $user->id)
-            ->where('status', 'pending')->count();
-        $myApprovedRequests = Request::where('user_id', $user->id)
-            ->where('status', 'approved')->count();
-        $myRejectedRequests = Request::where('user_id', $user->id)
-            ->where('status', 'rejected')->count();
-        
-        // Recent requests
-        $recentRequests = Request::with(['item'])
-            ->where('user_id', $user->id)
-            ->latest()
-            ->limit(5)
-            ->get();
-        
-        // Available items summary
-        $availableItems = Item::where('current_stock', '>', 0)->count();
-        $categoriesWithItems = Category::whereHas('items', function($query) {
-            $query->where('current_stock', '>', 0);
-        })->count();
-        
-        // Basic system stats for context
-        $totalItems = Item::count();
-        $lowStockItems = Item::whereRaw('current_stock <= minimum_stock')->count();
-        
-        return view('dashboard', compact(
-            'myRequests', 'myPendingRequests', 'myApprovedRequests', 'myRejectedRequests',
-            'recentRequests', 'availableItems', 'categoriesWithItems',
-            'totalItems', 'lowStockItems'
-        ));
     }
 
     /**
@@ -402,11 +261,8 @@ class DashboardController extends Controller
                 $flattened['totalItems'] = $stats['items']['total'] ?? 0;
                 $flattened['totalUsers'] = $stats['users']['total'] ?? 0;
                 $flattened['totalCategories'] = Category::count(); // Fallback
-                $flattened['totalStockValue'] = $stats['items']['total_value'] ?? 0;
-                $flattened['pendingRequests'] = $stats['requests']['pending'] ?? 0;
-                $flattened['totalRequestsThisMonth'] = $stats['requests']['this_month'] ?? 0;
                 $flattened['lowStockItems'] = $stats['items']['low_stock'] ?? 0;
-                $flattened['expiringItems'] = 0; // Will be calculated from expiring_items
+                $flattened['pendingRequests'] = $stats['requests']['pending'] ?? 0;
             }
 
             // Map low stock items to expected variable name

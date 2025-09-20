@@ -205,9 +205,45 @@
                                 @endif
                                 
                                 @if($request->canBeFulfilled())
+                                    <div class="mb-3">
+                                        <label for="item_barcode" class="form-label fw-medium">Scan Item Barcode</label>
+                                        <div class="input-group">
+                                            <input type="text" name="item_barcode" id="item_barcode" 
+                                                   class="form-control" placeholder="Scan or enter item barcode" readonly>
+                                            <button type="button" class="btn btn-outline-primary" id="scan-item-barcode-btn" title="Scan Barcode">
+                                                <i class="fas fa-qrcode"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary" id="manual-item-barcode-btn" title="Manual Entry">
+                                                <i class="fas fa-keyboard"></i>
+                                            </button>
+                                        </div>
+                                        <div class="form-text">
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                Scan the item's barcode to verify and display item details
+                                            </small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="scanned-item-details" class="mb-3" style="display: none;">
+                                        <div class="card border-success">
+                                            <div class="card-header bg-success text-white">
+                                                <h6 class="mb-0">
+                                                    <i class="fas fa-check-circle me-2"></i>Item Verified
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="item-details-content">
+                                                    <!-- Item details will be populated here -->
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
                                     <form method="POST" action="{{ route('requests.fulfill', $request) }}" class="mb-2">
                                         @csrf
-                                        <button type="submit" class="btn btn-primary w-100">
+                                        <input type="hidden" name="scanned_barcode" id="scanned_barcode_input">
+                                        <button type="submit" class="btn btn-primary w-100" id="fulfill-btn" disabled>
                                             <i class="fas fa-box me-2"></i>Fulfill Request
                                         </button>
                                     </form>
@@ -553,7 +589,16 @@
 
 @push('scripts')
 <script>
+// Include QuaggaJS library for barcode scanning
 document.addEventListener('DOMContentLoaded', function() {
+    // Load QuaggaJS dynamically
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js';
+    script.onload = function() {
+        initializeItemBarcodeScanner();
+    };
+    document.head.appendChild(script);
+    
     // Initialize modal management
     initializeModalManagement();
     
@@ -568,6 +613,258 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+function initializeItemBarcodeScanner() {
+    let scannerActive = false;
+    let scannerContainer = null;
+
+    const scanBtn = document.getElementById('scan-item-barcode-btn');
+    const manualBtn = document.getElementById('manual-item-barcode-btn');
+    const barcodeInput = document.getElementById('item_barcode');
+    const scannedBarcodeInput = document.getElementById('scanned_barcode_input');
+    const fulfillBtn = document.getElementById('fulfill-btn');
+    const itemDetailsDiv = document.getElementById('scanned-item-details');
+    const itemDetailsContent = document.getElementById('item-details-content');
+
+    if (!scanBtn || !manualBtn || !barcodeInput) return; // Exit if elements don't exist
+
+    // Scan barcode button
+    scanBtn.addEventListener('click', function() {
+        if (scannerActive) {
+            stopItemScanner();
+        } else {
+            startItemScanner();
+        }
+    });
+
+    // Manual entry button
+    manualBtn.addEventListener('click', function() {
+        stopItemScanner();
+        barcodeInput.readOnly = false;
+        barcodeInput.placeholder = "Enter barcode manually";
+        barcodeInput.focus();
+        
+        // Add manual input handler
+        barcodeInput.addEventListener('input', handleManualBarcodeInput);
+    });
+
+    function handleManualBarcodeInput() {
+        const barcode = barcodeInput.value.trim();
+        if (barcode.length > 0) {
+            verifyAndDisplayItem(barcode);
+        } else {
+            hideItemDetails();
+        }
+    }
+
+    function startItemScanner() {
+        scannerActive = true;
+        barcodeInput.readOnly = true;
+        
+        // Create scanner container
+        scannerContainer = document.createElement('div');
+        scannerContainer.id = 'item-barcode-scanner-container';
+        scannerContainer.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            background: white;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            width: 400px;
+            max-width: 90vw;
+        `;
+
+        scannerContainer.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>Scan Item Barcode</h5>
+                <button type="button" class="btn-close" id="close-item-scanner"></button>
+            </div>
+            <div id="item-scanner-viewport" style="width: 100%; height: 300px; border: 1px solid #ddd;"></div>
+            <div class="mt-3 text-center">
+                <small class="text-muted">Position item barcode in front of camera</small>
+            </div>
+        `;
+
+        document.body.appendChild(scannerContainer);
+
+        // Initialize Quagga
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: document.querySelector('#item-scanner-viewport'),
+                constraints: {
+                    width: 640,
+                    height: 480,
+                    facingMode: "environment" // Use back camera on mobile
+                }
+            },
+            locator: {
+                patchSize: "medium",
+                halfSample: true
+            },
+            numOfWorkers: 2,
+            decoder: {
+                readers: [
+                    "code_128_reader",
+                    "ean_reader",
+                    "ean_8_reader",
+                    "code_39_reader",
+                    "upc_reader",
+                    "upc_e_reader",
+                    "codabar_reader"
+                ]
+            },
+            locate: true
+        }, function(err) {
+            if (err) {
+                console.error(err);
+                alert('Error initializing camera: ' + err.message);
+                stopItemScanner();
+                return;
+            }
+            Quagga.start();
+        });
+
+        // Handle barcode detection
+        Quagga.onDetected(function(result) {
+            const code = result.codeResult.code;
+            barcodeInput.value = code;
+            scannedBarcodeInput.value = code;
+            verifyAndDisplayItem(code);
+            stopItemScanner();
+            
+            // Show success message
+            showToast('Barcode scanned successfully!', 'success');
+        });
+
+        // Close scanner button
+        document.getElementById('close-item-scanner').addEventListener('click', stopItemScanner);
+    }
+
+    function stopItemScanner() {
+        scannerActive = false;
+        
+        if (scannerContainer) {
+            document.body.removeChild(scannerContainer);
+            scannerContainer = null;
+        }
+        
+        if (typeof Quagga !== 'undefined') {
+            Quagga.stop();
+        }
+        
+        scanBtn.innerHTML = '<i class="fas fa-qrcode"></i>';
+        scanBtn.classList.remove('btn-danger');
+        scanBtn.classList.add('btn-outline-primary');
+        scanBtn.title = 'Scan Barcode';
+    }
+
+    function verifyAndDisplayItem(barcode) {
+        // Show loading state
+        itemDetailsContent.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-2">Verifying item...</div>
+            </div>
+        `;
+        itemDetailsDiv.style.display = 'block';
+
+        // Make AJAX request to verify item
+        fetch(`/api/items/verify-barcode/${barcode}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayItemDetails(data.item);
+                fulfillBtn.disabled = false;
+                scannedBarcodeInput.value = barcode;
+            } else {
+                showItemError('Item not found or invalid barcode');
+                fulfillBtn.disabled = true;
+                scannedBarcodeInput.value = '';
+            }
+        })
+        .catch(error => {
+            console.error('Error verifying barcode:', error);
+            showItemError('Error verifying barcode. Please try again.');
+            fulfillBtn.disabled = true;
+            scannedBarcodeInput.value = '';
+        });
+    }
+
+    function displayItemDetails(item) {
+        itemDetailsContent.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-success mb-2"><i class="fas fa-tag me-1"></i>Item Information</h6>
+                    <p class="mb-1"><strong>Name:</strong> ${item.name}</p>
+                    <p class="mb-1"><strong>Barcode:</strong> <code>${item.barcode || 'N/A'}</code></p>
+                    <p class="mb-1"><strong>Brand:</strong> ${item.brand || 'N/A'}</p>
+                    <p class="mb-1"><strong>Category:</strong> ${item.category ? item.category.name : 'N/A'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-success mb-2"><i class="fas fa-boxes me-1"></i>Stock Information</h6>
+                    <p class="mb-1"><strong>Current Stock:</strong> ${item.current_stock} ${item.unit || 'pcs'}</p>
+                    <p class="mb-1"><strong>Minimum Stock:</strong> ${item.minimum_stock || 'N/A'}</p>
+                    <p class="mb-1"><strong>Location:</strong> ${item.location || 'N/A'}</p>
+                    <p class="mb-1"><strong>Condition:</strong> ${item.condition || 'N/A'}</p>
+                </div>
+            </div>
+            ${item.description ? `<div class="mt-2"><strong>Description:</strong> ${item.description}</div>` : ''}
+        `;
+    }
+
+    function showItemError(message) {
+        itemDetailsContent.innerHTML = `
+            <div class="alert alert-danger mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${message}
+            </div>
+        `;
+        itemDetailsDiv.style.display = 'block';
+    }
+
+    function hideItemDetails() {
+        itemDetailsDiv.style.display = 'none';
+        fulfillBtn.disabled = true;
+        scannedBarcodeInput.value = '';
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = `
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            min-width: 300px;
+        `;
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 3000);
+    }
+}
 
 // Comprehensive modal backdrop management
 function initializeModalManagement() {

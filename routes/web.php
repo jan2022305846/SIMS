@@ -79,9 +79,11 @@ Route::middleware(['auth'])->group(function () {
         // Items
         Route::get('items/summary', [ItemController::class, 'summary'])->name('items.summary');
         Route::get('items/low-stock', [ItemController::class, 'lowStock'])->name('items.low-stock');
+        Route::patch('items/{item}/restock', [ItemController::class, 'restock'])->name('items.restock');
         Route::get('items/expiring-soon', [ItemController::class, 'expiringSoon'])->name('items.expiring-soon');
         Route::get('items/trashed', [ItemController::class, 'trashed'])->name('items.trashed');
         Route::post('items/{id}/restore', [ItemController::class, 'restore'])->name('items.restore');
+        Route::get('items/verify-barcode/{barcode}', [ItemController::class, 'verifyBarcode'])->name('items.verify-barcode');
         Route::resource('items', ItemController::class);
         
         // Requests Management

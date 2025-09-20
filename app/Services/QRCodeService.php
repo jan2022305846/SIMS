@@ -22,10 +22,11 @@ class QRCodeService
     public function generateItemQRCode(int $itemId, string $itemName, ?string $itemCode = null): string
     {
         $options = new QROptions([
-            'version'    => 5,
+            'version'    => 7,  // Increased to version 7 for better capacity
             'outputType' => 'svg',
             'eccLevel'   => EccLevel::L,
             'scale'      => 10,
+            'imageBase64' => false, // Get raw SVG XML instead of data URL
         ]);
 
         // Create QR code data with item information

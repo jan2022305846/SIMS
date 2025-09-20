@@ -206,47 +206,6 @@
                             </div>
                         </div>
 
-                        <!-- Pricing -->
-                        <hr class="my-4">
-                        <div class="card border-light">
-                            <div class="card-header bg-light">
-                                <h5 class="card-title mb-0">
-                                    <i class="fas fa-peso-sign me-2"></i>
-                                    Pricing Information
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <label for="unit_price" class="form-label fw-medium">Unit Price (₱)</label>
-                                        <input type="number" name="unit_price" id="unit_price" min="0" step="0.01"
-                                               class="form-control @error('unit_price') is-invalid @enderror"
-                                               value="{{ old('unit_price', $item->unit_price) }}" onchange="calculateTotal()">
-                                        @error('unit_price')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label for="price" class="form-label fw-medium">Legacy Price (₱)</label>
-                                        <input type="number" name="price" id="price" min="0"
-                                               class="form-control @error('price') is-invalid @enderror"
-                                               value="{{ old('price', $item->price) }}">
-                                        @error('price')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label for="total_value" class="form-label fw-medium">Total Value (₱)</label>
-                                        <input type="number" name="total_value" id="total_value" min="0" step="0.01" readonly
-                                               class="form-control-plaintext bg-light border"
-                                               value="{{ old('total_value', $item->total_value) }}">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Dates -->
                         <hr class="my-4">
                         <h5 class="mb-3">Date Information</h5>
@@ -321,13 +280,6 @@
 </div>
 
 <script>
-function calculateTotal() {
-    const currentStock = parseFloat(document.getElementById('current_stock').value) || 0;
-    const unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
-    const totalValue = currentStock * unitPrice;
-    document.getElementById('total_value').value = totalValue.toFixed(2);
-}
-
 function generateQRPreview() {
     const itemId = {{ $item->id }};
     fetch(`/qr/generate/${itemId}`, {
@@ -350,12 +302,5 @@ function generateQRPreview() {
         alert('Error generating QR code: ' + error.message);
     });
 }
-
-// Auto-calculate total when values change
-document.getElementById('current_stock').addEventListener('input', calculateTotal);
-document.getElementById('unit_price').addEventListener('input', calculateTotal);
-
-// Calculate on page load
-document.addEventListener('DOMContentLoaded', calculateTotal);
 </script>
 @endsection

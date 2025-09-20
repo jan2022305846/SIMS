@@ -11,7 +11,7 @@
                         <i class="fas fa-box me-2 text-warning"></i>
                         Item Management
                     </h2>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
                         <a href="{{ route('items.create') }}" 
                            class="btn btn-warning fw-bold">
                             <i class="fas fa-plus me-1"></i>
@@ -21,6 +21,16 @@
                            class="btn btn-danger fw-bold">
                             <i class="fas fa-exclamation-triangle me-1"></i>
                             Low Stock
+                        </a>
+                        <a href="{{ route('items.expiring-soon') }}" 
+                           class="btn btn-info fw-bold">
+                            <i class="fas fa-calendar-times me-1"></i>
+                            Expiring Soon
+                        </a>
+                        <a href="{{ route('items.summary') }}" 
+                           class="btn btn-success fw-bold">
+                            <i class="fas fa-chart-bar me-1"></i>
+                            Summary
                         </a>
                     </div>
                 </div>
@@ -105,9 +115,6 @@
                                             <i class="fas fa-ruler me-1"></i>Unit
                                         </th>
                                         <th scope="col">
-                                            <i class="fas fa-peso-sign me-1"></i>Price
-                                        </th>
-                                        <th scope="col">
                                             <i class="fas fa-cogs me-1"></i>Actions
                                         </th>
                                     </tr>
@@ -121,7 +128,7 @@
                                                 <i class="fas fa-box text-warning"></i>
                                             </div>
                                             <div>
-                                                <div class="fw-semibold text-dark">{{ $item->name }}</div>
+                                                <div class="fw-semibold">{{ $item->name }}</div>
                                                 <div class="text-muted small">{{ $item->brand ?? 'No brand specified' }}</div>
                                                 @if($item->description)
                                                     <div class="text-muted small">{{ Str::limit($item->description, 50) }}</div>
@@ -148,11 +155,6 @@
                                     </td>
                                     <td>
                                         <span class="text-muted">{{ $item->unit }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="fw-semibold text-success">
-                                            {{ $item->price ? '₱' . number_format($item->price, 2) : 'N/A' }}
-                                        </span>
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
@@ -185,7 +187,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-5">
+                                    <td colspan="5" class="text-center text-muted py-5">
                                         <div class="d-flex flex-column align-items-center">
                                             <div class="bg-light rounded-circle p-4 mb-3">
                                                 <i class="fas fa-box fa-3x text-muted"></i>

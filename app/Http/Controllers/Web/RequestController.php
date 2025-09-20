@@ -308,7 +308,7 @@ class RequestController extends Controller
         return back()->with('success', 'Request approved by administrator successfully!');
     }
 
-    public function fulfill(SupplyRequest $supplyRequest)
+    public function fulfill(Request $httpRequest, SupplyRequest $supplyRequest)
     {
         /** @var User $user */
         $user = Auth::user();
@@ -330,6 +330,24 @@ class RequestController extends Controller
             return back()->withErrors(['error' => 'Insufficient stock to fulfill this request or item not found.']);
         }
 
+        // Verify scanned barcode if provided
+        if ($httpRequest->filled('scanned_barcode')) {
+            $scannedBarcode = $httpRequest->scanned_barcode;
+            
+            // Check if the scanned barcode matches the requested item
+            $scannedItem = Item::where('barcode', $scannedBarcode)
+                ->orWhere('qr_code', $scannedBarcode)
+                ->first();
+
+            if (!$scannedItem) {
+                return back()->withErrors(['error' => 'Scanned barcode does not match any item in the system.']);
+            }
+
+            if ($scannedItem->id !== $supplyRequest->item->id) {
+                return back()->withErrors(['error' => 'Scanned item does not match the requested item. Please scan the correct item.']);
+            }
+        }
+
         DB::beginTransaction();
         try {
             $supplyRequest->fulfill(Auth::user());
@@ -341,10 +359,16 @@ class RequestController extends Controller
 
             // Create log entry with null check
             $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
+            $logDetails = 'Fulfilled request for ' . $supplyRequest->quantity . ' ' . $itemName . '. Claim slip: ' . $supplyRequest->claim_slip_number;
+            
+            if ($httpRequest->filled('scanned_barcode')) {
+                $logDetails .= ' (Verified with barcode scan)';
+            }
+            
             Log::create([
                 'user_id' => Auth::id(),
                 'action' => 'fulfill',
-                'details' => 'Fulfilled request for ' . $supplyRequest->quantity . ' ' . $itemName . '. Claim slip: ' . $supplyRequest->claim_slip_number,
+                'details' => $logDetails,
                 'created_at' => now(),
             ]);
 

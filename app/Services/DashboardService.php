@@ -80,8 +80,7 @@ class DashboardService
                 'total' => Item::count(),
                 'active' => Item::where('current_stock', '>', 0)->count(),
                 'low_stock' => Item::whereRaw('current_stock <= minimum_stock')->count(),
-                'out_of_stock' => Item::where('current_stock', 0)->count(),
-                'total_value' => Item::sum(DB::raw('current_stock * unit_price'))
+                'out_of_stock' => Item::where('current_stock', 0)->count()
             ],
             'requests' => [
                 'total' => SupplyRequest::count(),
@@ -356,7 +355,6 @@ class DashboardService
             ->with(['items' => function ($query) {
                 $query->select('category_id', 
                     DB::raw('SUM(current_stock) as total_stock'),
-                    DB::raw('SUM(current_stock * unit_price) as total_value'),
                     DB::raw('COUNT(CASE WHEN current_stock <= minimum_stock THEN 1 END) as low_stock_count')
                 )->groupBy('category_id');
             }])
@@ -369,7 +367,6 @@ class DashboardService
                     'description' => $category->description,
                     'total_items' => $category->getAttribute('items_count'),
                     'total_stock' => $item ? $item->getAttribute('total_stock') : 0,
-                    'total_value' => $item ? $item->getAttribute('total_value') : 0,
                     'low_stock_count' => $item ? $item->getAttribute('low_stock_count') : 0
                 ];
             });

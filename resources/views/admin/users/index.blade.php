@@ -43,7 +43,37 @@
                                 Search
                             </button>
                         </div>
+                        @if(request()->hasAny(['search', 'role']))
+                            <div class="col-md-1">
+                                <a href="{{ route('users.index') }}" class="btn btn-outline-secondary w-100">
+                                    <i class="fas fa-times me-1"></i>
+                                    Clear
+                                </a>
+                            </div>
+                        @endif
                     </form>
+                    @if(request()->hasAny(['search', 'role']))
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-muted small">
+                                        @if(request('search'))
+                                            Search: "{{ request('search') }}"
+                                        @endif
+                                        @if(request('role'))
+                                            @if(request('search')) | @endif
+                                            Role: {{ ucfirst(request('role')) }}
+                                        @endif
+                                    </div>
+                                    @if($users->total() > 0)
+                                        <span class="text-muted small">
+                                            {{ $users->firstItem() }}-{{ $users->lastItem() }} of {{ $users->total() }} users
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
 
                 <!-- Users Table -->

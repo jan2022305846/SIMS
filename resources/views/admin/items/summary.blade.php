@@ -113,12 +113,12 @@
                         <div class="card-body text-white">
                             <div class="d-flex align-items-center">
                                 <div class="flex-shrink-0 me-3">
-                                    <i class="fas fa-peso-sign fa-2x"></i>
+                                    <i class="fas fa-boxes fa-2x"></i>
                                 </div>
                                 <div class="flex-grow-1">
-                                    <h5 class="text-white-50 text-uppercase fw-semibold mb-1" style="font-size: 0.8rem;">Total Stock Value</h5>
-                                    <h2 class="mb-0 text-white">₱{{ number_format($totalValue, 2) }}</h2>
-                                    <small class="text-white-50">Current inventory valuation</small>
+                                    <h5 class="text-white-50 text-uppercase fw-semibold mb-1" style="font-size: 0.8rem;">Inventory Overview</h5>
+                                    <h2 class="mb-0 text-white">{{ number_format($totalItems) }} Items</h2>
+                                    <small class="text-white-50">Total items in inventory</small>
                                 </div>
                             </div>
                         </div>
@@ -244,7 +244,6 @@
                                         <th>Category</th>
                                         <th>Stock Status</th>
                                         <th>Location</th>
-                                        <th>Value</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -319,17 +318,6 @@
                                             <td>
                                                 <i class="fas fa-map-marker-alt text-muted me-1"></i>
                                                 {{ $item->location }}
-                                            </td>
-                                            
-                                            <td>
-                                                @if($item->unit_price)
-                                                    <div>
-                                                        <strong>₱{{ number_format($item->unit_price * $item->current_stock, 2) }}</strong>
-                                                        <small class="text-muted d-block">@ ₱{{ number_format($item->unit_price, 2) }} each</small>
-                                                    </div>
-                                                @else
-                                                    <span class="text-muted">N/A</span>
-                                                @endif
                                             </td>
                                             
                                             <td>

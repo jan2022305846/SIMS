@@ -137,12 +137,12 @@ class QRCodeController extends Controller
     {
         try {
             $qrCodeBase64 = $item->generateQRCode();
-            $qrCodeImage = base64_decode($qrCodeBase64);
+            $qrCodeSvg = base64_decode($qrCodeBase64);
             
-            $filename = 'qr-code-' . $item->id . '-' . Str::slug($item->name) . '.png';
+            $filename = 'qr-code-' . $item->id . '-' . Str::slug($item->name) . '.svg';
             
-            return response($qrCodeImage)
-                ->header('Content-Type', 'image/png')
+            return response($qrCodeSvg)
+                ->header('Content-Type', 'image/svg+xml')
                 ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
                 
         } catch (\Exception $e) {
