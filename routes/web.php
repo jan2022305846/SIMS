@@ -13,6 +13,7 @@ use App\Http\Controllers\Web\AcknowledgmentController;
 use App\Http\Controllers\Web\HelpController;
 use App\Http\Controllers\Web\BackupController;
 use App\Http\Controllers\Web\RestoreController;
+use App\Http\Controllers\QRCodeController;
 use App\Http\Controllers\Auth\PasswordController;
 
 // Custom Authentication Routes
@@ -168,17 +169,17 @@ Route::middleware(['auth'])->group(function () {
         Route::get('requests/{request}/receipt', [AcknowledgmentController::class, 'receipt'])->name('faculty.requests.acknowledgment.receipt');
         Route::get('requests/{request}/receipt/download', [AcknowledgmentController::class, 'downloadReceipt'])->name('faculty.requests.acknowledgment.download');
         
-        // QR Code scanner interface (commented out - controller not implemented)
-        // Route::get('qr/scanner', [QRCodeController::class, 'scanner'])->name('qr.scanner');
-        // Route::get('qr/test', [QRCodeController::class, 'test'])->name('qr.test');
-        // Route::get('qr/simple-test', [QRCodeController::class, 'simpleTest'])->name('qr.simple-test');
-        // Route::post('qr/scan', [QRCodeController::class, 'scan'])->name('qr.scan');
+        // QR Code scanner interface
+        Route::get('qr/scanner', [QRCodeController::class, 'scanner'])->name('qr.scanner');
+        Route::get('qr/test', [QRCodeController::class, 'test'])->name('qr.test');
+        Route::get('qr/simple-test', [QRCodeController::class, 'simpleTest'])->name('qr.simple-test');
+        Route::post('qr/scan', [QRCodeController::class, 'scan'])->name('qr.scan');
     });
     
-    // Admin QR code routes (commented out - controller not implemented)
+    // Admin QR code routes
     Route::middleware(['admin'])->group(function () {
-        // Route::post('qr/generate/{item}', [QRCodeController::class, 'generate'])->name('qr.generate');
-        // Route::get('qr/download/{item}', [QRCodeController::class, 'download'])->name('qr.download');
+        Route::post('qr/generate/{item}', [QRCodeController::class, 'generate'])->name('qr.generate');
+        Route::get('qr/download/{item}', [QRCodeController::class, 'download'])->name('qr.download');
 
         // Activity Logs (Admin only)
         Route::get('activity-logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity-logs.index');
