@@ -28,8 +28,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'faculty' => \App\Http\Middleware\FacultyMiddleware::class,
-            'office_head' => \App\Http\Middleware\OfficeHeadMiddleware::class,
-            'log_activity' => \App\Http\Middleware\LogActivity::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

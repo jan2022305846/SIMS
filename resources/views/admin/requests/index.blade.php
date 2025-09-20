@@ -40,8 +40,8 @@
                             <div class="card-body">
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
-                                        <h6 class="card-title mb-1">Office Head Approved</h6>
-                                        <h3 class="mb-0 fw-bold">{{ $requests->where('workflow_status', 'approved_by_office_head')->count() }}</h3>
+                                        <h6 class="card-title mb-1">Admin Approved</h6>
+                                        <h3 class="mb-0 fw-bold">{{ $requests->where('workflow_status', 'approved_by_admin')->count() }}</h3>
                                     </div>
                                     <div class="ms-3">
                                         <i class="fas fa-user-check fa-2x opacity-75"></i>
@@ -105,7 +105,6 @@
                                         <select class="form-select" id="status" name="status">
                                             <option value="">All Statuses</option>
                                             <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending Review</option>
-                                            <option value="approved_by_office_head" {{ request('status') === 'approved_by_office_head' ? 'selected' : '' }}>Office Head Approved</option>
                                             <option value="approved_by_admin" {{ request('status') === 'approved_by_admin' ? 'selected' : '' }}>Admin Approved</option>
                                             <option value="fulfilled" {{ request('status') === 'fulfilled' ? 'selected' : '' }}>Ready for Pickup</option>
                                             <option value="claimed" {{ request('status') === 'claimed' ? 'selected' : '' }}>Completed</option>
@@ -199,7 +198,6 @@
                                                 <span class="badge 
                                                     @switch($request->workflow_status)
                                                         @case('pending') bg-warning @break
-                                                        @case('approved_by_office_head') bg-info @break
                                                         @case('approved_by_admin') bg-success @break
                                                         @case('fulfilled') bg-purple text-white @break
                                                         @case('claimed') bg-secondary @break
@@ -288,17 +286,6 @@
                                                                 <i class="fas fa-print"></i>
                                                             </a>
                                                         @endif
-                                                    @elseif(auth()->user()->role === 'office_head')
-                                                        <!-- Office Head Actions -->
-                                                        @if($request->canBeApprovedByOfficeHead())
-                                                            <button type="button" 
-                                                                    class="btn btn-outline-success" 
-                                                                    data-bs-toggle="modal" 
-                                                                    data-bs-target="#approveModal{{ $request->id }}"
-                                                                    title="Approve Request">
-                                                                <i class="fas fa-check"></i>
-                                                            </button>
-                                                        @endif
                                                     @endif
                                                 </div>
                                             </td>
@@ -344,35 +331,7 @@
     </div>
 </div>
 
-<!-- Office Head Approval Modals -->
-@foreach($requests as $request)
-    @if(auth()->user()->isOfficeHead() && $request->canBeApprovedByOfficeHead())
-        <div class="modal fade" id="approveModal{{ $request->id }}" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Approve Request</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <form method="POST" action="{{ route('requests.approve-office-head', $request) }}">
-                        @csrf
-                        <div class="modal-body">
-                            <p>Are you sure you want to approve this request?</p>
-                            <div class="mb-3">
-                                <label for="office_head_notes{{ $request->id }}" class="form-label">Notes (optional)</label>
-                                <textarea class="form-control" id="office_head_notes{{ $request->id }}" name="office_head_notes" rows="3" placeholder="Add any notes or comments..."></textarea>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-success">Approve Request</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    @endif
-@endforeach
+
 
 
 

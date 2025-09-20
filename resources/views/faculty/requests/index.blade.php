@@ -39,8 +39,8 @@
                     <div class="card-body">
                         <div class="d-flex align-items-center">
                             <div class="flex-grow-1">
-                                <h6 class="card-title mb-1">Approved</h6>
-                                <h3 class="mb-0 fw-bold">{{ $requests->whereIn('workflow_status', ['approved_by_office_head', 'approved_by_admin'])->count() }}</h3>
+                                <h6 class="card-title mb-1">Admin Approved</h6>
+                                <h3 class="mb-0 fw-bold">{{ $requests->where('workflow_status', 'approved_by_admin')->count() }}</h3>
                             </div>
                             <div class="ms-3">
                                 <i class="fas fa-check-circle fa-2x opacity-75"></i>
@@ -97,7 +97,6 @@
                         <select name="status" class="form-select" id="statusSelect">
                             <option value="">All Statuses</option>
                             <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                            <option value="approved_by_office_head" {{ request('status') === 'approved_by_office_head' ? 'selected' : '' }}>Office Head Approved</option>
                             <option value="approved_by_admin" {{ request('status') === 'approved_by_admin' ? 'selected' : '' }}>Admin Approved</option>
                             <option value="fulfilled" {{ request('status') === 'fulfilled' ? 'selected' : '' }}>Ready for Pickup</option>
                             <option value="claimed" {{ request('status') === 'claimed' ? 'selected' : '' }}>Completed</option>
@@ -148,7 +147,6 @@
                                         <span class="badge fs-6 px-3 py-2
                                             @switch($request->workflow_status)
                                                 @case('pending') bg-warning @break
-                                                @case('approved_by_office_head') bg-info @break
                                                 @case('approved_by_admin') bg-success @break
                                                 @case('fulfilled') bg-purple text-white @break
                                                 @case('claimed') bg-secondary @break

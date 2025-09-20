@@ -39,7 +39,6 @@
                                     <span class="badge fs-6 px-3 py-2
                                         @switch($request->workflow_status)
                                             @case('pending') bg-warning @break
-                                            @case('approved_by_office_head') bg-info @break
                                             @case('approved_by_admin') bg-success @break
                                             @case('fulfilled') bg-purple text-white @break
                                             @case('claimed') bg-secondary @break
@@ -231,87 +230,61 @@
                                 </div>
                             </div>
 
-                            <!-- Office Head Review -->
-                            <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_office_head', 'approved_by_admin', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined_by_office_head' ? 'declined' : '') }}">
-                                <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_office_head', 'approved_by_admin', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined_by_office_head' ? 'bg-danger' : 'bg-secondary') }}">
-                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_office_head', 'approved_by_admin', 'fulfilled', 'claimed']) ? 'fa-user-check' : ($request->workflow_status === 'declined_by_office_head' ? 'fa-times' : 'fa-user-clock') }} text-white"></i>
+                            <!-- Admin Approval -->
+                            <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined' ? 'declined' : '') }}">
+                                <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined' ? 'bg-danger' : 'bg-secondary') }}">
+                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
                                 </div>
                                 <div class="timeline-content">
-                                    <h6 class="mb-1">Office Head Review</h6>
-                                    @if($request->office_head_approval_date)
-                                        <p class="mb-1 text-success small">{{ $request->office_head_approval_date->format('M j, Y g:i A') }}</p>
-                                        <p class="mb-0 small">Approved by {{ $request->officeHeadApprover->name ?? 'Office Head' }}</p>
-                                        @if($request->office_head_notes)
-                                            <p class="mb-0 small text-muted fst-italic">"{{ $request->office_head_notes }}"</p>
-                                        @endif
-                                    @elseif($request->workflow_status === 'declined_by_office_head')
+                                    <h6 class="mb-1">Admin Approval</h6>
+                                    @if($request->admin_approval_date)
+                                        <p class="mb-1 text-success small">{{ $request->admin_approval_date->format('M j, Y g:i A') }}</p>
+                                        <p class="mb-0 small">Approved by {{ $request->adminApprover->name ?? 'Administrator' }}</p>
+                                    @elseif($request->workflow_status === 'declined')
                                         <p class="mb-1 text-danger small">Declined</p>
                                         @if($request->admin_notes)
                                             <p class="mb-0 small text-muted">"{{ $request->admin_notes }}"</p>
                                         @endif
                                     @else
-                                        <p class="mb-0 text-muted small">Waiting for office head approval</p>
+                                        <p class="mb-0 text-muted small">Waiting for admin approval</p>
                                     @endif
                                 </div>
                             </div>
 
-                            <!-- Admin Approval -->
-                            @if(!in_array($request->workflow_status, ['declined_by_office_head']))
-                                <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined_by_admin' ? 'declined' : '') }}">
-                                    <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined_by_admin' ? 'bg-danger' : 'bg-secondary') }}">
-                                        <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined_by_admin' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
-                                    </div>
-                                    <div class="timeline-content">
-                                        <h6 class="mb-1">Admin Approval</h6>
-                                        @if($request->admin_approval_date)
-                                            <p class="mb-1 text-success small">{{ $request->admin_approval_date->format('M j, Y g:i A') }}</p>
-                                            <p class="mb-0 small">Approved by {{ $request->adminApprover->name ?? 'Administrator' }}</p>
-                                        @elseif($request->workflow_status === 'declined_by_admin')
-                                            <p class="mb-1 text-danger small">Declined</p>
-                                            @if($request->admin_notes)
-                                                <p class="mb-0 small text-muted">"{{ $request->admin_notes }}"</p>
-                                            @endif
-                                        @else
-                                            <p class="mb-0 text-muted small">Waiting for admin approval</p>
-                                        @endif
-                                    </div>
+                            <!-- Request Fulfilled -->
+                            <div class="timeline-item {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'completed' : '' }}">
+                                <div class="timeline-marker {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
+                                    <i class="fas {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'fa-box' : 'fa-box-open' }} text-white"></i>
                                 </div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">Items Prepared</h6>
+                                    @if($request->fulfilled_date)
+                                        <p class="mb-1 text-success small">{{ $request->fulfilled_date->format('M j, Y g:i A') }}</p>
+                                        <p class="mb-1 small">Prepared by {{ $request->fulfilledBy->name ?? 'Administrator' }}</p>
+                                        @if($request->claim_slip_number)
+                                            <p class="mb-0 small">Claim slip: <code>{{ $request->claim_slip_number }}</code></p>
+                                        @endif
+                                    @else
+                                        <p class="mb-0 text-muted small">Items being prepared</p>
+                                    @endif
+                                </div>
+                            </div>
 
-                                <!-- Request Fulfilled -->
-                                <div class="timeline-item {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'completed' : '' }}">
-                                    <div class="timeline-marker {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
-                                        <i class="fas {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'fa-box' : 'fa-box-open' }} text-white"></i>
-                                    </div>
-                                    <div class="timeline-content">
-                                        <h6 class="mb-1">Items Prepared</h6>
-                                        @if($request->fulfilled_date)
-                                            <p class="mb-1 text-success small">{{ $request->fulfilled_date->format('M j, Y g:i A') }}</p>
-                                            <p class="mb-1 small">Prepared by {{ $request->fulfilledBy->name ?? 'Administrator' }}</p>
-                                            @if($request->claim_slip_number)
-                                                <p class="mb-0 small">Claim slip: <code>{{ $request->claim_slip_number }}</code></p>
-                                            @endif
-                                        @else
-                                            <p class="mb-0 text-muted small">Items being prepared</p>
-                                        @endif
-                                    </div>
+                            <!-- Item Claimed -->
+                            <div class="timeline-item {{ $request->workflow_status === 'claimed' ? 'completed' : '' }}">
+                                <div class="timeline-marker {{ $request->workflow_status === 'claimed' ? 'bg-success' : 'bg-secondary' }}">
+                                    <i class="fas {{ $request->workflow_status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} text-white"></i>
                                 </div>
-
-                                <!-- Item Claimed -->
-                                <div class="timeline-item {{ $request->workflow_status === 'claimed' ? 'completed' : '' }}">
-                                    <div class="timeline-marker {{ $request->workflow_status === 'claimed' ? 'bg-success' : 'bg-secondary' }}">
-                                        <i class="fas {{ $request->workflow_status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} text-white"></i>
-                                    </div>
-                                    <div class="timeline-content">
-                                        <h6 class="mb-1">Items Received</h6>
-                                        @if($request->claimed_date)
-                                            <p class="mb-1 text-success small">{{ $request->claimed_date->format('M j, Y g:i A') }}</p>
-                                            <p class="mb-0 small">Received and acknowledged</p>
-                                        @else
-                                            <p class="mb-0 text-muted small">Waiting for you to pick up and acknowledge receipt</p>
-                                        @endif
-                                    </div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">Items Received</h6>
+                                    @if($request->claimed_date)
+                                        <p class="mb-1 text-success small">{{ $request->claimed_date->format('M j, Y g:i A') }}</p>
+                                        <p class="mb-0 small">Received and acknowledged</p>
+                                    @else
+                                        <p class="mb-0 text-muted small">Waiting for you to pick up and acknowledge receipt</p>
+                                    @endif
                                 </div>
-                            @endif
+                            </div>
                         </div>
                     </div>
                 </div>

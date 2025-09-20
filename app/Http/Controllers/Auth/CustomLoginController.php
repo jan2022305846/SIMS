@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class CustomLoginController extends Controller
 {
@@ -140,14 +141,70 @@ class CustomLoginController extends Controller
     }
 
     /**
-     * The user has been logged out of the application.
+     * Send the response after the user was authenticated.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return mixed
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
      */
-    protected function loggedOut(Request $request)
+    protected function sendLoginResponse(Request $request)
     {
-        // This method can be overridden to provide custom post-logout logic
-        return null;
+        $request->session()->regenerate();
+
+        $this->clearLoginAttempts($request);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => $this->redirectPath(),
+                'message' => 'Login successful'
+            ]);
+        }
+
+        if ($response = $this->authenticated($request, $this->guard()->user())) {
+            return $response;
+        }
+
+        return $request->wantsJson()
+            ? response()->json(['success' => true, 'redirect' => $this->redirectPath()])
+            : redirect()->intended($this->redirectPath());
+    }
+
+    /**
+     * Get the failed login response instance.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Symfony\Component\HttpFoundation\Response
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    protected function sendFailedLoginResponse(Request $request)
+    {
+        $credentials = $this->credentials($request);
+
+        // Check if user exists
+        $user = \App\Models\User::where('school_id', $credentials['school_id'])->first();
+
+        if (!$user) {
+            $message = 'No account found with this School ID.';
+            $field = 'school_id';
+        } else {
+            // User exists but password is wrong
+            $message = 'The password you entered is incorrect.';
+            $field = 'password';
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => [
+                    $field => [$message]
+                ]
+            ], 422);
+        }
+
+        throw ValidationException::withMessages([
+            $field => [$message],
+        ]);
     }
 }

@@ -67,7 +67,6 @@
                                     <span class="badge fs-6 px-3 py-2
                                         @switch($request->workflow_status)
                                             @case('pending') bg-warning @break
-                                            @case('approved_by_office_head') bg-info @break
                                             @case('approved_by_admin') bg-success @break
                                             @case('fulfilled') bg-purple text-white @break
                                             @case('claimed') bg-secondary @break
@@ -185,7 +184,7 @@
             <!-- Workflow Timeline & Actions -->
             <div class="col-lg-4">
                 <!-- Actions Card -->
-                @if(auth()->user()->isAdmin() || (auth()->user()->isOfficeHead() && $request->canBeApprovedByOfficeHead()))
+                @if(auth()->user()->isAdmin())
                     <div class="card shadow-sm mb-4">
                         <div class="card-header bg-success text-white">
                             <h5 class="mb-0">
@@ -193,93 +192,78 @@
                             </h5>
                         </div>
                         <div class="card-body">
-                            @if(auth()->user()->isAdmin())
-                                <!-- Admin Actions -->
-                                @if($request->canBeApprovedByAdmin())
-                                    <form method="POST" action="{{ route('requests.approve-admin', $request) }}" class="mb-2">
-                                        @csrf
-                                        <button type="submit" class="btn btn-success w-100">
-                                            <i class="fas fa-check me-2"></i>Approve Request
-                                        </button>
-                                    </form>
-                                @endif
-                                
-                                @if($request->canBeFulfilled())
-                                    <div class="mb-3">
-                                        <label for="item_barcode" class="form-label fw-medium">Scan Item Barcode</label>
-                                        <div class="input-group">
-                                            <input type="text" name="item_barcode" id="item_barcode" 
-                                                   class="form-control" placeholder="Scan or enter item barcode" readonly>
-                                            <button type="button" class="btn btn-outline-primary" id="scan-item-barcode-btn" title="Scan Barcode">
-                                                <i class="fas fa-qrcode"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary" id="manual-item-barcode-btn" title="Manual Entry">
-                                                <i class="fas fa-keyboard"></i>
-                                            </button>
-                                        </div>
-                                        <div class="form-text">
-                                            <small class="text-muted">
-                                                <i class="fas fa-info-circle me-1"></i>
-                                                Scan the item's barcode to verify and display item details
-                                            </small>
-                                        </div>
-                                    </div>
-                                    
-                                    <div id="scanned-item-details" class="mb-3" style="display: none;">
-                                        <div class="card border-success">
-                                            <div class="card-header bg-success text-white">
-                                                <h6 class="mb-0">
-                                                    <i class="fas fa-check-circle me-2"></i>Item Verified
-                                                </h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <div id="item-details-content">
-                                                    <!-- Item details will be populated here -->
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <form method="POST" action="{{ route('requests.fulfill', $request) }}" class="mb-2">
-                                        @csrf
-                                        <input type="hidden" name="scanned_barcode" id="scanned_barcode_input">
-                                        <button type="submit" class="btn btn-primary w-100" id="fulfill-btn" disabled>
-                                            <i class="fas fa-box me-2"></i>Fulfill Request
-                                        </button>
-                                    </form>
-                                @endif
-                                
-                                @if($request->canBeClaimed())
-                                    <form method="POST" action="{{ route('requests.claim', $request) }}" class="mb-2">
-                                        @csrf
-                                        <button type="submit" class="btn btn-secondary w-100">
-                                            <i class="fas fa-handshake me-2"></i>Mark as Claimed
-                                        </button>
-                                    </form>
-                                @endif
-                                
-                                @if(!$request->isDeclined() && !$request->isClaimed())
-                                    <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#declineModal" id="declineBtn">
-                                        <i class="fas fa-times me-2"></i>Decline Request
-                                    </button>
-                                @endif
-                            @elseif(auth()->user()->isOfficeHead())
-                                <!-- Office Head Actions -->
-                                @if($request->canBeApprovedByOfficeHead())
-                                    <button type="button" class="btn btn-success w-100 mb-2" data-bs-toggle="modal" data-bs-target="#approveModal">
+                            <!-- Admin Actions -->
+                            @if($request->canBeApprovedByAdmin())
+                                <form method="POST" action="{{ route('requests.approve-admin', $request) }}" class="mb-2">
+                                    @csrf
+                                    <button type="submit" class="btn btn-success w-100">
                                         <i class="fas fa-check me-2"></i>Approve Request
                                     </button>
-                                    
-                                    <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#declineModal">
-                                        <i class="fas fa-times me-2"></i>Decline Request
+                                </form>
+                            @endif
+                            
+                            @if($request->canBeFulfilled())
+                                <div class="mb-3">
+                                    <label for="item_barcode" class="form-label fw-medium">Scan Item Barcode</label>
+                                    <div class="input-group">
+                                        <input type="text" name="item_barcode" id="item_barcode" 
+                                               class="form-control" placeholder="Scan or enter item barcode" readonly>
+                                        <button type="button" class="btn btn-outline-primary" id="scan-item-barcode-btn" title="Scan Barcode">
+                                            <i class="fas fa-qrcode"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="manual-item-barcode-btn" title="Manual Entry">
+                                            <i class="fas fa-keyboard"></i>
+                                        </button>
+                                    </div>
+                                    <div class="form-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Scan the item's barcode to verify and display item details
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div id="scanned-item-details" class="mb-3" style="display: none;">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-check-circle me-2"></i>Item Verified
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="item-details-content">
+                                                <!-- Item details will be populated here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <form method="POST" action="{{ route('requests.fulfill', $request) }}" class="mb-2">
+                                    @csrf
+                                    <input type="hidden" name="scanned_barcode" id="scanned_barcode_input">
+                                    <button type="submit" class="btn btn-primary w-100" id="fulfill-btn" disabled>
+                                        <i class="fas fa-box me-2"></i>Fulfill Request
                                     </button>
-                                @endif
+                                </form>
+                            @endif
+                            
+                            @if($request->canBeClaimed())
+                                <form method="POST" action="{{ route('requests.claim', $request) }}" class="mb-2">
+                                    @csrf
+                                    <button type="submit" class="btn btn-secondary w-100">
+                                        <i class="fas fa-handshake me-2"></i>Mark as Claimed
+                                    </button>
+                                </form>
+                            @endif
+                            
+                            @if(!$request->isDeclined() && !$request->isClaimed())
+                                <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#declineModal" id="declineBtn">
+                                    <i class="fas fa-times me-2"></i>Decline Request
+                                </button>
                             @endif
                         </div>
                     </div>
-                @endif
-
-                <!-- Workflow Timeline -->
+                @endif                <!-- Workflow Timeline -->
                 <div class="card shadow-sm">
                     <div class="card-header bg-info text-white">
                         <h5 class="mb-0">
@@ -300,87 +284,61 @@
                                 </div>
                             </div>
 
-                            <!-- Office Head Approval -->
-                            <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_office_head', 'approved_by_admin', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined_by_office_head' ? 'declined' : '') }}">
-                                <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_office_head', 'approved_by_admin', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined_by_office_head' ? 'bg-danger' : 'bg-secondary') }}">
-                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_office_head', 'approved_by_admin', 'fulfilled', 'claimed']) ? 'fa-user-check' : ($request->workflow_status === 'declined_by_office_head' ? 'fa-times' : 'fa-user-clock') }} text-white"></i>
+                            <!-- Admin Approval -->
+                            <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined_by_admin' ? 'declined' : '') }}">
+                                <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined_by_admin' ? 'bg-danger' : 'bg-secondary') }}">
+                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined_by_admin' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
                                 </div>
                                 <div class="timeline-content">
-                                    <h6 class="mb-1">Office Head Review</h6>
-                                    @if($request->office_head_approval_date)
-                                        <p class="mb-1 text-success small">{{ $request->office_head_approval_date->format('M j, Y g:i A') }}</p>
-                                        <p class="mb-0 small">Approved by {{ $request->officeHeadApprover->name ?? 'Office Head' }}</p>
-                                        @if($request->office_head_notes)
-                                            <p class="mb-0 small text-muted fst-italic">"{{ $request->office_head_notes }}"</p>
-                                        @endif
-                                    @elseif($request->workflow_status === 'declined_by_office_head')
+                                    <h6 class="mb-1">Admin Approval</h6>
+                                    @if($request->admin_approval_date)
+                                        <p class="mb-1 text-success small">{{ $request->admin_approval_date->format('M j, Y g:i A') }}</p>
+                                        <p class="mb-0 small">Approved by {{ $request->adminApprover->name ?? 'Administrator' }}</p>
+                                    @elseif($request->workflow_status === 'declined_by_admin')
                                         <p class="mb-1 text-danger small">Declined</p>
                                         @if($request->admin_notes)
                                             <p class="mb-0 small text-muted">"{{ $request->admin_notes }}"</p>
                                         @endif
                                     @else
-                                        <p class="mb-0 text-muted small">Pending office head approval</p>
+                                        <p class="mb-0 text-muted small">Pending admin approval</p>
                                     @endif
                                 </div>
                             </div>
 
-                            <!-- Admin Approval -->
-                            @if(!in_array($request->workflow_status, ['declined_by_office_head']))
-                                <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined_by_admin' ? 'declined' : '') }}">
-                                    <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined_by_admin' ? 'bg-danger' : 'bg-secondary') }}">
-                                        <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined_by_admin' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
-                                    </div>
-                                    <div class="timeline-content">
-                                        <h6 class="mb-1">Admin Approval</h6>
-                                        @if($request->admin_approval_date)
-                                            <p class="mb-1 text-success small">{{ $request->admin_approval_date->format('M j, Y g:i A') }}</p>
-                                            <p class="mb-0 small">Approved by {{ $request->adminApprover->name ?? 'Administrator' }}</p>
-                                        @elseif($request->workflow_status === 'declined_by_admin')
-                                            <p class="mb-1 text-danger small">Declined</p>
-                                            @if($request->admin_notes)
-                                                <p class="mb-0 small text-muted">"{{ $request->admin_notes }}"</p>
-                                            @endif
-                                        @else
-                                            <p class="mb-0 text-muted small">Pending admin approval</p>
-                                        @endif
-                                    </div>
+                            <!-- Request Fulfilled -->
+                            <div class="timeline-item {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'completed' : '' }}">
+                                <div class="timeline-marker {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
+                                    <i class="fas {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'fa-box' : 'fa-box-open' }} text-white"></i>
                                 </div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">Request Fulfilled</h6>
+                                    @if($request->fulfilled_date)
+                                        <p class="mb-1 text-success small">{{ $request->fulfilled_date->format('M j, Y g:i A') }}</p>
+                                        <p class="mb-1 small">Fulfilled by {{ $request->fulfilledBy->name ?? 'Administrator' }}</p>
+                                        @if($request->claim_slip_number)
+                                            <p class="mb-0 small">Claim slip: <code>{{ $request->claim_slip_number }}</code></p>
+                                        @endif
+                                    @else
+                                        <p class="mb-0 text-muted small">Pending fulfillment</p>
+                                    @endif
+                                </div>
+                            </div>
 
-                                <!-- Request Fulfilled -->
-                                <div class="timeline-item {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'completed' : '' }}">
-                                    <div class="timeline-marker {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
-                                        <i class="fas {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'fa-box' : 'fa-box-open' }} text-white"></i>
-                                    </div>
-                                    <div class="timeline-content">
-                                        <h6 class="mb-1">Request Fulfilled</h6>
-                                        @if($request->fulfilled_date)
-                                            <p class="mb-1 text-success small">{{ $request->fulfilled_date->format('M j, Y g:i A') }}</p>
-                                            <p class="mb-1 small">Fulfilled by {{ $request->fulfilledBy->name ?? 'Administrator' }}</p>
-                                            @if($request->claim_slip_number)
-                                                <p class="mb-0 small">Claim slip: <code>{{ $request->claim_slip_number }}</code></p>
-                                            @endif
-                                        @else
-                                            <p class="mb-0 text-muted small">Pending fulfillment</p>
-                                        @endif
-                                    </div>
+                            <!-- Item Claimed -->
+                            <div class="timeline-item {{ $request->workflow_status === 'claimed' ? 'completed' : '' }}">
+                                <div class="timeline-marker {{ $request->workflow_status === 'claimed' ? 'bg-success' : 'bg-secondary' }}">
+                                    <i class="fas {{ $request->workflow_status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} text-white"></i>
                                 </div>
-
-                                <!-- Item Claimed -->
-                                <div class="timeline-item {{ $request->workflow_status === 'claimed' ? 'completed' : '' }}">
-                                    <div class="timeline-marker {{ $request->workflow_status === 'claimed' ? 'bg-success' : 'bg-secondary' }}">
-                                        <i class="fas {{ $request->workflow_status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} text-white"></i>
-                                    </div>
-                                    <div class="timeline-content">
-                                        <h6 class="mb-1">Item Claimed</h6>
-                                        @if($request->claimed_date)
-                                            <p class="mb-1 text-success small">{{ $request->claimed_date->format('M j, Y g:i A') }}</p>
-                                            <p class="mb-0 small">Marked as claimed by {{ $request->claimedBy->name ?? 'Administrator' }}</p>
-                                        @else
-                                            <p class="mb-0 text-muted small">Waiting for item to be claimed</p>
-                                        @endif
-                                    </div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">Item Claimed</h6>
+                                    @if($request->claimed_date)
+                                        <p class="mb-1 text-success small">{{ $request->claimed_date->format('M j, Y g:i A') }}</p>
+                                        <p class="mb-0 small">Marked as claimed by {{ $request->claimedBy->name ?? 'Administrator' }}</p>
+                                    @else
+                                        <p class="mb-0 text-muted small">Waiting for item to be claimed</p>
+                                    @endif
                                 </div>
-                            @endif
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -391,36 +349,8 @@
     </div>
 </div>
 
-<!-- Office Head Approval Modal -->
-@if(auth()->user()->isOfficeHead() && $request->canBeApprovedByOfficeHead())
-    <div class="modal fade" id="approveModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Approve Request</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="POST" action="{{ route('requests.approve-office-head', $request) }}">
-                    @csrf
-                    <div class="modal-body">
-                        <p>Are you sure you want to approve this request?</p>
-                        <div class="mb-3">
-                            <label for="office_head_notes" class="form-label">Notes (optional)</label>
-                            <textarea class="form-control" id="office_head_notes" name="office_head_notes" rows="3" placeholder="Add any notes or comments..."></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-success">Approve Request</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-@endif
-
 <!-- Decline Modal -->
-@if(!$request->isDeclined() && !$request->isClaimed() && (auth()->user()->isAdmin() || (auth()->user()->isOfficeHead() && $request->canBeApprovedByOfficeHead())))
+@if(!$request->isDeclined() && !$request->isClaimed() && auth()->user()->isAdmin())
     <div class="modal fade" id="declineModal" tabindex="-1" aria-labelledby="declineModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -428,7 +358,7 @@
                     <h5 class="modal-title" id="declineModalLabel">Decline Request</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" action="{{ auth()->user()->isAdmin() ? route('requests.decline', $request) : route('requests.decline-office-head', $request) }}" id="declineForm">
+                <form method="POST" action="{{ route('requests.decline', $request) }}" id="declineForm">
                     @csrf
                     <div class="modal-body">
                         <div class="alert alert-warning">

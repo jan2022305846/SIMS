@@ -21,7 +21,7 @@ class RequestController extends Controller
 {
     public function index(Request $request)
     {
-        $query = SupplyRequest::with(['user', 'item', 'officeHeadApprover', 'adminApprover'])
+        $query = SupplyRequest::with(['user', 'item', 'adminApprover'])
             ->latest();
 
         // Filter based on user role
@@ -30,12 +30,6 @@ class RequestController extends Controller
         if ($user->role === 'faculty') {
             // Faculty can only see their own requests
             $query->where('user_id', $user->id);
-        } elseif ($user->role === 'office_head') {
-            // Office heads can see pending requests and requests they've approved
-            $query->where(function($q) use ($user) {
-                $q->where('workflow_status', 'pending')
-                  ->orWhere('approved_by_office_head_id', $user->id);
-            });
         }
         // Admins can see all requests (no filter needed)
 
@@ -58,10 +52,7 @@ class RequestController extends Controller
         // Apply status filter with support for declined status
         if ($request->has('status') && $request->status) {
             if ($request->status === 'declined') {
-                $query->where(function($q) {
-                    $q->where('workflow_status', 'declined_by_office_head')
-                      ->orWhere('workflow_status', 'declined_by_admin');
-                });
+                $query->where('workflow_status', 'declined_by_admin');
             } else {
                 $query->where('workflow_status', $request->status);
             }
@@ -165,7 +156,7 @@ class RequestController extends Controller
 
     public function show(SupplyRequest $request)
     {
-        $request->load(['user', 'item', 'officeHeadApprover', 'adminApprover', 'fulfilledBy', 'claimedBy']);
+        $request->load(['user', 'item', 'adminApprover', 'fulfilledBy', 'claimedBy']);
 
         // Check permissions
         /** @var User $user */
@@ -242,47 +233,12 @@ class RequestController extends Controller
             ->with('success', 'Request updated successfully!');
     }
 
-    public function approveByOfficeHead(Request $request, SupplyRequest $supplyRequest)
-    {
-        /** @var User $user */
-        $user = Auth::user();
-        if ($user->role !== 'office_head' && $user->role !== 'admin') {
-            abort(403, 'Only office heads can approve requests at this stage.');
-        }
-
-        if (!$supplyRequest->canBeApprovedByOfficeHead()) {
-            return back()->withErrors(['error' => 'This request cannot be approved at this stage.']);
-        }
-
-        $validatedData = $request->validate([
-            'office_head_notes' => 'nullable|string|max:500',
-        ]);
-
-        $supplyRequest->approveByOfficeHead(Auth::user(), $validatedData['office_head_notes'] ?? null);
-
-        // Load item relationship if not already loaded
-        if (!$supplyRequest->relationLoaded('item')) {
-            $supplyRequest->load('item');
-        }
-
-        // Create log entry with null check
-        $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'approve',
-            'details' => 'Approved request by office head for ' . $itemName,
-            'created_at' => now(),
-        ]);
-
-        return back()->with('success', 'Request approved by office head successfully!');
-    }
-
     public function approveByAdmin(SupplyRequest $supplyRequest)
     {
         /** @var User $user */
         $user = Auth::user();
         if ($user->role !== 'admin') {
-            abort(403, 'Only administrators can approve requests at this stage.');
+            abort(403, 'Only administrators can approve requests.');
         }
 
         if (!$supplyRequest->canBeApprovedByAdmin()) {
@@ -418,8 +374,8 @@ class RequestController extends Controller
         /** @var User $user */
         $user = Auth::user();
         
-        if ($user->role !== 'office_head' && $user->role !== 'admin') {
-            abort(403, 'Only office heads and administrators can decline requests.');
+        if ($user->role !== 'admin') {
+            abort(403, 'Only administrators can decline requests.');
         }
 
         // Check if request can be declined
@@ -497,7 +453,7 @@ class RequestController extends Controller
 
     public function myRequests(Request $request)
     {
-        $query = SupplyRequest::with(['user', 'item', 'officeHeadApprover', 'adminApprover'])
+        $query = SupplyRequest::with(['user', 'item', 'adminApprover'])
             ->latest();
 
         // Faculty can only see their own requests
@@ -518,10 +474,7 @@ class RequestController extends Controller
         // Apply status filter
         if ($request->has('status') && $request->status) {
             if ($request->status === 'declined') {
-                $query->where(function($q) {
-                    $q->where('workflow_status', 'declined_by_office_head')
-                      ->orWhere('workflow_status', 'declined_by_admin');
-                });
+                $query->where('workflow_status', 'declined_by_admin');
             } else {
                 $query->where('workflow_status', $request->status);
             }
@@ -541,9 +494,7 @@ class RequestController extends Controller
         $user = Auth::user();
         
         if ($status === 'approved') {
-            if ($request->canBeApprovedByOfficeHead() && $user->role === 'office_head') {
-                return $this->approveByOfficeHead($httpRequest, $request);
-            } elseif ($request->canBeApprovedByAdmin() && $user->role === 'admin') {
+            if ($request->canBeApprovedByAdmin() && $user->role === 'admin') {
                 return $this->approveByAdmin($request);
             }
         } elseif ($status === 'rejected') {

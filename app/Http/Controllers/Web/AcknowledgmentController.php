@@ -31,7 +31,6 @@ class AcknowledgmentController extends Controller
         }
 
         $witnesses = User::where('role', 'admin')
-            ->orWhere('role', 'office_head')
             ->where('id', '!=', Auth::id())
             ->get();
 
@@ -188,26 +187,22 @@ class AcknowledgmentController extends Controller
     private function canAcknowledge(SupplyRequest $request)
     {
         $user = Auth::user();
-        
-        // Must be the requester or an admin/office head
-        return $user->id === $request->user_id || 
-               $user->role === 'admin' || 
-               $user->role === 'office_head';
-    }
 
-    /**
+        // Must be the requester or an admin
+        return $user->id === $request->user_id ||
+               $user->role === 'admin';
+    }    /**
      * Check if current user can view the receipt
      */
     private function canViewReceipt(SupplyRequest $request, RequestAcknowledgment $acknowledgment)
     {
         $user = Auth::user();
-        
-        // Requester, acknowledger, witness, admin, or office head can view
+
+        // Requester, acknowledger, witness, admin can view
         return $user->id === $request->user_id ||
                $user->id === $acknowledgment->acknowledged_by ||
                ($acknowledgment->witnessed_by && $user->id === $acknowledgment->witnessed_by) ||
-               $user->role === 'admin' ||
-               $user->role === 'office_head';
+               $user->role === 'admin';
     }
 
     /**

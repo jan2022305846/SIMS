@@ -43,7 +43,6 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
-        'office_id',
         'must_set_password',
     ];
 
@@ -55,6 +54,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'must_set_password' => 'boolean',
     ];
 
     public function requests()
@@ -70,22 +70,6 @@ class User extends Authenticatable
     public function custodiedItems()
     {
         return $this->hasMany(Item::class, 'custodian_id');
-    }
-
-    /**
-     * Get the office this user belongs to
-     */
-    public function office()
-    {
-        return $this->belongsTo(Office::class);
-    }
-
-    /**
-     * Get offices where this user is the office head
-     */
-    public function managedOffices()
-    {
-        return $this->hasMany(Office::class, 'office_head_id');
     }
 
     /**

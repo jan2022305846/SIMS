@@ -55,7 +55,7 @@
 
     @else
         <!-- Guest Content (Login, Register, etc.) -->
-        <main style="background: linear-gradient(135deg, #1a1851 0%, #0d4a77 100%) !important; width: 100vw !important; height: 100vh !important; margin: 0 !important; padding: 20px !important; box-sizing: border-box !important; display: flex !important; align-items: center !important; justify-content: center !important; position: fixed !important; top: 0 !important; left: 0 !important;">
+        <main class="guest-main">
             @yield('content')
         </main>
     @endauth

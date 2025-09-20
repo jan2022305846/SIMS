@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class PasswordController extends Controller
@@ -66,18 +67,42 @@ class PasswordController extends Controller
      */
     public function sendResetLink(Request $request)
     {
-        $request->validate(['email' => 'required|email']);
+        $request->validate(['school_id' => 'required|string']);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('school_id', $request->school_id)->first();
 
         if (!$user) {
-            return back()->withErrors(['email' => 'No account found with this email address.']);
+            return response()->json([
+                'success' => false,
+                'message' => 'No account found with this school ID.'
+            ], 404);
         }
 
-        // Generate password reset token and send email
-        $token = Password::createToken($user);
-        $user->notify(new \App\Notifications\SetPasswordNotification($token, false));
+        // Check if user has an email address
+        if (!$user->email) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No email address is associated with this account. Please contact your administrator.'
+            ], 400);
+        }
 
-        return back()->with('success', 'Password reset link sent! Please check your email.');
+        try {
+            // Generate password reset token and send email
+            $token = Password::createToken($user);
+            $user->notify(new \App\Notifications\SetPasswordNotification($token, false));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Password reset link sent! Please check your email.'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Password reset failed for user ' . $user->school_id . ': ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send reset email. Please try again later or contact your administrator.'
+            ], 500);
+        }
     }
 }

@@ -28,7 +28,7 @@ blockquote {
 }
 
 a {
-    color: #3869d4;
+    color: #ffc107;
 }
 
 a img {
@@ -237,11 +237,21 @@ img {
 
 .button-blue,
 .button-primary {
-    background-color: #2d3748;
-    border-bottom: 8px solid #2d3748;
-    border-left: 18px solid #2d3748;
-    border-right: 18px solid #2d3748;
-    border-top: 8px solid #2d3748;
+    background-color: #ffc107;
+    border-bottom: 8px solid #e0a800;
+    border-left: 18px solid #ffc107;
+    border-right: 18px solid #ffc107;
+    border-top: 8px solid #ffc107;
+    color: #212529 !important;
+}
+
+.button-blue:hover,
+.button-primary:hover {
+    background-color: #e0a800;
+    border-bottom: 8px solid #d39e00;
+    border-left: 18px solid #e0a800;
+    border-right: 18px solid #e0a800;
+    border-top: 8px solid #e0a800;
 }
 
 .button-green,
@@ -265,7 +275,7 @@ img {
 /* Panels */
 
 .panel {
-    border-left: #2d3748 solid 4px;
+    border-left: #ffc107 solid 4px;
     margin: 21px 0;
 }
 

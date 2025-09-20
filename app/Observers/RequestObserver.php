@@ -56,9 +56,6 @@ class RequestObserver
         
         if (isset($changes['status'])) {
             switch ($changes['status']) {
-                case 'approved_by_office_head':
-                    $description = 'Request approved by Office Head';
-                    break;
                 case 'approved_by_admin':
                     $description = 'Request approved by Admin';
                     break;
@@ -92,9 +89,8 @@ class RequestObserver
                 'requester' => $request->user->name,
                 'item' => $request->item->name,
                 'changes' => $importantChanges,
-                'approver' => isset($changes['approved_by_admin_id']) ? 'Admin' : 
-                             (isset($changes['approved_by_office_head_id']) ? 'Office Head' : null),
-                'notes' => $changes['admin_notes'] ?? $changes['office_head_notes'] ?? null
+                'approver' => isset($changes['approved_by_admin_id']) ? 'Admin' : null,
+                'notes' => $changes['admin_notes'] ?? null
             ])
             ->save();
     }

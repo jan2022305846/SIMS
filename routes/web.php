@@ -12,6 +12,7 @@ use App\Http\Controllers\Web\ReportsController;
 use App\Http\Controllers\Web\AcknowledgmentController;
 use App\Http\Controllers\Web\HelpController;
 use App\Http\Controllers\Web\BackupController;
+use App\Http\Controllers\Web\RestoreController;
 use App\Http\Controllers\Auth\PasswordController;
 
 // Custom Authentication Routes
@@ -66,9 +67,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/backup/download/{filename}', [BackupController::class, 'download'])->name('admin.backup.download');
         Route::delete('/backup/delete/{filename}', [BackupController::class, 'delete'])->name('admin.backup.delete');
         
+        // Restore routes
         Route::get('/restore', [RestoreController::class, 'index'])->name('admin.restore.index');
-        Route::post('/restore/upload', [RestoreController::class, 'upload'])->name('admin.restore.upload');
-        Route::post('/restore/analyze', [RestoreController::class, 'analyze'])->name('admin.restore.analyze');
+        Route::post('/restore/upload', [RestoreController::class, 'analyzeBackup'])->name('admin.restore.analyze');
         Route::post('/restore/safety-backup', [RestoreController::class, 'createSafetyBackup'])->name('admin.restore.safety-backup');
         Route::post('/restore/execute', [RestoreController::class, 'restore'])->name('admin.restore.execute');
     });
@@ -128,16 +129,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports/annual-summary', [ReportsController::class, 'annualSummary'])->name('reports.annual-summary');
         
         Route::resource('requests', RequestController::class)->except(['create', 'store', 'show']);
-    });
-    
-    // Office Head routes
-    Route::middleware(['office_head'])->group(function () {
-        Route::get('office-head/requests', [RequestController::class, 'index'])->name('office-head.requests');
-        Route::post('requests/{request}/approve-office-head', [RequestController::class, 'approveByOfficeHead'])->name('requests.approve-office-head');
-        Route::post('requests/{request}/decline-office-head', [RequestController::class, 'decline'])->name('requests.decline-office-head');
-        Route::get('requests/{request}', [RequestController::class, 'show'])->name('office-head.requests.show');
         
-        // Reports
+        // Reports (Admin only)
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
         Route::get('reports/daily-csv', [ReportsController::class, 'dailyCsv'])->name('reports.daily-csv');
@@ -145,7 +138,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports/annual-csv', [ReportsController::class, 'annualCsv'])->name('reports.annual-csv');
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
         Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
-        
+
         // New Daily, Weekly, Monthly, Annual Reports
         Route::get('reports/daily-transactions', [ReportsController::class, 'dailyTransactions'])->name('reports.daily-transactions');
         Route::get('reports/daily-disbursement', [ReportsController::class, 'dailyDisbursement'])->name('reports.daily-disbursement');
@@ -175,18 +168,18 @@ Route::middleware(['auth'])->group(function () {
         Route::get('requests/{request}/receipt', [AcknowledgmentController::class, 'receipt'])->name('faculty.requests.acknowledgment.receipt');
         Route::get('requests/{request}/receipt/download', [AcknowledgmentController::class, 'downloadReceipt'])->name('faculty.requests.acknowledgment.download');
         
-        // QR Code scanner interface
-        Route::get('qr/scanner', [QRCodeController::class, 'scanner'])->name('qr.scanner');
-        Route::get('qr/test', [QRCodeController::class, 'test'])->name('qr.test');
-        Route::get('qr/simple-test', [QRCodeController::class, 'simpleTest'])->name('qr.simple-test');
-        Route::post('qr/scan', [QRCodeController::class, 'scan'])->name('qr.scan');
+        // QR Code scanner interface (commented out - controller not implemented)
+        // Route::get('qr/scanner', [QRCodeController::class, 'scanner'])->name('qr.scanner');
+        // Route::get('qr/test', [QRCodeController::class, 'test'])->name('qr.test');
+        // Route::get('qr/simple-test', [QRCodeController::class, 'simpleTest'])->name('qr.simple-test');
+        // Route::post('qr/scan', [QRCodeController::class, 'scan'])->name('qr.scan');
     });
     
-    // Admin QR code routes
+    // Admin QR code routes (commented out - controller not implemented)
     Route::middleware(['admin'])->group(function () {
-        Route::post('qr/generate/{item}', [QRCodeController::class, 'generate'])->name('qr.generate');
-        Route::get('qr/download/{item}', [QRCodeController::class, 'download'])->name('qr.download');
-        
+        // Route::post('qr/generate/{item}', [QRCodeController::class, 'generate'])->name('qr.generate');
+        // Route::get('qr/download/{item}', [QRCodeController::class, 'download'])->name('qr.download');
+
         // Activity Logs (Admin only)
         Route::get('activity-logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity-logs.index');
         Route::get('activity-logs/{activityLog}', [App\Http\Controllers\ActivityLogController::class, 'show'])->name('activity-logs.show');
