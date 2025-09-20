@@ -12,8 +12,7 @@ use App\Http\Controllers\Web\ReportsController;
 use App\Http\Controllers\Web\AcknowledgmentController;
 use App\Http\Controllers\Web\HelpController;
 use App\Http\Controllers\Web\BackupController;
-use App\Http\Controllers\Web\RestoreController;
-use App\Http\Controllers\QRCodeController;
+use App\Http\Controllers\Auth\PasswordController;
 
 // Custom Authentication Routes
 Route::get('login', [CustomLoginController::class, 'showLoginForm'])->name('login');
@@ -21,6 +20,12 @@ Route::post('login', [CustomLoginController::class, 'login']);
 Route::post('logout', [CustomLoginController::class, 'logout'])->name('logout');
 // Handle GET requests to logout (for bookmarks/direct access) - use same controller method
 Route::get('logout', [CustomLoginController::class, 'logout'])->name('logout.get');
+
+// Password Reset Routes
+Route::get('password/forgot', [PasswordController::class, 'showForgotForm'])->name('password.forgot');
+Route::post('password/forgot', [PasswordController::class, 'sendResetLink'])->name('password.forgot.send');
+Route::get('password/set/{token}', [PasswordController::class, 'showSetForm'])->name('password.set.form');
+Route::post('password/set', [PasswordController::class, 'set'])->name('password.set');
 
 // Redirect root to dashboard
 Route::get('/', function () {

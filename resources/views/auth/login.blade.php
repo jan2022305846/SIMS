@@ -118,6 +118,46 @@
     outline: none;
 }
 
+/* Password input wrapper */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper .form-control {
+    padding-right: 3rem; /* Make room for the toggle button */
+}
+
+.password-toggle {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    transition: color 0.15s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.password-toggle:hover {
+    color: #495057;
+    background-color: rgba(108, 117, 125, 0.1);
+}
+
+.password-toggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
 .login-form-section .btn {
     background-color: #ffc107;
     border: none;
@@ -291,15 +331,26 @@
                         <label for="password" class="form-label">
                             <i class="fas fa-lock me-2"></i>Password
                         </label>
-                        <input type="password"
-                               id="password"
-                               name="password"
-                               required
-                               class="form-control @error('password') is-invalid @enderror"
-                               placeholder="Enter your password">
+                        <div class="password-input-wrapper">
+                            <input type="password"
+                                   id="password"
+                                   name="password"
+                                   required
+                                   class="form-control @error('password') is-invalid @enderror"
+                                   placeholder="Enter your password">
+                            <button type="button" class="password-toggle" id="password-toggle">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                         @error('password')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
+                    </div>
+
+                    <div class="d-flex justify-content-end mb-3">
+                        <a href="{{ route('password.forgot') }}" class="text-decoration-none small">
+                            <i class="fas fa-question-circle me-1"></i>Forgot Password?
+                        </a>
                     </div>
 
                     <button type="submit" class="btn">
@@ -311,4 +362,18 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.getElementById('password');
+    const passwordToggle = document.getElementById('password-toggle');
+    const toggleIcon = passwordToggle.querySelector('i');
+
+    passwordToggle.addEventListener('click', function() {
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        toggleIcon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+    });
+});
+</script>
 @endsection

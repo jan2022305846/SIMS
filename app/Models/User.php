@@ -44,6 +44,7 @@ class User extends Authenticatable
         'password',
         'role',
         'office_id',
+        'must_set_password',
     ];
 
     protected $hidden = [
@@ -161,10 +162,18 @@ class User extends Authenticatable
     }
 
     /**
-     * Get user's office name
+     * Check if user must set their password
      */
-    public function getOfficeNameAttribute(): ?string
+    public function mustSetPassword(): bool
     {
-        return $this->office?->name;
+        return $this->must_set_password;
+    }
+
+    /**
+     * Mark that user has set their password
+     */
+    public function markPasswordAsSet(): void
+    {
+        $this->update(['must_set_password' => false]);
     }
 }

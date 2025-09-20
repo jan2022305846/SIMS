@@ -7,6 +7,9 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use App\Notifications\SetPasswordNotification;
 
 class UserController extends Controller
 {
@@ -56,23 +59,30 @@ class UserController extends Controller
             'username' => 'required|string|max:255|unique:users',
             'school_id' => 'required|string|max:255|unique:users',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
             'role' => 'required|in:admin,faculty',
             'department' => 'nullable|string|max:255',
         ]);
+
+        // Generate a random password that no one knows
+        $randomPassword = Str::random(60);
 
         $user = User::create([
             'name' => $request->name,
             'username' => $request->username,
             'school_id' => $request->school_id,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'password' => Hash::make($randomPassword),
             'role' => $request->role,
             'department' => $request->department,
+            'must_set_password' => true,
         ]);
 
+        // Generate password reset token and send email
+        $token = Password::createToken($user);
+        $user->notify(new SetPasswordNotification($token, true));
+
         return redirect()->route('users.index')
-            ->with('success', 'User created successfully.');
+            ->with('success', 'User created successfully. A password setup email has been sent to the user.');
     }
 
     /**
