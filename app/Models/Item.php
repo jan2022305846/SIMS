@@ -110,8 +110,11 @@ class Item extends Model
      */
     public function generateQRCode(): string
     {
-        $qrCodeService = app(\App\Services\QRCodeService::class);
-        return $qrCodeService->generateItemQRCode($this->id, $this->name, $this->barcode);
+        return app(\App\Services\QRCodeService::class)->generateItemQRCode(
+            $this->id,
+            $this->name,
+            $this->barcode
+        );
     }
 
     /**
@@ -121,8 +124,11 @@ class Item extends Model
      */
     public function getQRCodeDataUrl(): string
     {
-        $qrCodeService = app(\App\Services\QRCodeService::class);
-        return $qrCodeService->getItemQRCodeDataUrl($this->id, $this->name, $this->barcode);
+        return app(\App\Services\QRCodeService::class)->getItemQRCodeDataUrl(
+            $this->id,
+            $this->name,
+            $this->barcode
+        );
     }
 
     /**
