@@ -75,7 +75,7 @@ class BackupController extends Controller
                 'success' => true,
                 'message' => 'Full backup created successfully',
                 'backup_name' => $backupName . '.zip',
-                'download_url' => route('backup.download', $backupName . '.zip')
+                'download_url' => route('admin.backup.download', $backupName . '.zip')
             ]);
             
         } catch (\Exception $e) {
@@ -144,7 +144,7 @@ class BackupController extends Controller
                 'success' => true,
                 'message' => 'Selective backup created successfully',
                 'backup_name' => $backupName . '.zip',
-                'download_url' => route('backup.download', $backupName . '.zip')
+                'download_url' => route('admin.backup.download', $backupName . '.zip')
             ]);
             
         } catch (\Exception $e) {
@@ -295,7 +295,7 @@ class BackupController extends Controller
      */
     private function createZipBackup($backupPath, $backupName)
     {
-        $zipPath = storage_path('app/backups/' . $backupName . '.zip');
+        $zipPath = storage_path('app/private/backups/' . $backupName . '.zip');
         $zip = new ZipArchive();
         
         if ($zip->open($zipPath, ZipArchive::CREATE) !== TRUE) {
@@ -304,7 +304,12 @@ class BackupController extends Controller
         
         $files = Storage::allFiles($backupPath);
         foreach ($files as $file) {
-            $zip->addFile(storage_path('app/' . $file), basename($file));
+            $fullPath = storage_path('app/private/' . $file);
+            if (file_exists($fullPath)) {
+                $zip->addFile($fullPath, basename($file));
+            } else {
+                throw new \Exception('File not found: ' . $fullPath);
+            }
         }
         
         $zip->close();
@@ -327,7 +332,7 @@ class BackupController extends Controller
                     'filename' => $filename,
                     'size' => Storage::size($file),
                     'created_at' => Carbon::createFromTimestamp(Storage::lastModified($file)),
-                    'download_url' => route('backup.download', $filename)
+                    'download_url' => route('admin.backup.download', $filename)
                 ];
             }
         }
