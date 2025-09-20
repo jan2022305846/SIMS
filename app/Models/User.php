@@ -17,7 +17,6 @@ use Laravel\Sanctum\HasApiTokens;
  * @property \Carbon\Carbon|null $email_verified_at
  * @property string $password
  * @property string $role
- * @property int|null $office_id
  * @property string|null $remember_token
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -127,22 +126,6 @@ class User extends Authenticatable
     public function canScanQR(): bool
     {
         return $this->isAdmin();
-    }
-
-    /**
-     * Check if user is the head of a specific office
-     */
-    public function isHeadOf(Office $office): bool
-    {
-        return $office->office_head_id === $this->id;
-    }
-
-    /**
-     * Check if user belongs to a specific office
-     */
-    public function belongsToOffice(Office $office): bool
-    {
-        return $this->office_id === $office->id;
     }
 
     /**

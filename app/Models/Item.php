@@ -105,7 +105,7 @@ class Item extends Model
 
     /**
      * Generate QR code for this item
-     * 
+     *
      * @return string Base64 encoded QR code
      */
     public function generateQRCode(): string
@@ -116,7 +116,7 @@ class Item extends Model
 
     /**
      * Get QR code data URL for display
-     * 
+     *
      * @return string QR code data URL
      */
     public function getQRCodeDataUrl(): string

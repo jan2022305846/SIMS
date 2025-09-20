@@ -16,10 +16,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Call the UserSeeder and OfficeSeeder first
+        // Call the UserSeeder first
         $this->call([
             UserSeeder::class,
-            OfficeSeeder::class,
         ]);
         
         // Then create the rest of your test data
