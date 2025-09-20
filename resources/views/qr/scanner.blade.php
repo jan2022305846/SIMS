@@ -325,21 +325,73 @@ document.addEventListener('DOMContentLoaded', function() {
         hideMessages();
         
         const resultsContent = document.getElementById('scan-results-content');
+        
+        let holderInfo = '';
+        let assignmentInfo = '';
+        let statusBadges = '';
+        
+        // Holder information
+        if (item.holder) {
+            holderInfo = `
+                <div class="col-md-6">
+                    <h6 class="fw-bold">Current Holder</h6>
+                    <p><strong>Name:</strong> ${item.holder.name}</p>
+                    <p><strong>Email:</strong> ${item.holder.email}</p>
+                    <p><strong>Office:</strong> ${item.holder.office}</p>
+                    <p><strong>Role:</strong> ${item.holder.role}</p>
+                </div>
+            `;
+        }
+        
+        // Assignment information
+        if (item.assignment) {
+            assignmentInfo = `
+                <div class="col-md-6">
+                    <h6 class="fw-bold">Assignment Details</h6>
+                    <p><strong>Assigned:</strong> ${item.assignment.assigned_at}</p>
+                    <p><strong>Duration:</strong> ${item.assignment.assigned_at_human}</p>
+                    ${item.assignment.notes ? `<p><strong>Notes:</strong> ${item.assignment.notes}</p>` : ''}
+                </div>
+            `;
+        }
+        
+        // Status badges
+        if (item.status) {
+            statusBadges = `
+                <div class="mt-3">
+                    <span class="badge bg-${item.status.stock_class} me-2">${item.status.stock}</span>
+                    <span class="badge bg-${item.status.assignment_class} me-2">${item.status.assignment}</span>
+                    <span class="badge bg-${item.status.condition_class} me-2">${item.status.condition}</span>
+                    <span class="badge bg-${item.status.overall_class}">${item.status.overall}</span>
+                </div>
+            `;
+        }
+        
         resultsContent.innerHTML = `
             <div class="row">
                 <div class="col-md-6">
                     <h6 class="fw-bold">Item Information</h6>
                     <p><strong>Name:</strong> ${item.name}</p>
-                    <p><strong>Category:</strong> ${item.category ? item.category.name : 'N/A'}</p>
+                    <p><strong>Category:</strong> ${item.category || 'N/A'} ${item.category_type ? `(${item.category_type})` : ''}</p>
                     <p><strong>Location:</strong> ${item.location || 'Not specified'}</p>
+                    <p><strong>Condition:</strong> ${item.condition || 'Good'}</p>
+                    ${item.is_non_consumable ? '<p><em class="text-info">Non-consumable item</em></p>' : ''}
                 </div>
                 <div class="col-md-6">
-                    <h6 class="fw-bold">Stock Information</h6>
-                    <p><strong>Current Stock:</strong> ${item.current_stock || item.quantity || 0}</p>
-                    <p><strong>Condition:</strong> ${item.condition || 'Good'}</p>
-                    <p><strong>Status:</strong> <span class="badge bg-success">Active</span></p>
+                    <h6 class="fw-bold">Stock & Activity</h6>
+                    <p><strong>Current Stock:</strong> ${item.current_stock || 0} ${item.unit || 'units'}</p>
+                    <p><strong>Last Scan:</strong> ${item.last_scan || 'Never'}</p>
+                    <p><strong>Total Scans:</strong> ${item.total_scans || 0}</p>
+                    ${statusBadges}
                 </div>
             </div>
+            ${holderInfo || assignmentInfo ? `
+                <hr>
+                <div class="row">
+                    ${holderInfo}
+                    ${assignmentInfo}
+                </div>
+            ` : ''}
         `;
         
         // Set up view item button

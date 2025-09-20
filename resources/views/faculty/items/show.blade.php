@@ -15,23 +15,9 @@
                             </p>
                         </div>
                         <div class="d-flex gap-2 mt-2 mt-md-0">
-                            @can('admin')
-                                <a href="{{ route('items.edit', $item) }}" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-edit me-1"></i>
-                                    Edit Item
-                                </a>
-                                <a href="{{ route('items.assign', $item) }}" class="btn btn-info btn-sm">
-                                    <i class="fas fa-user-tag me-1"></i>
-                                    {{ $item->isAssigned() ? 'Manage Assignment' : 'Assign Item' }}
-                                </a>
-                                <a href="{{ route('qr.download', $item) }}" class="btn btn-outline-secondary btn-sm">
-                                    <i class="fas fa-qrcode me-1"></i>
-                                    Download QR
-                                </a>
-                            @endcan
-                            <a href="{{ route('items.index') }}" class="btn btn-secondary btn-sm">
+                            <a href="{{ route('faculty.items.index') }}" class="btn btn-secondary btn-sm">
                                 <i class="fas fa-arrow-left me-1"></i>
-                                Back to Items
+                                Back to Browse
                             </a>
                         </div>
                     </div>
@@ -41,7 +27,7 @@
                     <div class="row g-4">
                         <!-- Main Information -->
                         <div class="col-lg-8">
-                            
+
                             <!-- Stock Status Alert -->
                             @if($item->isOutOfStock())
                                 <div class="alert alert-danger d-flex align-items-center" role="alert">
@@ -56,7 +42,7 @@
                                     <i class="fas fa-exclamation-triangle me-2"></i>
                                     <div>
                                         <h6 class="alert-heading mb-1">Low Stock Warning</h6>
-                                        <p class="mb-0 small">Stock is running low. Consider restocking soon.</p>
+                                        <p class="mb-0 small">Stock is running low. Consider requesting soon.</p>
                                     </div>
                                 </div>
                             @endif
@@ -99,12 +85,6 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="row g-3">
-                                        @if($item->barcode)
-                                        <div class="col-md-6">
-                                            <p class="text-muted small mb-1">Barcode/SKU</p>
-                                            <p class="h6 mb-0 font-monospace">{{ $item->barcode }}</p>
-                                        </div>
-                                        @endif
                                         @if($item->brand)
                                         <div class="col-md-6">
                                             <p class="text-muted small mb-1">Brand</p>
@@ -143,29 +123,25 @@
                                 </div>
                             </div>
 
-                            <!-- Stock Management -->
+                            <!-- Stock Information -->
                             <div class="card border-light mb-4">
                                 <div class="card-header bg-light">
                                     <h5 class="card-title mb-0">
                                         <i class="fas fa-boxes me-2"></i>
-                                        Stock Information
+                                        Availability
                                     </h5>
                                 </div>
                                 <div class="card-body">
                                     <div class="row g-4 text-center mb-4">
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="h2 fw-bold mb-1 {{ $item->isOutOfStock() ? 'text-danger' : ($item->isLowStock() ? 'text-warning' : 'text-success') }}">
                                                 {{ number_format($item->current_stock ?? $item->quantity) }}
                                             </div>
-                                            <p class="text-muted small mb-0">Current Stock</p>
+                                            <p class="text-muted small mb-0">Available Stock</p>
                                         </div>
-                                        <div class="col-md-4">
-                                            <div class="h4 fw-semibold text-muted mb-1">{{ number_format($item->minimum_stock) }}</div>
-                                            <p class="text-muted small mb-0">Minimum Stock</p>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="h4 fw-semibold text-muted mb-1">{{ number_format($item->maximum_stock ?? 0) }}</div>
-                                            <p class="text-muted small mb-0">Maximum Stock</p>
+                                        <div class="col-md-6">
+                                            <div class="h4 fw-semibold text-muted mb-1">{{ $item->unit ?? 'units' }}</div>
+                                            <p class="text-muted small mb-0">Unit</p>
                                         </div>
                                     </div>
 
@@ -176,71 +152,15 @@
                                             <span class="small fw-medium">{{ number_format($item->getStockPercentage(), 1) }}%</span>
                                         </div>
                                         <div class="progress" style="height: 12px;">
-                                            <div class="progress-bar {{ $item->isOutOfStock() ? 'bg-danger' : ($item->isLowStock() ? 'bg-warning' : 'bg-success') }}" 
-                                                 role="progressbar" 
+                                            <div class="progress-bar {{ $item->isOutOfStock() ? 'bg-danger' : ($item->isLowStock() ? 'bg-warning' : 'bg-success') }}"
+                                                 role="progressbar"
                                                  style="width: {{ min($item->getStockPercentage(), 100) }}%"
-                                                 aria-valuenow="{{ $item->getStockPercentage() }}" 
-                                                 aria-valuemin="0" 
+                                                 aria-valuenow="{{ $item->getStockPercentage() }}"
+                                                 aria-valuemin="0"
                                                  aria-valuemax="100">
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-
-                            <!-- Assignment Status -->
-                            <div class="card border-light mb-4">
-                                <div class="card-header bg-light">
-                                    <h5 class="card-title mb-0">
-                                        <i class="fas fa-user-tag me-2"></i>
-                                        Assignment Status
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    @if($item->isAssigned())
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <p class="text-muted small mb-1">Current Holder</p>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="flex-shrink-0">
-                                                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                                            <i class="fas fa-user"></i>
-                                                        </div>
-                                                    </div>
-                                                    <div class="flex-grow-1 ms-3">
-                                                        <h6 class="mb-0">{{ $item->currentHolder->name }}</h6>
-                                                        <small class="text-muted">{{ $item->currentHolder->email }}</small>
-                                                        @if($item->currentHolder->office)
-                                                            <br><small class="text-muted">{{ $item->currentHolder->office->name }}</small>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <p class="text-muted small mb-1">Assignment Details</p>
-                                                <p class="mb-1"><strong>Assigned:</strong> {{ $item->assigned_at->format('M d, Y g:i A') }}</p>
-                                                <p class="mb-1"><strong>Duration:</strong> {{ $item->assigned_at->diffForHumans() }}</p>
-                                                @if($item->assignment_notes)
-                                                    <p class="mb-0"><strong>Notes:</strong> {{ $item->assignment_notes }}</p>
-                                                @endif
-                                            </div>
-                                        </div>
-                                        <div class="mt-3">
-                                            <span class="badge bg-info">Currently Assigned</span>
-                                            <a href="{{ route('items.assign', $item) }}" class="btn btn-sm btn-outline-primary ms-2">
-                                                <i class="fas fa-edit me-1"></i>Update Assignment
-                                            </a>
-                                        </div>
-                                    @else
-                                        <div class="text-center py-4">
-                                            <i class="fas fa-user-plus fa-2x text-muted mb-2"></i>
-                                            <h6 class="text-muted mb-1">Not Currently Assigned</h6>
-                                            <p class="text-muted mb-3">This item is available for assignment to a user.</p>
-                                            <a href="{{ route('items.assign', $item) }}" class="btn btn-primary">
-                                                <i class="fas fa-user-tag me-1"></i>Assign to User
-                                            </a>
-                                        </div>
-                                    @endif
                                 </div>
                             </div>
 
@@ -254,15 +174,6 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="row g-3">
-                                        @if($item->warranty_date)
-                                        <div class="col-md-6">
-                                            <p class="text-muted small mb-1">Warranty Expiry</p>
-                                            <p class="h6 mb-1">{{ $item->warranty_date->format('F j, Y') }}</p>
-                                            @if($item->warranty_date->isPast())
-                                                <span class="badge bg-danger">Warranty Expired</span>
-                                            @endif
-                                        </div>
-                                        @endif
                                         @if($item->expiry_date)
                                         <div class="col-md-6">
                                             <p class="text-muted small mb-1">Product Expiry</p>
@@ -275,12 +186,8 @@
                                         </div>
                                         @endif
                                         <div class="col-md-6">
-                                            <p class="text-muted small mb-1">Created</p>
-                                            <p class="h6 mb-0">{{ $item->created_at->format('F j, Y') }}</p>
-                                        </div>
-                                        <div class="col-md-6">
                                             <p class="text-muted small mb-1">Last Updated</p>
-                                            <p class="h6 mb-0">{{ $item->updated_at->format('F j, Y g:i A') }}</p>
+                                            <p class="h6 mb-0">{{ $item->updated_at->format('F j, Y') }}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -288,43 +195,32 @@
 
                             <!-- QR Scan History -->
                             <div class="card border-light mb-4">
-                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <div class="card-header bg-light">
                                     <h5 class="card-title mb-0">
                                         <i class="fas fa-history me-2"></i>
-                                        QR Scan History
+                                        Recent Scan Activity
                                     </h5>
-                                    <a href="{{ route('reports.item-scan-history', $item->id) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-external-link-alt me-1"></i>
-                                        View Full History
-                                    </a>
                                 </div>
                                 <div class="card-body">
                                     @php
-                                        $recentScans = $item->scanLogs()->with('user')->latest()->take(5)->get();
+                                        $recentScans = $item->scanLogs()->with('user')->latest()->take(3)->get();
                                         $scanStats = [
                                             'total_scans' => $item->scanLogs()->count(),
                                             'last_scan' => $item->scanLogs()->latest()->first(),
-                                            'unique_users' => $item->scanLogs()->distinct('user_id')->count(),
                                         ];
                                     @endphp
 
                                     <!-- Scan Statistics -->
-                                    <div class="row g-3 mb-4">
-                                        <div class="col-md-4">
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-md-6">
                                             <div class="text-center">
-                                                <div class="h4 fw-bold text-primary mb-1">{{ number_format($scanStats['total_scans']) }}</div>
+                                                <div class="h5 fw-bold text-primary mb-1">{{ number_format($scanStats['total_scans']) }}</div>
                                                 <p class="text-muted small mb-0">Total Scans</p>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="text-center">
-                                                <div class="h4 fw-bold text-info mb-1">{{ number_format($scanStats['unique_users']) }}</div>
-                                                <p class="text-muted small mb-0">Unique Users</p>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="text-center">
-                                                <div class="h4 fw-bold text-success mb-1">
+                                                <div class="h5 fw-bold text-success mb-1">
                                                     {{ $scanStats['last_scan'] ? $scanStats['last_scan']->scanned_at->diffForHumans() : 'Never' }}
                                                 </div>
                                                 <p class="text-muted small mb-0">Last Scanned</p>
@@ -338,34 +234,29 @@
                                             <table class="table table-sm">
                                                 <thead>
                                                     <tr>
-                                                        <th>Date/Time</th>
+                                                        <th>Date</th>
                                                         <th>User</th>
                                                         <th>Location</th>
-                                                        <th>Scanner Type</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     @foreach($recentScans as $scan)
                                                         <tr>
                                                             <td>
-                                                                <strong>{{ $scan->scanned_at->format('M d, Y') }}</strong><br>
+                                                                <strong>{{ $scan->scanned_at->format('M d') }}</strong><br>
                                                                 <small class="text-muted">{{ $scan->scanned_at->format('H:i') }}</small>
                                                             </td>
                                                             <td>{{ $scan->user->name ?? 'System' }}</td>
                                                             <td>{{ $scan->location ?: 'N/A' }}</td>
-                                                            <td>
-                                                                <span class="badge bg-secondary">{{ ucfirst($scan->scanner_type) }}</span>
-                                                            </td>
                                                         </tr>
                                                     @endforeach
                                                 </tbody>
                                             </table>
                                         </div>
                                     @else
-                                        <div class="text-center py-4">
-                                            <i class="fas fa-qrcode fa-2x text-muted mb-2"></i>
-                                            <p class="text-muted mb-0">No scan history available</p>
-                                            <small class="text-muted">This item hasn't been scanned yet</small>
+                                        <div class="text-center py-3">
+                                            <i class="fas fa-qrcode fa-lg text-muted mb-2"></i>
+                                            <p class="text-muted mb-0 small">No recent scan activity</p>
                                         </div>
                                     @endif
                                 </div>
@@ -391,19 +282,7 @@
                                             <p class="text-muted mb-0 mt-2">Generating QR code...</p>
                                         </div>
                                     </div>
-                                    <button onclick="generateQRCode()" 
-                                            class="btn btn-primary w-100 mb-2">
-                                        <i class="fas fa-qrcode me-1"></i>
-                                        Regenerate QR Code
-                                    </button>
                                     <p class="text-muted small mb-2">QR ID: {{ $item->qr_code }}</p>
-                                    @can('admin')
-                                    <a href="{{ route('qr.download', $item) }}" 
-                                       class="btn btn-outline-secondary btn-sm w-100">
-                                        <i class="fas fa-download me-1"></i>
-                                        Download QR
-                                    </a>
-                                    @endcan
                                 </div>
                             </div>
 
@@ -412,29 +291,20 @@
                                 <div class="card-header bg-light">
                                     <h5 class="card-title mb-0">
                                         <i class="fas fa-chart-line me-2"></i>
-                                        Quick Stats
+                                        Status
                                     </h5>
                                 </div>
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <span class="text-muted">Status:</span>
+                                    <div class="d-flex justify-content-between align-items-center mb-0">
+                                        <span class="text-muted">Availability:</span>
                                         <span class="fw-semibold {{ $item->isOutOfStock() ? 'text-danger' : ($item->isLowStock() ? 'text-warning' : 'text-success') }}">
                                             {{ $item->getStockStatus() }}
                                         </span>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <span class="text-muted">Total Requests:</span>
-                                        <span class="fw-semibold">{{ $item->requests->count() }}</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center mb-0">
-                                        <span class="text-muted">Pending Requests:</span>
-                                        <span class="fw-semibold">{{ $item->requests->where('status', 'pending')->count() }}</span>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Actions -->
-                            @can('faculty')
                             <div class="card border-light">
                                 <div class="card-header bg-light">
                                     <h5 class="card-title mb-0">
@@ -445,7 +315,7 @@
                                 <div class="card-body">
                                     <div class="d-grid gap-2">
                                         @if(!$item->isOutOfStock())
-                                        <a href="{{ route('faculty.requests.create', ['item_id' => $item->id]) }}" 
+                                        <a href="{{ route('faculty.requests.create', ['item_id' => $item->id]) }}"
                                            class="btn btn-success">
                                             <i class="fas fa-plus me-1"></i>
                                             Request This Item
@@ -456,15 +326,14 @@
                                             Out of Stock
                                         </button>
                                         @endif
-                                        <a href="{{ route('dashboard') }}#qr-scanner" 
+                                        <a href="{{ route('faculty.items.index') }}"
                                            class="btn btn-primary">
-                                            <i class="fas fa-qrcode me-1"></i>
-                                            Scan QR Code
+                                            <i class="fas fa-search me-1"></i>
+                                            Browse More Items
                                         </a>
                                     </div>
                                 </div>
                             </div>
-                            @endcan
                         </div>
                     </div>
                 </div>
@@ -477,7 +346,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Generate QR code automatically when page loads
     generateQRCode();
-    
+
     // Initialize tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -487,7 +356,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function generateQRCode() {
     const itemId = {{ $item->id }};
-    
+
     fetch(`/qr/generate/${itemId}`, {
         method: 'POST',
         headers: {
@@ -498,10 +367,10 @@ function generateQRCode() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            document.getElementById('qr-code-container').innerHTML = 
+            document.getElementById('qr-code-container').innerHTML =
                 `<img src="${data.qr_code}" alt="QR Code for {{ $item->name }}" class="img-fluid border rounded" style="max-width: 200px;">`;
         } else {
-            document.getElementById('qr-code-container').innerHTML = 
+            document.getElementById('qr-code-container').innerHTML =
                 `<div class="bg-light p-4 rounded mb-3 text-center">
                     <i class="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
                     <p class="text-muted mb-0">Failed to generate QR code</p>
@@ -510,7 +379,7 @@ function generateQRCode() {
         }
     })
     .catch(error => {
-        document.getElementById('qr-code-container').innerHTML = 
+        document.getElementById('qr-code-container').innerHTML =
             `<div class="bg-light p-4 rounded mb-3 text-center">
                 <i class="fas fa-exclamation-triangle text-danger fa-2x mb-2"></i>
                 <p class="text-muted mb-0">Error generating QR code</p>

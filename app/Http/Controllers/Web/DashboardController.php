@@ -221,9 +221,9 @@ class DashboardController extends Controller
         $totalItems = Item::count();
         $totalUsers = User::count();
         $totalRequests = Request::count();
-        $approvedRequests = Request::where('status', 'approved')->count();
-        $rejectedRequests = Request::where('status', 'rejected')->count();
-        $pendingRequests = Request::where('status', 'pending')->count();
+        $approvedRequests = Request::where('workflow_status', 'approved_by_admin')->count();
+        $rejectedRequests = Request::where('workflow_status', 'declined_by_admin')->count();
+        $pendingRequests = Request::where('workflow_status', 'pending')->count();
         
         // Monthly requests data
         $monthlyRequests = Request::selectRaw('MONTH(created_at) as month, COUNT(*) as count')

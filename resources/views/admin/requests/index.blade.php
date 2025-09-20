@@ -206,6 +206,11 @@
                                                     px-2 py-1">
                                                     {{ $request->getStatusDisplayName() }}
                                                 </span>
+                                                @if($request->workflow_status === 'declined_by_admin' && $request->admin_notes)
+                                                    <div class="text-muted small mt-1" title="{{ $request->admin_notes }}">
+                                                        <i class="fas fa-info-circle me-1"></i>{{ Str::limit($request->admin_notes, 30) }}
+                                                    </div>
+                                                @endif
                                             </td>
                                             <td>
                                                 <span class="badge 
@@ -231,9 +236,9 @@
                                                 </div>
                                             </td>
                                             <td class="text-center">
-                                                <div class="btn-group btn-group-sm" role="group">
+                                                <div class="d-flex gap-1 justify-content-center">
                                                     <a href="{{ route('requests.show', $request) }}" 
-                                                       class="btn btn-outline-info"
+                                                       class="btn btn-outline-info btn-sm"
                                                        data-bs-toggle="tooltip"
                                                        title="View Details">
                                                         <i class="fas fa-eye"></i>
@@ -245,41 +250,33 @@
                                                             <form method="POST" action="{{ route('requests.approve-admin', $request) }}" class="d-inline">
                                                                 @csrf
                                                                 <button type="submit" 
-                                                                        class="btn btn-outline-success"
-                                                                        data-bs-toggle="tooltip"
-                                                                        title="Approve Request">
+                                                                        class="btn btn-outline-success btn-sm">
                                                                     <i class="fas fa-check"></i>
                                                                 </button>
                                                             </form>
                                                         @endif
                                                         
                                                         @if($request->canBeFulfilled())
-                                                            <form method="POST" action="{{ route('requests.fulfill', $request) }}" class="d-inline">
-                                                                @csrf
-                                                                <button type="submit" 
-                                                                        class="btn btn-outline-primary"
-                                                                        data-bs-toggle="tooltip"
-                                                                        title="Fulfill Request">
-                                                                    <i class="fas fa-box"></i>
-                                                                </button>
-                                                            </form>
+                                                            <a href="{{ route('requests.show', $request) }}" 
+                                                               class="btn btn-outline-primary btn-sm"
+                                                               data-bs-toggle="tooltip"
+                                                               title="View Details & Fulfill">
+                                                                <i class="fas fa-box"></i>
+                                                            </a>
                                                         @endif
                                                         
                                                         @if($request->canBeClaimed())
-                                                            <form method="POST" action="{{ route('requests.claim', $request) }}" class="d-inline">
-                                                                @csrf
-                                                                <button type="submit" 
-                                                                        class="btn btn-outline-secondary"
-                                                                        data-bs-toggle="tooltip"
-                                                                        title="Mark as Claimed">
-                                                                    <i class="fas fa-handshake"></i>
-                                                                </button>
-                                                            </form>
+                                                            <a href="{{ route('requests.show', $request) }}" 
+                                                               class="btn btn-outline-secondary btn-sm"
+                                                               data-bs-toggle="tooltip"
+                                                               title="View Details & Claim">
+                                                                <i class="fas fa-handshake"></i>
+                                                            </a>
                                                         @endif
                                                         
                                                         @if($request->isFulfilled() || $request->isClaimed())
                                                             <a href="{{ route('requests.claim-slip', $request) }}" 
-                                                               class="btn btn-outline-info" 
+                                                               class="btn btn-outline-info btn-sm" 
                                                                target="_blank" 
                                                                data-bs-toggle="tooltip"
                                                                title="Print Claim Slip">
@@ -340,52 +337,6 @@
         background-color: #8b5cf6 !important;
     }
 </style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-
-    // Auto-submit form on select change
-    const statusFilter = document.getElementById('status');
-    const priorityFilter = document.getElementById('priority');
-    const departmentFilter = document.getElementById('department');
-    const searchInput = document.getElementById('search');
-    const form = document.getElementById('filterForm');
-
-    statusFilter.addEventListener('change', function() {
-        form.submit();
-    });
-    
-    priorityFilter.addEventListener('change', function() {
-        form.submit();
-    });
-    
-    departmentFilter.addEventListener('change', function() {
-        form.submit();
-    });
-
-    // Auto-submit on search with debounce
-    let searchTimeout;
-    searchInput.addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            form.submit();
-        }, 1000); // 1 second delay
-    });
-
-    // Submit on Enter key
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            clearTimeout(searchTimeout);
-            form.submit();
-        }
-    });
-});
-</script>
 
 @if(session('success'))
     <script>
@@ -457,40 +408,63 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // Auto-submit form on select change
+    // Auto-submit form on select change - with protection against conflicts
     const statusFilter = document.getElementById('status');
     const priorityFilter = document.getElementById('priority');
     const departmentFilter = document.getElementById('department');
     const searchInput = document.getElementById('search');
     const form = document.getElementById('filterForm');
 
-    statusFilter.addEventListener('change', function() {
-        form.submit();
-    });
+    // Add event listeners with null checks and event prevention
+    if (statusFilter) {
+        statusFilter.addEventListener('change', function(e) {
+            e.stopPropagation();
+            // Small delay to prevent conflicts with other form submissions
+            setTimeout(() => form.submit(), 50);
+        });
+    }
     
-    priorityFilter.addEventListener('change', function() {
-        form.submit();
-    });
+    if (priorityFilter) {
+        priorityFilter.addEventListener('change', function(e) {
+            e.stopPropagation();
+            setTimeout(() => form.submit(), 50);
+        });
+    }
     
-    departmentFilter.addEventListener('change', function() {
-        form.submit();
-    });
+    if (departmentFilter) {
+        departmentFilter.addEventListener('change', function(e) {
+            e.stopPropagation();
+            setTimeout(() => form.submit(), 50);
+        });
+    }
 
     // Auto-submit on search with debounce
     let searchTimeout;
-    searchInput.addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            form.submit();
-        }, 1000); // 1 second delay
-    });
-
-    // Submit on Enter key
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
             clearTimeout(searchTimeout);
-            form.submit();
-        }
+            searchTimeout = setTimeout(() => {
+                form.submit();
+            }, 1000); // 1 second delay
+        });
+
+        // Submit on Enter key
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent default form submission
+                clearTimeout(searchTimeout);
+                form.submit();
+            }
+        });
+    }
+
+    // Prevent filter form submission when clicking approve/decline buttons
+    const actionButtons = document.querySelectorAll('form[action*="approve-admin"] button');
+    actionButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            // Allow the button's form to submit normally
+            e.stopPropagation();
+        });
     });
 });
 </script>

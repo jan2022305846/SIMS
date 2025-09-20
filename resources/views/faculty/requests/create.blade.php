@@ -88,23 +88,8 @@
                                 @enderror
                             </div>
 
-                            <!-- Department -->
-                            <div class="mb-4">
-                                <label for="department" class="form-label fw-semibold">
-                                    Department <span class="text-danger">*</span>
-                                </label>
-                                <select name="department" id="department" class="form-select @error('department') is-invalid @enderror" required>
-                                    <option value="">Select your department...</option>
-                                    @foreach($departments as $dept)
-                                        <option value="{{ $dept }}" {{ old('department') === $dept ? 'selected' : '' }}>
-                                            {{ $dept }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('department')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
+                            <!-- Department (Hidden - Auto-populated from user profile) -->
+                            <input type="hidden" name="department" value="{{ Auth::user()->department ?? 'Faculty Office' }}">
 
                             <!-- Priority -->
                             <div class="mb-4">
@@ -211,7 +196,7 @@
                                         <i class="fas fa-paper-plane text-primary fa-lg"></i>
                                     </div>
                                     <h6 class="mb-1">1. Submit Request</h6>
-                                    <small class="text-muted">Your request is submitted for review</small>
+                                    <small class="text-muted">Your request is submitted and enters the review queue</small>
                                 </div>
                             </div>
                             <div class="col-md-4 mb-3">
@@ -219,23 +204,47 @@
                                     <div class="bg-info bg-opacity-10 rounded-circle p-3 d-inline-block mb-2">
                                         <i class="fas fa-user-check text-info fa-lg"></i>
                                     </div>
-                                    <h6 class="mb-1">2. Office Head Review</h6>
-                                    <small class="text-muted">Department head reviews and approves</small>
+                                    <h6 class="mb-1">2. Admin Review</h6>
+                                    <small class="text-muted">Administrator reviews details and availability</small>
                                 </div>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <div class="text-center">
+                                    <div class="bg-warning bg-opacity-10 rounded-circle p-3 d-inline-block mb-2">
+                                        <i class="fas fa-check-circle text-warning fa-lg"></i>
+                                    </div>
+                                    <h6 class="mb-1">3. Approval/Processing</h6>
+                                    <small class="text-muted">Request approved and items prepared</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6 mb-3">
+                                <div class="text-center">
                                     <div class="bg-success bg-opacity-10 rounded-circle p-3 d-inline-block mb-2">
                                         <i class="fas fa-box text-success fa-lg"></i>
                                     </div>
-                                    <h6 class="mb-1">3. Admin Approval</h6>
-                                    <small class="text-muted">Administrator finalizes and prepares</small>
+                                    <h6 class="mb-1">4. Ready for Pickup</h6>
+                                    <small class="text-muted">Receive notification when items are ready</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="text-center">
+                                    <div class="bg-dark bg-opacity-10 rounded-circle p-3 d-inline-block mb-2">
+                                        <i class="fas fa-signature text-dark fa-lg"></i>
+                                    </div>
+                                    <h6 class="mb-1">5. Digital Acknowledgment</h6>
+                                    <small class="text-muted">Sign digitally and receive secure receipt</small>
                                 </div>
                             </div>
                         </div>
                         <div class="alert alert-info mt-3">
                             <i class="fas fa-clock me-2"></i>
-                            <strong>Note:</strong> You will receive notifications at each step. You can track your request status in "My Requests".
+                            <strong>Processing Time:</strong> Most requests are processed within 1-3 business days. Urgent requests are prioritized.
+                        </div>
+                        <div class="alert alert-light mt-2">
+                            <i class="fas fa-bell me-2"></i>
+                            <strong>Stay Updated:</strong> You'll receive email notifications at each step. You can also track your request status in "My Requests".
                         </div>
                     </div>
                 </div>

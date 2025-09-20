@@ -68,6 +68,7 @@
                                         @switch($request->workflow_status)
                                             @case('pending') bg-warning @break
                                             @case('approved_by_admin') bg-success @break
+                                            @case('ready_for_pickup') bg-info text-white @break
                                             @case('fulfilled') bg-purple text-white @break
                                             @case('claimed') bg-secondary @break
                                             @default bg-danger @break
@@ -200,6 +201,31 @@
                                         <i class="fas fa-check me-2"></i>Approve Request
                                     </button>
                                 </form>
+                            @else
+                                @if($request->workflow_status === 'declined_by_admin')
+                                    <div class="alert alert-danger mb-2">
+                                        <i class="fas fa-ban me-2"></i>
+                                        <strong>This request was declined</strong>
+                                        @if($request->admin_notes)
+                                            <br><small>Reason: {{ $request->admin_notes }}</small>
+                                        @endif
+                                    </div>
+                                @elseif($request->workflow_status === 'approved_by_admin')
+                                    <div class="alert alert-success mb-2">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        <strong>This request has already been approved</strong>
+                                    </div>
+                                @elseif(in_array($request->workflow_status, ['fulfilled', 'claimed']))
+                                    <div class="alert alert-info mb-2">
+                                        <i class="fas fa-check-double me-2"></i>
+                                        <strong>This request has been completed</strong>
+                                    </div>
+                                @else
+                                    <div class="alert alert-warning mb-2">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>This request cannot be approved at this stage</strong>
+                                    </div>
+                                @endif
                             @endif
                             
                             @if($request->canBeFulfilled())
@@ -248,12 +274,67 @@
                             @endif
                             
                             @if($request->canBeClaimed())
+                                <div class="mb-3">
+                                    <label for="claim_barcode" class="form-label fw-medium">Scan Claim Slip Barcode</label>
+                                    <div class="input-group">
+                                        <input type="text" name="claim_barcode" id="claim_barcode" 
+                                               class="form-control" placeholder="Scan claim slip barcode" readonly>
+                                        <button type="button" class="btn btn-outline-primary" id="scan-claim-barcode-btn" title="Scan Barcode">
+                                            <i class="fas fa-qrcode"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="manual-claim-barcode-btn" title="Manual Entry">
+                                            <i class="fas fa-keyboard"></i>
+                                        </button>
+                                    </div>
+                                    <div class="form-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Scan the claim slip barcode to verify and mark as claimed
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div id="verified-claim-details" class="mb-3" style="display: none;">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-check-circle me-2"></i>Claim Slip Verified
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="claim-details-content">
+                                                <!-- Claim details will be populated here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <form method="POST" action="{{ route('requests.claim', $request) }}" class="mb-2">
                                     @csrf
-                                    <button type="submit" class="btn btn-secondary w-100">
+                                    <input type="hidden" name="scanned_barcode" id="scanned_claim_barcode_input">
+                                    <button type="submit" class="btn btn-secondary w-100" id="claim-btn" disabled>
                                         <i class="fas fa-handshake me-2"></i>Mark as Claimed
                                     </button>
                                 </form>
+                            @else
+                                @if($request->workflow_status === 'claimed')
+                                    <div class="alert alert-success mb-2">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        <strong>This request has already been claimed</strong>
+                                    </div>
+                                @elseif($request->workflow_status === 'approved_by_admin')
+                                    <div class="alert alert-info mb-2">
+                                        <i class="fas fa-clock me-2"></i>
+                                        <strong>Waiting for faculty to generate claim slip</strong>
+                                        <br><small>Faculty will generate a claim slip and visit the supply office to pick up items.</small>
+                                    </div>
+                                @elseif($request->workflow_status !== 'ready_for_pickup')
+                                    <div class="alert alert-warning mb-2">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>This request cannot be claimed yet</strong>
+                                        <br><small>Request must be approved and claim slip generated first.</small>
+                                    </div>
+                                @endif
                             @endif
                             
                             @if(!$request->isDeclined() && !$request->isClaimed())
@@ -285,9 +366,9 @@
                             </div>
 
                             <!-- Admin Approval -->
-                            <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined_by_admin' ? 'declined' : '') }}">
-                                <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined_by_admin' ? 'bg-danger' : 'bg-secondary') }}">
-                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined_by_admin' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
+                            <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined_by_admin' ? 'declined' : '') }}">
+                                <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined_by_admin' ? 'bg-danger' : 'bg-secondary') }}">
+                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined_by_admin' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
                                 </div>
                                 <div class="timeline-content">
                                     <h6 class="mb-1">Admin Approval</h6>
@@ -305,21 +386,18 @@
                                 </div>
                             </div>
 
-                            <!-- Request Fulfilled -->
-                            <div class="timeline-item {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'completed' : '' }}">
-                                <div class="timeline-marker {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
-                                    <i class="fas {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'fa-box' : 'fa-box-open' }} text-white"></i>
+                            <!-- Claim Slip Generation -->
+                            <div class="timeline-item {{ in_array($request->workflow_status, ['ready_for_pickup', 'claimed']) ? 'completed' : '' }}">
+                                <div class="timeline-marker {{ in_array($request->workflow_status, ['ready_for_pickup', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
+                                    <i class="fas {{ in_array($request->workflow_status, ['ready_for_pickup', 'claimed']) ? 'fa-ticket-alt' : 'fa-ticket-alt' }} text-white"></i>
                                 </div>
                                 <div class="timeline-content">
-                                    <h6 class="mb-1">Request Fulfilled</h6>
-                                    @if($request->fulfilled_date)
-                                        <p class="mb-1 text-success small">{{ $request->fulfilled_date->format('M j, Y g:i A') }}</p>
-                                        <p class="mb-1 small">Fulfilled by {{ $request->fulfilledBy->name ?? 'Administrator' }}</p>
-                                        @if($request->claim_slip_number)
-                                            <p class="mb-0 small">Claim slip: <code>{{ $request->claim_slip_number }}</code></p>
-                                        @endif
+                                    <h6 class="mb-1">Claim Slip Generation</h6>
+                                    @if($request->claim_slip_number && $request->workflow_status !== 'approved_by_admin')
+                                        <p class="mb-1 text-success small">Generated by faculty</p>
+                                        <p class="mb-0 small">Claim slip: <code>{{ $request->claim_slip_number }}</code></p>
                                     @else
-                                        <p class="mb-0 text-muted small">Pending fulfillment</p>
+                                        <p class="mb-0 text-muted small">Waiting for faculty to generate claim slip</p>
                                     @endif
                                 </div>
                             </div>
@@ -335,7 +413,7 @@
                                         <p class="mb-1 text-success small">{{ $request->claimed_date->format('M j, Y g:i A') }}</p>
                                         <p class="mb-0 small">Marked as claimed by {{ $request->claimedBy->name ?? 'Administrator' }}</p>
                                     @else
-                                        <p class="mb-0 text-muted small">Waiting for item to be claimed</p>
+                                        <p class="mb-0 text-muted small">Waiting for faculty to pick up items</p>
                                     @endif
                                 </div>
                             </div>
@@ -487,7 +565,8 @@
 @endif
 
 @if(session('error') || $errors->any())
-    <script>
+    <!-- Temporarily disabled error display for debugging -->
+    {{-- <script>
         document.addEventListener('DOMContentLoaded', function() {
             const toast = document.createElement('div');
             toast.className = 'toast align-items-center text-white bg-danger border-0';
@@ -514,7 +593,7 @@
                 document.body.removeChild(toastContainer);
             }, 5000);
 });
-</script>
+</script> --}}
 @endif
 
 @push('scripts')
@@ -525,7 +604,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js';
     script.onload = function() {
-        initializeItemBarcodeScanner();
+        initializeClaimBarcodeScanner();
     };
     document.head.appendChild(script);
     
@@ -759,6 +838,43 @@ function initializeItemBarcodeScanner() {
 
     function showItemError(message) {
         itemDetailsContent.innerHTML = `
+            <div class="alert alert-warning mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${message}
+            </div>
+        `;
+        itemDetailsDiv.style.display = 'block';
+    }
+
+    function hideItemDetails() {
+        itemDetailsDiv.style.display = 'none';
+        scannedBarcodeInput.value = '';
+    }
+
+    function displayItemDetails(item) {
+        itemDetailsContent.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-success mb-2"><i class="fas fa-tag me-1"></i>Item Information</h6>
+                    <p class="mb-1"><strong>Name:</strong> ${item.name}</p>
+                    <p class="mb-1"><strong>Barcode:</strong> <code>${item.barcode || 'N/A'}</code></p>
+                    <p class="mb-1"><strong>Brand:</strong> ${item.brand || 'N/A'}</p>
+                    <p class="mb-1"><strong>Category:</strong> ${item.category ? item.category.name : 'N/A'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-success mb-2"><i class="fas fa-boxes me-1"></i>Stock Information</h6>
+                    <p class="mb-1"><strong>Current Stock:</strong> ${item.current_stock} ${item.unit || 'pcs'}</p>
+                    <p class="mb-1"><strong>Minimum Stock:</strong> ${item.minimum_stock || 'N/A'}</p>
+                    <p class="mb-1"><strong>Location:</strong> ${item.location || 'N/A'}</p>
+                    <p class="mb-1"><strong>Condition:</strong> ${item.condition || 'N/A'}</p>
+                </div>
+            </div>
+            ${item.description ? `<div class="mt-2"><strong>Description:</strong> ${item.description}</div>` : ''}
+        `;
+    }
+
+    function showItemError(message) {
+        itemDetailsContent.innerHTML = `
             <div class="alert alert-danger mb-0">
                 <i class="fas fa-exclamation-triangle me-2"></i>
                 ${message}
@@ -771,6 +887,242 @@ function initializeItemBarcodeScanner() {
         itemDetailsDiv.style.display = 'none';
         fulfillBtn.disabled = true;
         scannedBarcodeInput.value = '';
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = `
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            min-width: 300px;
+        `;
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 3000);
+    }
+}
+
+function initializeClaimBarcodeScanner() {
+    let scannerActive = false;
+    let scannerContainer = null;
+
+    const scanBtn = document.getElementById('scan-claim-barcode-btn');
+    const manualBtn = document.getElementById('manual-claim-barcode-btn');
+    const barcodeInput = document.getElementById('claim_barcode');
+    const scannedBarcodeInput = document.getElementById('scanned_claim_barcode_input');
+    const claimBtn = document.getElementById('claim-btn');
+    const claimDetailsDiv = document.getElementById('verified-claim-details');
+    const claimDetailsContent = document.getElementById('claim-details-content');
+
+    if (!scanBtn || !manualBtn || !barcodeInput) return; // Exit if elements don't exist
+
+    // Scan barcode button
+    scanBtn.addEventListener('click', function() {
+        if (scannerActive) {
+            stopClaimScanner();
+        } else {
+            startClaimScanner();
+        }
+    });
+
+    // Manual entry button
+    manualBtn.addEventListener('click', function() {
+        stopClaimScanner();
+        barcodeInput.readOnly = false;
+        barcodeInput.placeholder = "Enter claim slip number manually";
+        barcodeInput.focus();
+        
+        // Add manual input handler
+        barcodeInput.addEventListener('input', handleManualClaimInput);
+    });
+
+    function handleManualClaimInput() {
+        const claimSlip = barcodeInput.value.trim();
+        if (claimSlip.length > 0) {
+            verifyAndDisplayClaim(claimSlip);
+        } else {
+            hideClaimDetails();
+        }
+    }
+
+    function startClaimScanner() {
+        scannerActive = true;
+        barcodeInput.readOnly = true;
+        
+        // Create scanner container
+        scannerContainer = document.createElement('div');
+        scannerContainer.id = 'claim-barcode-scanner-container';
+        scannerContainer.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            background: white;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            width: 400px;
+            max-width: 90vw;
+        `;
+
+        scannerContainer.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>Scan Claim Slip Barcode</h5>
+                <button type="button" class="btn-close" id="close-claim-scanner"></button>
+            </div>
+            <div id="claim-scanner-viewport" style="width: 100%; height: 300px; border: 1px solid #ddd;"></div>
+            <div class="mt-3 text-center">
+                <small class="text-muted">Position claim slip barcode in front of camera</small>
+            </div>
+        `;
+
+        document.body.appendChild(scannerContainer);
+
+        // Initialize Quagga
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: document.querySelector('#claim-scanner-viewport'),
+                constraints: {
+                    width: 640,
+                    height: 480,
+                    facingMode: "environment" // Use back camera on mobile
+                }
+            },
+            locator: {
+                patchSize: "medium",
+                halfSample: true
+            },
+            numOfWorkers: 2,
+            decoder: {
+                readers: [
+                    "code_128_reader",
+                    "ean_reader",
+                    "ean_8_reader",
+                    "code_39_reader",
+                    "upc_reader",
+                    "upc_e_reader",
+                    "codabar_reader"
+                ]
+            },
+            locate: true
+        }, function(err) {
+            if (err) {
+                console.error(err);
+                alert('Error initializing camera: ' + err.message);
+                stopClaimScanner();
+                return;
+            }
+            Quagga.start();
+        });
+
+        // Handle barcode detection
+        Quagga.onDetected(function(result) {
+            const code = result.codeResult.code;
+            barcodeInput.value = code;
+            scannedBarcodeInput.value = code;
+            verifyAndDisplayClaim(code);
+            stopClaimScanner();
+            
+            // Show success message
+            showToast('Claim slip scanned successfully!', 'success');
+        });
+
+        // Close scanner button
+        document.getElementById('close-claim-scanner').addEventListener('click', stopClaimScanner);
+    }
+
+    function stopClaimScanner() {
+        scannerActive = false;
+        
+        if (scannerContainer) {
+            document.body.removeChild(scannerContainer);
+            scannerContainer = null;
+        }
+        
+        if (typeof Quagga !== 'undefined') {
+            Quagga.stop();
+        }
+        
+        scanBtn.innerHTML = '<i class="fas fa-qrcode"></i>';
+        scanBtn.classList.remove('btn-danger');
+        scanBtn.classList.add('btn-outline-primary');
+        scanBtn.title = 'Scan Barcode';
+    }
+
+    function verifyAndDisplayClaim(claimSlipNumber) {
+        // Show loading state
+        claimDetailsContent.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-2">Verifying claim slip...</div>
+            </div>
+        `;
+        claimDetailsDiv.style.display = 'block';
+
+        // Check if the scanned claim slip matches this request
+        if (claimSlipNumber === '{{ $request->claim_slip_number }}') {
+            displayClaimDetails();
+            claimBtn.disabled = false;
+            scannedBarcodeInput.value = claimSlipNumber;
+        } else {
+            showClaimError('Claim slip does not match this request. Please scan the correct claim slip.');
+            claimBtn.disabled = true;
+            scannedBarcodeInput.value = '';
+        }
+    }
+
+    function displayClaimDetails() {
+        claimDetailsContent.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-success mb-2"><i class="fas fa-ticket-alt me-1"></i>Claim Slip Details</h6>
+                    <p class="mb-1"><strong>Claim Slip Number:</strong> <code>{{ $request->claim_slip_number }}</code></p>
+                    <p class="mb-1"><strong>Requester:</strong> {{ $request->user->name }}</p>
+                    <p class="mb-1"><strong>Department:</strong> {{ $request->department }}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-success mb-2"><i class="fas fa-box me-1"></i>Item Information</h6>
+                    <p class="mb-1"><strong>Item:</strong> {{ $request->item->name }}</p>
+                    <p class="mb-1"><strong>Quantity:</strong> {{ $request->quantity }} {{ $request->item->unit ?? 'pcs' }}</p>
+                    <p class="mb-1"><strong>Purpose:</strong> {{ Str::limit($request->purpose, 30) }}</p>
+                </div>
+            </div>
+            <div class="mt-2">
+                <strong>Status:</strong> <span class="badge bg-success">Verified - Ready for pickup</span>
+            </div>
+        `;
+    }
+
+    function showClaimError(message) {
+        claimDetailsContent.innerHTML = `
+            <div class="alert alert-danger mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${message}
+            </div>
+        `;
+        claimDetailsDiv.style.display = 'block';
+    }
+
+    function hideClaimDetails() {
+        claimDetailsDiv.style.display = 'none';
+        scannedBarcodeInput.value = '';
+        claimBtn.disabled = true;
     }
 
     function showToast(message, type = 'info') {

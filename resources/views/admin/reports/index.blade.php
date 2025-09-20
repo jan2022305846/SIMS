@@ -115,6 +115,86 @@
                     </div>
                 </div>
 
+                <!-- Additional Reports Section -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-file-alt me-2"></i>
+                            Additional Reports
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <a href="{{ route('reports.inventory-summary') }}" class="text-decoration-none">
+                                    <div class="card border-primary h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-boxes fa-2x text-primary mb-2"></i>
+                                            <h6 class="card-title">Inventory Summary</h6>
+                                            <p class="card-text small text-muted">Complete inventory overview with stock levels and values</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{{ route('reports.low-stock-alert') }}" class="text-decoration-none">
+                                    <div class="card border-warning h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                                            <h6 class="card-title">Low Stock Alerts</h6>
+                                            <p class="card-text small text-muted">Items running low on stock that need attention</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{{ route('reports.qr-scan-analytics') }}" class="text-decoration-none">
+                                    <div class="card border-info h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-qrcode fa-2x text-info mb-2"></i>
+                                            <h6 class="card-title">QR Scan Analytics</h6>
+                                            <p class="card-text small text-muted">Monitor QR code scanning activity and item usage</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{{ route('reports.scan-alerts') }}" class="text-decoration-none">
+                                    <div class="card border-danger h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-bell fa-2x text-danger mb-2"></i>
+                                            <h6 class="card-title">Scan Alerts</h6>
+                                            <p class="card-text small text-muted">Items not scanned recently and unusual activity</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{{ route('reports.request-analytics') }}" class="text-decoration-none">
+                                    <div class="card border-success h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-chart-pie fa-2x text-success mb-2"></i>
+                                            <h6 class="card-title">Request Analytics</h6>
+                                            <p class="card-text small text-muted">Detailed analysis of request patterns and trends</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{{ route('reports.user-activity-report') }}" class="text-decoration-none">
+                                    <div class="card border-secondary h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-users fa-2x text-secondary mb-2"></i>
+                                            <h6 class="card-title">User Activity</h6>
+                                            <p class="card-text small text-muted">Track user actions and system usage patterns</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>

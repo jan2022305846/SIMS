@@ -84,9 +84,9 @@ class DashboardService
             ],
             'requests' => [
                 'total' => SupplyRequest::count(),
-                'pending' => SupplyRequest::where('status', 'pending')->count(),
-                'approved' => SupplyRequest::where('status', 'approved')->count(),
-                'completed' => SupplyRequest::where('status', 'completed')->count(),
+                'pending' => SupplyRequest::where('workflow_status', 'pending')->count(),
+                'approved' => SupplyRequest::where('workflow_status', 'approved_by_admin')->count(),
+                'completed' => SupplyRequest::where('workflow_status', 'claimed')->count(),
                 'this_month' => SupplyRequest::whereMonth('created_at', Carbon::now()->month)->count(),
                 'today' => SupplyRequest::whereDate('created_at', today())->count()
             ],
@@ -113,9 +113,9 @@ class DashboardService
         return [
             'my_requests' => [
                 'total' => SupplyRequest::where('user_id', $user->id)->count(),
-                'pending' => SupplyRequest::where('user_id', $user->id)->where('status', 'pending')->count(),
-                'approved' => SupplyRequest::where('user_id', $user->id)->where('status', 'approved')->count(),
-                'completed' => SupplyRequest::where('user_id', $user->id)->where('status', 'completed')->count(),
+                'pending' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'pending')->count(),
+                'approved' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'approved_by_admin')->count(),
+                'completed' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'claimed')->count(),
                 'this_month' => SupplyRequest::where('user_id', $user->id)
                     ->whereMonth('created_at', Carbon::now()->month)->count()
             ],
@@ -168,7 +168,7 @@ class DashboardService
     public function getPendingRequests($user, $limit = null): Collection
     {
         $query = SupplyRequest::with(['user', 'item'])
-            ->where('status', 'pending')
+            ->where('workflow_status', 'pending')
             ->orderBy('created_at', 'desc');
 
         // Filter based on user role
@@ -284,9 +284,9 @@ class DashboardService
                     'title' => 'Process Requests',
                     'description' => 'Review and approve pending requests',
                     'icon' => 'fas fa-clipboard-check',
-                    'url' => route('requests.index'),
+                    'url' => route('requests.manage'),
                     'color' => 'success',
-                    'badge' => SupplyRequest::where('status', 'pending')->count()
+                    'badge' => SupplyRequest::where('workflow_status', 'pending')->count()
                 ],
                 [
                     'title' => 'Generate Reports',
@@ -413,13 +413,13 @@ class DashboardService
             }
 
             // Pending requests notifications
-            $pendingCount = SupplyRequest::where('status', 'pending')->count();
+            $pendingCount = SupplyRequest::where('workflow_status', 'pending')->count();
             if ($pendingCount > 0) {
                 $notifications[] = [
                     'type' => 'info',
                     'title' => 'Pending Requests',
                     'message' => "{$pendingCount} requests need your attention",
-                    'url' => route('requests.index', ['status' => 'pending']),
+                    'url' => route('requests.manage', ['status' => 'pending']),
                     'created_at' => now()
                 ];
             }
@@ -498,10 +498,10 @@ class DashboardService
     public function getUserRequestStatusSummary($user): array
     {
         return [
-            'pending' => SupplyRequest::where('user_id', $user->id)->where('status', 'pending')->count(),
-            'approved' => SupplyRequest::where('user_id', $user->id)->where('status', 'approved')->count(),
-            'completed' => SupplyRequest::where('user_id', $user->id)->where('status', 'completed')->count(),
-            'rejected' => SupplyRequest::where('user_id', $user->id)->where('status', 'rejected')->count()
+            'pending' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'pending')->count(),
+            'approved' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'approved_by_admin')->count(),
+            'completed' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'claimed')->count(),
+            'rejected' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'declined_by_admin')->count()
         ];
     }
 

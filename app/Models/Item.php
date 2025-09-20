@@ -69,7 +69,7 @@ class Item extends Model
     ];
 
     protected $casts = [
-        'expiry_date' => 'datetime',
+        'expiry_date' => 'date',
         'warranty_date' => 'datetime', 
         'assigned_at' => 'datetime',
         'unit_price' => 'decimal:2',

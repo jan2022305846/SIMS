@@ -42,6 +42,13 @@
                 <span>Users</span>
             </a>
 
+            <a href="{{ route('admin.offices.index') }}" class="nav-link {{ request()->routeIs('admin.offices.*') ? 'active' : '' }}" data-tooltip="Offices">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5m-4 0h4"></path>
+                </svg>
+                <span>Offices</span>
+            </a>
+
             <a href="{{ route('admin.backup.index') }}" class="nav-link {{ request()->routeIs('admin.backup.*') || request()->routeIs('admin.restore.*') ? 'active' : '' }}" data-tooltip="Backup & Restore">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -54,7 +61,7 @@
 
         {{-- Shared Links (All Roles) --}}
         @if(Auth::user()->role === 'admin')
-            <a href="{{ route('requests.index') }}" class="nav-link {{ request()->routeIs('requests.*') ? 'active' : '' }}" data-tooltip="Requests">
+            <a href="{{ route('requests.manage') }}" class="nav-link {{ request()->routeIs('requests.*') ? 'active' : '' }}" data-tooltip="Requests">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14,2 14,8 20,8"></polyline>
@@ -65,7 +72,7 @@
                 <span>Requests</span>
             </a>
         @elseif(Auth::user()->role === 'office_head')
-            <a href="{{ route('office-head.requests') }}" class="nav-link {{ request()->routeIs('office-head.requests*') ? 'active' : '' }}" data-tooltip="Requests">
+            <a href="{{ route('faculty.requests.index') }}" class="nav-link {{ request()->routeIs('faculty.requests*') ? 'active' : '' }}" data-tooltip="Requests">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14,2 14,8 20,8"></polyline>

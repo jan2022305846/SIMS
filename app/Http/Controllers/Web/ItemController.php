@@ -112,6 +112,12 @@ class ItemController extends Controller
     public function show(Item $item)
     {
         $item->load('category');
+        
+        // Return different views based on user role
+        if (auth()->user()->isFaculty()) {
+            return view('faculty.items.show', compact('item'));
+        }
+        
         return view('admin.items.show', compact('item'));
     }
 
@@ -390,5 +396,73 @@ class ItemController extends Controller
                 'description' => $item->description,
             ]
         ]);
+    }
+
+    /**
+     * Show assignment form for an item.
+     */
+    public function showAssignForm(Item $item)
+    {
+        $users = \App\Models\User::orderBy('name')->get();
+        $offices = \App\Models\Office::orderBy('name')->get();
+        
+        return view('admin.items.assign', compact('item', 'users', 'offices'));
+    }
+
+    /**
+     * Assign item to a user.
+     */
+    public function assign(Request $request, Item $item)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'location' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $user = \App\Models\User::findOrFail($request->user_id);
+        
+        $item->assignTo($user, $request->notes);
+        
+        // Update location if provided
+        if ($request->filled('location')) {
+            $item->update(['location' => $request->location]);
+        }
+
+        return redirect()->route('items.show', $item)
+            ->with('success', "Item '{$item->name}' has been assigned to {$user->name}.");
+    }
+
+    /**
+     * Unassign item from current holder.
+     */
+    public function unassign(Item $item)
+    {
+        if (!$item->isAssigned()) {
+            return redirect()->back()
+                ->with('error', 'Item is not currently assigned to anyone.');
+        }
+
+        $holderName = $item->currentHolder->name;
+        $item->unassign();
+
+        return redirect()->route('items.show', $item)
+            ->with('success', "Item '{$item->name}' has been returned from {$holderName}.");
+    }
+
+    /**
+     * Update item location.
+     */
+    public function updateLocation(Request $request, Item $item)
+    {
+        $request->validate([
+            'location' => 'required|string|max:255',
+        ]);
+
+        $oldLocation = $item->location;
+        $item->update(['location' => $request->location]);
+
+        return redirect()->route('items.show', $item)
+            ->with('success', "Item location updated from '{$oldLocation}' to '{$request->location}'.");
     }
 }

@@ -44,33 +44,17 @@ class ReportsController extends Controller
      */
     private function getRequestsByStatus($query, $status)
     {
-        if ($this->hasWorkflowColumn()) {
-            switch ($status) {
-                case 'pending':
-                    return $query->where('workflow_status', 'pending');
-                case 'fulfilled':
-                    return $query->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); });
-                case 'approved':
-                    return $query->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed']);
-                case 'declined':
-                    return $query->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin']);
-                default:
-                    return $query;
-            }
-        } else {
-            // Fallback to old status column
-            switch ($status) {
-                case 'pending':
-                    return $query->where('status', 'pending');
-                case 'fulfilled':
-                    return $query->where('status', 'fulfilled');
-                case 'approved':
-                    return $query->where('status', 'approved');
-                case 'declined':
-                    return $query->where('status', 'declined');
-                default:
-                    return $query;
-            }
+        switch ($status) {
+            case 'pending':
+                return $query->where('workflow_status', 'pending');
+            case 'fulfilled':
+                return $query->where('workflow_status', 'fulfilled');
+            case 'approved':
+                return $query->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed']);
+            case 'declined':
+                return $query->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin']);
+            default:
+                return $query;
         }
     }
 
@@ -141,18 +125,7 @@ class ReportsController extends Controller
             ->groupByRaw('DATE(requests.created_at)')
             ->orderByRaw('DATE(requests.created_at)');
         
-        if ($this->hasWorkflowColumn()) {
-            $requestsData = $requestsQuery->get()->keyBy('date');
-        } else {
-            // Fallback for old status column
-            $requestsData = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
-                ->whereBetween('requests.created_at', [$date->copy()->subDays(6)->startOfDay(), $endDate])
-                ->groupByRaw('DATE(requests.created_at)')
-                ->orderByRaw('DATE(requests.created_at)')
-                ->get()
-                ->keyBy('date');
-        }
+        $requestsData = $requestsQuery->get()->keyBy('date');
         
         // Build chart data for last 7 days
         for ($i = 6; $i >= 0; $i--) {
@@ -178,12 +151,6 @@ class ReportsController extends Controller
         $todaySummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN workflow_status IN ("pending") THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
             ->leftJoin('items', 'requests.item_id', '=', 'items.id')
             ->whereBetween('requests.created_at', [$startDate, $endDate]);
-        
-        if (!$this->hasWorkflowColumn()) {
-            $todaySummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
-                ->whereBetween('requests.created_at', [$startDate, $endDate]);
-        }
         
         $summaryData = $todaySummary->first();
         
@@ -213,24 +180,10 @@ class ReportsController extends Controller
             ->groupByRaw('DATE(requests.created_at)')
             ->orderByRaw('DATE(requests.created_at)');
         
-        if ($this->hasWorkflowColumn()) {
-            $requestsData = $requestsQuery->get()->groupBy(function($item) {
-                $date = Carbon::parse($item->date);
-                return $date->format('Y-W') . sprintf('%02d', $date->weekOfYear);
-            });
-        } else {
-            // Fallback for old status column
-            $requestsData = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
-                ->whereBetween('requests.created_at', [$date->copy()->subWeeks(7)->startOfWeek(), $endDate])
-                ->groupByRaw('DATE(requests.created_at)')
-                ->orderByRaw('DATE(requests.created_at)')
-                ->get()
-                ->groupBy(function($item) {
-                    $date = Carbon::parse($item->date);
-                    return $date->format('Y-W') . sprintf('%02d', $date->weekOfYear);
-                });
-        }
+        $requestsData = $requestsQuery->get()->groupBy(function($item) {
+            $date = Carbon::parse($item->date);
+            return $date->format('Y-W') . sprintf('%02d', $date->weekOfYear);
+        });
         
         // Build chart data for last 8 weeks
         $chartData = [];
@@ -260,12 +213,6 @@ class ReportsController extends Controller
         $weekSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN workflow_status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
             ->leftJoin('items', 'requests.item_id', '=', 'items.id')
             ->whereBetween('requests.created_at', [$startDate, $endDate]);
-        
-        if (!$this->hasWorkflowColumn()) {
-            $weekSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
-                ->whereBetween('requests.created_at', [$startDate, $endDate]);
-        }
         
         $summaryData = $weekSummary->first();
         
@@ -336,18 +283,7 @@ class ReportsController extends Controller
             ->groupByRaw('YEAR(requests.created_at)')
             ->orderByRaw('YEAR(requests.created_at)');
         
-        if ($this->hasWorkflowColumn()) {
-            $requestsData = $requestsQuery->get()->keyBy('year');
-        } else {
-            // Fallback for old status column
-            $requestsData = SupplyRequest::selectRaw('YEAR(requests.created_at) as year, COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
-                ->whereBetween('requests.created_at', [$date->copy()->subYears(4)->startOfYear(), $endDate])
-                ->groupByRaw('YEAR(requests.created_at)')
-                ->orderByRaw('YEAR(requests.created_at)')
-                ->get()
-                ->keyBy('year');
-        }
+        $requestsData = $requestsQuery->get()->keyBy('year');
         
         // Build chart data for last 5 years
         $chartData = [];
@@ -373,12 +309,6 @@ class ReportsController extends Controller
         $yearSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN workflow_status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
             ->leftJoin('items', 'requests.item_id', '=', 'items.id')
             ->whereBetween('requests.created_at', [$startDate, $endDate]);
-        
-        if (!$this->hasWorkflowColumn()) {
-            $yearSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN status = "fulfilled" THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-                ->leftJoin('items', 'requests.item_id', '=', 'items.id')
-                ->whereBetween('requests.created_at', [$startDate, $endDate]);
-        }
         
         $summaryData = $yearSummary->first();
         
@@ -646,6 +576,114 @@ class ReportsController extends Controller
         }
 
         return view('admin.reports.user-activity', compact('logs', 'activityStats', 'dateFrom', 'dateTo'));
+    }
+
+    /**
+     * QR Code Scan Analytics Report
+     */
+    public function qrScanAnalytics(Request $request)
+    {
+        $dateFrom = $request->date_from ?? Carbon::now()->subMonth()->toDateString();
+        $dateTo = $request->date_to ?? Carbon::now()->toDateString();
+
+        $scanStats = \App\Models\ItemScanLog::getScanStats($dateFrom, $dateTo);
+
+        $scanLogs = \App\Models\ItemScanLog::with(['item', 'user'])
+            ->whereBetween('scanned_at', [$dateFrom, $dateTo])
+            ->orderBy('scanned_at', 'desc')
+            ->get();
+
+        $analytics = [
+            'total_scans' => $scanStats['total_scans'],
+            'unique_items_scanned' => $scanStats['unique_items_scanned'],
+            'unique_users_scanning' => $scanStats['unique_users_scanning'],
+            'scans_by_scanner_type' => $scanStats['scans_by_scanner_type'],
+            'most_scanned_items' => $scanStats['most_scanned_items'],
+            'scans_by_location' => $scanStats['scans_by_location'],
+            'daily_scan_trend' => $this->getDailyScanTrend($dateFrom, $dateTo),
+            'scan_frequency_analysis' => $this->getOverallScanFrequency(),
+            'unscanned_items' => \App\Models\ItemScanLog::getUnscannedItems(30)->count(),
+            'scan_alerts' => \App\Models\ItemScanLog::getScanAlerts(),
+        ];
+
+        if ($request->input('format') === 'pdf') {
+            $pdf = Pdf::loadView('admin.reports.pdf.qr-scan-analytics', compact('scanLogs', 'analytics', 'dateFrom', 'dateTo'))
+                ->setPaper('a4', 'landscape');
+
+            return $pdf->download('qr-scan-analytics-' . date('Y-m-d') . '.pdf');
+        }
+
+        return view('admin.reports.qr-scan-analytics', compact('scanLogs', 'analytics', 'dateFrom', 'dateTo'));
+    }
+
+    /**
+     * QR Code Scan History for Specific Item
+     */
+    public function itemScanHistory(Request $request, $itemId)
+    {
+        $item = \App\Models\Item::findOrFail($itemId);
+
+        $dateFrom = $request->date_from ?? Carbon::now()->subMonth()->toDateString();
+        $dateTo = $request->date_to ?? Carbon::now()->toDateString();
+
+        $scanLogs = \App\Models\ItemScanLog::with('user')
+            ->where('item_id', $itemId)
+            ->whereBetween('scanned_at', [$dateFrom, $dateTo])
+            ->orderBy('scanned_at', 'desc')
+            ->get();
+
+        $frequencyAnalysis = \App\Models\ItemScanLog::getScanFrequencyAnalysis($itemId);
+
+        $analytics = [
+            'total_scans' => $scanLogs->count(),
+            'first_scan' => $scanLogs->isNotEmpty() ? $scanLogs->last()->scanned_at : null,
+            'last_scan' => $scanLogs->isNotEmpty() ? $scanLogs->first()->scanned_at : null,
+            'unique_users' => $scanLogs->pluck('user_id')->unique()->filter()->count(),
+            'scans_by_location' => $scanLogs->whereNotNull('location')
+                ->groupBy('location')
+                ->map->count(),
+            'frequency_analysis' => $frequencyAnalysis,
+        ];
+
+        if ($request->input('format') === 'pdf') {
+            $pdf = Pdf::loadView('admin.reports.pdf.item-scan-history', compact('item', 'scanLogs', 'analytics', 'dateFrom', 'dateTo'))
+                ->setPaper('a4', 'landscape');
+
+            return $pdf->download('item-scan-history-' . $item->id . '-' . date('Y-m-d') . '.pdf');
+        }
+
+        return view('admin.reports.item-scan-history', compact('item', 'scanLogs', 'analytics', 'dateFrom', 'dateTo'));
+    }
+
+    /**
+     * QR Code Scan Alerts Report
+     */
+    public function scanAlerts(Request $request)
+    {
+        $alerts = \App\Models\ItemScanLog::getScanAlerts();
+
+        $unscannedItems = [
+            '30_days' => \App\Models\ItemScanLog::getUnscannedItems(30),
+            '60_days' => \App\Models\ItemScanLog::getUnscannedItems(60),
+            '90_days' => \App\Models\ItemScanLog::getUnscannedItems(90),
+        ];
+
+        $stats = [
+            'total_alerts' => count($alerts),
+            'unscanned_30_days' => $unscannedItems['30_days']->count(),
+            'unscanned_60_days' => $unscannedItems['60_days']->count(),
+            'unscanned_90_days' => $unscannedItems['90_days']->count(),
+            'unusual_activity_count' => isset($alerts['unusual_scan_activity']) ? $alerts['unusual_scan_activity']->count() : 0,
+        ];
+
+        if ($request->input('format') === 'pdf') {
+            $pdf = Pdf::loadView('admin.reports.pdf.scan-alerts', compact('alerts', 'unscannedItems', 'stats'))
+                ->setPaper('a4', 'landscape');
+
+            return $pdf->download('scan-alerts-' . date('Y-m-d') . '.pdf');
+        }
+
+        return view('admin.reports.scan-alerts', compact('alerts', 'unscannedItems', 'stats'));
     }
 
     // Helper methods for analytics calculations
@@ -1114,6 +1152,15 @@ class ReportsController extends Controller
         $period = $request->get('period', 'daily');
         $data = $this->getReportData($period);
         
+        // Add QR scan statistics to dashboard data
+        $scanStats = \App\Models\ItemScanLog::getScanStats();
+        $data['qr_scan_stats'] = [
+            'total_scans_today' => \App\Models\ItemScanLog::whereDate('scanned_at', Carbon::today())->count(),
+            'total_scans' => $scanStats['total_scans'],
+            'unique_items_scanned' => $scanStats['unique_items_scanned'],
+            'unscanned_items_30_days' => \App\Models\ItemScanLog::getUnscannedItems(30)->count(),
+        ];
+        
         return response()->json($data);
     }
 
@@ -1250,5 +1297,43 @@ class ReportsController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Get daily scan trend for QR analytics
+     */
+    private function getDailyScanTrend($dateFrom, $dateTo)
+    {
+        return \App\Models\ItemScanLog::whereBetween('scanned_at', [$dateFrom, $dateTo])
+            ->selectRaw('DATE(scanned_at) as date, COUNT(*) as scan_count')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->pluck('scan_count', 'date');
+    }
+
+    /**
+     * Get overall scan frequency analysis
+     */
+    private function getOverallScanFrequency()
+    {
+        $allItems = \App\Models\Item::all();
+        $frequencyData = [];
+
+        foreach ($allItems as $item) {
+            $analysis = \App\Models\ItemScanLog::getScanFrequencyAnalysis($item->id);
+            if ($analysis && $analysis['total_scans'] > 0) {
+                $frequencyData[] = [
+                    'item' => $item,
+                    'analysis' => $analysis
+                ];
+            }
+        }
+
+        // Sort by average days between scans (items scanned less frequently first)
+        usort($frequencyData, function($a, $b) {
+            return $b['analysis']['average_days_between_scans'] <=> $a['analysis']['average_days_between_scans'];
+        });
+
+        return array_slice($frequencyData, 0, 20); // Top 20 items by scan frequency
     }
 }

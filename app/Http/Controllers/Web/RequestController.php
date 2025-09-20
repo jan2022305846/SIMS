@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Request as SupplyRequest;
 use App\Models\Item;
-use App\Models\Log;
+use App\Models\Log as ActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -74,16 +74,8 @@ class RequestController extends Controller
     public function create()
     {
         $items = Item::where('current_stock', '>', 0)->get();
-        $departments = [
-            'IT Department',
-            'HR Department',
-            'Finance Department',
-            'Operations Department',
-            'Marketing Department',
-            'Engineering Department'
-        ];
 
-        return view('faculty.requests.create', compact('items', 'departments'));
+        return view('faculty.requests.create', compact('items'));
     }
 
     public function store(Request $request)
@@ -93,7 +85,7 @@ class RequestController extends Controller
             'quantity' => 'required|integer|min:1',
             'purpose' => 'required|string|max:500',
             'needed_date' => 'required|date|after_or_equal:today',
-            'department' => 'required|string|max:100',
+            'department' => 'nullable|string|max:100', // Made nullable since it's auto-populated for faculty
             'priority' => 'required|in:low,normal,high,urgent',
             'attachments.*' => 'file|max:5120|mimes:pdf,jpg,jpeg,png,doc,docx', // 5MB max per file
         ]);
@@ -127,7 +119,7 @@ class RequestController extends Controller
                 'quantity' => $validatedData['quantity'],
                 'purpose' => $validatedData['purpose'],
                 'needed_date' => $validatedData['needed_date'],
-                'department' => $validatedData['department'],
+                'department' => $validatedData['department'] ?? Auth::user()->department ?? 'Faculty Office',
                 'priority' => $validatedData['priority'],
                 'workflow_status' => 'pending',
                 'status' => 'pending', // Keep for backwards compatibility
@@ -136,7 +128,7 @@ class RequestController extends Controller
             ]);
 
             // Create log entry
-            Log::create([
+            ActivityLog::create([
                 'user_id' => Auth::id(),
                 'action' => 'create',
                 'details' => 'Created request for ' . $validatedData['quantity'] . ' ' . $item->name . ' (Priority: ' . $validatedData['priority'] . ')',
@@ -184,12 +176,30 @@ class RequestController extends Controller
 
         $items = Item::where('current_stock', '>', 0)->get();
         $departments = [
-            'IT Department',
-            'HR Department', 
-            'Finance Department',
-            'Operations Department',
-            'Marketing Department',
-            'Engineering Department'
+            'Campus Director',
+            'Admin Head Office',
+            'Office of the Academic Head',
+            'Student Affairs Office',
+            'HRMO',
+            'CiTL',
+            'Arts and Culture Office',
+            'Sports Office',
+            'CET Office',
+            'Admission Office',
+            'Budget Office',
+            'Accounting Office',
+            'Registrars Office',
+            'Quaa Office',
+            'Assessment Office',
+            'Research and Extension Office',
+            'NSTP Office',
+            'School Library',
+            'ICT Library',
+            'Clinic',
+            'IT Department Head',
+            'Education Department Head',
+            'MB Department Head',
+            'Faculty Office'
         ];
 
         return view('admin.requests.edit', compact('request', 'items', 'departments'));
@@ -222,7 +232,7 @@ class RequestController extends Controller
         $request->update($validatedData);
 
         // Create log entry
-        Log::create([
+        ActivityLog::create([
             'user_id' => Auth::id(),
             'action' => 'update',
             'details' => 'Updated request for ' . $item->name,
@@ -233,8 +243,15 @@ class RequestController extends Controller
             ->with('success', 'Request updated successfully!');
     }
 
-    public function approveByAdmin(SupplyRequest $supplyRequest)
+    public function approveByAdmin($requestId)
     {
+        // Manual model loading since route model binding had issues
+        $supplyRequest = SupplyRequest::find($requestId);
+
+        if (!$supplyRequest) {
+            return back()->withErrors(['error' => 'Request not found.']);
+        }
+
         /** @var User $user */
         $user = Auth::user();
         if ($user->role !== 'admin') {
@@ -254,7 +271,7 @@ class RequestController extends Controller
 
         // Create log entry with null check
         $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
-        Log::create([
+        ActivityLog::create([
             'user_id' => Auth::id(),
             'action' => 'approve',
             'details' => 'Approved request by admin for ' . $itemName,
@@ -321,7 +338,7 @@ class RequestController extends Controller
                 $logDetails .= ' (Verified with barcode scan)';
             }
             
-            Log::create([
+            ActivityLog::create([
                 'user_id' => Auth::id(),
                 'action' => 'fulfill',
                 'details' => $logDetails,
@@ -338,7 +355,7 @@ class RequestController extends Controller
         }
     }
 
-    public function markAsClaimed(SupplyRequest $supplyRequest)
+    public function markAsClaimed(Request $httpRequest, SupplyRequest $supplyRequest)
     {
         /** @var User $user */
         $user = Auth::user();
@@ -350,23 +367,61 @@ class RequestController extends Controller
             return back()->withErrors(['error' => 'This request cannot be marked as claimed.']);
         }
 
-        $supplyRequest->markAsClaimed(Auth::user());
-
         // Load item relationship if not already loaded
         if (!$supplyRequest->relationLoaded('item')) {
             $supplyRequest->load('item');
         }
 
-        // Create log entry with null check
-        $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
-        Log::create([
-            'user_id' => Auth::id(),
-            'action' => 'claim',
-            'details' => 'Marked request as claimed for ' . $itemName,
-            'created_at' => now(),
-        ]);
+        // Check stock availability one more time
+        if (!$supplyRequest->item || $supplyRequest->item->current_stock < $supplyRequest->quantity) {
+            return back()->withErrors(['error' => 'Insufficient stock to fulfill this request.']);
+        }
 
-        return back()->with('success', 'Request marked as claimed successfully!');
+        // Verify scanned barcode if provided
+        if ($httpRequest->filled('scanned_barcode')) {
+            $scannedBarcode = $httpRequest->scanned_barcode;
+            
+            // Check if the scanned barcode matches the requested item
+            $scannedItem = Item::where('barcode', $scannedBarcode)
+                ->orWhere('qr_code', $scannedBarcode)
+                ->first();
+
+            if (!$scannedItem) {
+                return back()->withErrors(['error' => 'Scanned barcode does not match any item in the system.']);
+            }
+
+            if ($scannedItem->id !== $supplyRequest->item->id) {
+                return back()->withErrors(['error' => 'Scanned item does not match the requested item. Please scan the correct item.']);
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            $supplyRequest->markAsClaimed(Auth::user());
+
+            // Create log entry with null check
+            $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
+            $logDetails = 'Marked request as claimed for ' . $supplyRequest->quantity . ' ' . $itemName . '. Claim slip: ' . $supplyRequest->claim_slip_number;
+            
+            if ($httpRequest->filled('scanned_barcode')) {
+                $logDetails .= ' (Verified with barcode scan)';
+            }
+            
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'claim',
+                'details' => $logDetails,
+                'created_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return back()->with('success', 'Request marked as claimed successfully! Stock has been updated.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->withErrors(['error' => 'Failed to mark request as claimed: ' . $e->getMessage()]);
+        }
     }
 
     public function decline(Request $request, SupplyRequest $supplyRequest)
@@ -396,7 +451,7 @@ class RequestController extends Controller
 
         // Create log entry with null check
         $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
-        Log::create([
+        ActivityLog::create([
             'user_id' => Auth::id(),
             'action' => 'decline',
             'details' => 'Declined request for ' . $itemName . '. Reason: ' . $validatedData['reason'],
@@ -423,7 +478,7 @@ class RequestController extends Controller
 
         // Create log entry before deletion with null check
         $itemName = $request->item ? $request->item->name : 'Unknown Item';
-        Log::create([
+        ActivityLog::create([
             'user_id' => Auth::id(),
             'action' => 'delete',
             'details' => 'Deleted request for ' . $itemName,
@@ -432,7 +487,7 @@ class RequestController extends Controller
 
         $request->delete();
 
-        return redirect()->route('requests.index')
+        return redirect()->route('requests.manage')
             ->with('success', 'Request deleted successfully!');
     }
 
@@ -485,22 +540,30 @@ class RequestController extends Controller
         return view('faculty.requests.index', compact('requests'));
     }
 
-    public function updateStatus(Request $httpRequest, SupplyRequest $request)
+    public function generateClaimSlip(SupplyRequest $request)
     {
-        // Legacy method - redirect to appropriate new workflow methods
-        $status = $httpRequest->input('status');
-        
         /** @var User $user */
         $user = Auth::user();
         
-        if ($status === 'approved') {
-            if ($request->canBeApprovedByAdmin() && $user->role === 'admin') {
-                return $this->approveByAdmin($request);
-            }
-        } elseif ($status === 'rejected') {
-            return $this->decline($httpRequest, $request);
+        // Only faculty can generate claim slips for their own approved requests
+        if ($user->role !== 'faculty' || $request->user_id !== $user->id) {
+            abort(403, 'You are not authorized to generate claim slips for this request.');
         }
 
-        return back()->withErrors(['error' => 'Invalid status update.']);
+        if (!$request->canGenerateClaimSlip()) {
+            return back()->withErrors(['error' => 'This request is not eligible for claim slip generation.']);
+        }
+
+        $request->generateClaimSlip();
+
+        // Create log entry
+        ActivityLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'generate_claim_slip',
+            'details' => 'Generated claim slip for request: ' . $request->claim_slip_number,
+            'created_at' => now(),
+        ]);
+
+        return back()->with('success', 'Claim slip generated successfully! You can now print it and pick up your items from the supply office.');
     }
 }

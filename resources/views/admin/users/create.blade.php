@@ -154,11 +154,35 @@
                                 <label for="department" class="form-label fw-medium">
                                     Department
                                 </label>
-                                <input type="text" 
-                                       id="department" 
-                                       name="department" 
-                                       value="{{ old('department') }}"
-                                       class="form-control @error('department') is-invalid @enderror">
+                                <select name="department"
+                                        id="department"
+                                        class="form-select @error('department') is-invalid @enderror">
+                                    <option value="">Select Department...</option>
+                                    <option value="Campus Director" {{ old('department') === 'Campus Director' ? 'selected' : '' }}>Campus Director</option>
+                                    <option value="Admin Head Office" {{ old('department') === 'Admin Head Office' ? 'selected' : '' }}>Admin Head Office</option>
+                                    <option value="Office of the Academic Head" {{ old('department') === 'Office of the Academic Head' ? 'selected' : '' }}>Office of the Academic Head</option>
+                                    <option value="Student Affairs Office" {{ old('department') === 'Student Affairs Office' ? 'selected' : '' }}>Student Affairs Office</option>
+                                    <option value="HRMO" {{ old('department') === 'HRMO' ? 'selected' : '' }}>HRMO</option>
+                                    <option value="CiTL" {{ old('department') === 'CiTL' ? 'selected' : '' }}>CiTL</option>
+                                    <option value="Arts and Culture Office" {{ old('department') === 'Arts and Culture Office' ? 'selected' : '' }}>Arts and Culture Office</option>
+                                    <option value="Sports Office" {{ old('department') === 'Sports Office' ? 'selected' : '' }}>Sports Office</option>
+                                    <option value="CET Office" {{ old('department') === 'CET Office' ? 'selected' : '' }}>CET Office</option>
+                                    <option value="Admission Office" {{ old('department') === 'Admission Office' ? 'selected' : '' }}>Admission Office</option>
+                                    <option value="Budget Office" {{ old('department') === 'Budget Office' ? 'selected' : '' }}>Budget Office</option>
+                                    <option value="Accounting Office" {{ old('department') === 'Accounting Office' ? 'selected' : '' }}>Accounting Office</option>
+                                    <option value="Registrars Office" {{ old('department') === 'Registrars Office' ? 'selected' : '' }}>Registrars Office</option>
+                                    <option value="Quaa Office" {{ old('department') === 'Quaa Office' ? 'selected' : '' }}>Quaa Office</option>
+                                    <option value="Assessment Office" {{ old('department') === 'Assessment Office' ? 'selected' : '' }}>Assessment Office</option>
+                                    <option value="Research and Extension Office" {{ old('department') === 'Research and Extension Office' ? 'selected' : '' }}>Research and Extension Office</option>
+                                    <option value="NSTP Office" {{ old('department') === 'NSTP Office' ? 'selected' : '' }}>NSTP Office</option>
+                                    <option value="School Library" {{ old('department') === 'School Library' ? 'selected' : '' }}>School Library</option>
+                                    <option value="ICT Library" {{ old('department') === 'ICT Library' ? 'selected' : '' }}>ICT Library</option>
+                                    <option value="Clinic" {{ old('department') === 'Clinic' ? 'selected' : '' }}>Clinic</option>
+                                    <option value="IT Department Head" {{ old('department') === 'IT Department Head' ? 'selected' : '' }}>IT Department Head</option>
+                                    <option value="Education Department Head" {{ old('department') === 'Education Department Head' ? 'selected' : '' }}>Education Department Head</option>
+                                    <option value="MB Department Head" {{ old('department') === 'MB Department Head' ? 'selected' : '' }}>MB Department Head</option>
+                                    <option value="Faculty Office" {{ old('department') === 'Faculty Office' ? 'selected' : '' }}>Faculty Office</option>
+                                </select>
                                 @error('department')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror

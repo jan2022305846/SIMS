@@ -82,20 +82,6 @@
                                         <span class="fw-medium small">{{ $item->brand }}</span>
                                     </div>
                                 @endif
-
-                                @if($item->price)
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="text-muted small">Price:</span>
-                                        <span class="fw-medium small">₱{{ number_format($item->price, 2) }}</span>
-                                    </div>
-                                @endif
-
-                                @if($item->expiry_date)
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="text-muted small">Expires:</span>
-                                        <span class="fw-medium small">{{ $item->expiry_date->format('M d, Y') }}</span>
-                                    </div>
-                                @endif
                             </div>
 
                             <div class="mt-auto">

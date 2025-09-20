@@ -91,6 +91,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('items/trashed', [ItemController::class, 'trashed'])->name('items.trashed');
         Route::post('items/{id}/restore', [ItemController::class, 'restore'])->name('items.restore');
         Route::get('items/verify-barcode/{barcode}', [ItemController::class, 'verifyBarcode'])->name('items.verify-barcode');
+        
+        // Item Assignment Management
+        Route::get('items/{item}/assign', [ItemController::class, 'showAssignForm'])->name('items.assign');
+        Route::post('items/{item}/assign', [ItemController::class, 'assign'])->name('items.assign.store');
+        Route::delete('items/{item}/unassign', [ItemController::class, 'unassign'])->name('items.unassign');
+        Route::patch('items/{item}/location', [ItemController::class, 'updateLocation'])->name('items.update-location');
+        
         Route::resource('items', ItemController::class);
         
         // Requests Management
@@ -117,6 +124,8 @@ Route::middleware(['auth'])->group(function () {
         // Admin Reports
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
+        Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
+        Route::get('reports/user-activity-report', [ReportsController::class, 'userActivityReport'])->name('reports.user-activity-report');
         Route::get('reports/daily-csv', [ReportsController::class, 'dailyCsv'])->name('reports.daily-csv');
         Route::get('reports/weekly-csv', [ReportsController::class, 'weeklyCsv'])->name('reports.weekly-csv');
         Route::get('reports/annual-csv', [ReportsController::class, 'annualCsv'])->name('reports.annual-csv');
@@ -129,24 +138,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports/monthly-summary', [ReportsController::class, 'monthlySummary'])->name('reports.monthly-summary');
         Route::get('reports/annual-summary', [ReportsController::class, 'annualSummary'])->name('reports.annual-summary');
         
-        Route::resource('requests', RequestController::class)->except(['create', 'store', 'show']);
+        // QR Scan Reports
+        Route::get('reports/qr-scan-analytics', [ReportsController::class, 'qrScanAnalytics'])->name('reports.qr-scan-analytics');
+        Route::get('reports/item-scan-history/{itemId}', [ReportsController::class, 'itemScanHistory'])->name('reports.item-scan-history');
+        Route::get('reports/scan-alerts', [ReportsController::class, 'scanAlerts'])->name('reports.scan-alerts');
         
-        // Reports (Admin only)
-        Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
-        Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
-        Route::get('reports/daily-csv', [ReportsController::class, 'dailyCsv'])->name('reports.daily-csv');
-        Route::get('reports/weekly-csv', [ReportsController::class, 'weeklyCsv'])->name('reports.weekly-csv');
-        Route::get('reports/annual-csv', [ReportsController::class, 'annualCsv'])->name('reports.annual-csv');
-        Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
-        Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
-
-        // New Daily, Weekly, Monthly, Annual Reports
-        Route::get('reports/daily-transactions', [ReportsController::class, 'dailyTransactions'])->name('reports.daily-transactions');
-        Route::get('reports/daily-disbursement', [ReportsController::class, 'dailyDisbursement'])->name('reports.daily-disbursement');
-        Route::get('reports/weekly-summary', [ReportsController::class, 'weeklySummary'])->name('reports.weekly-summary');
-        Route::get('reports/weekly-requests', [ReportsController::class, 'weeklyRequests'])->name('reports.weekly-requests');
-        Route::get('reports/monthly-summary', [ReportsController::class, 'monthlySummary'])->name('reports.monthly-summary');
-        Route::get('reports/annual-summary', [ReportsController::class, 'annualSummary'])->name('reports.annual-summary');
+        // Offices Management
+        Route::resource('offices', \App\Http\Controllers\Web\OfficeController::class, ['as' => 'admin']);
     });
     
     // Faculty routes (includes admin access)
@@ -162,6 +160,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('faculty/requests/create', [RequestController::class, 'create'])->name('faculty.requests.create');
         Route::post('faculty/requests', [RequestController::class, 'store'])->name('faculty.requests.store');
         Route::get('faculty/requests/{request}', [RequestController::class, 'show'])->name('faculty.requests.show');
+        Route::post('faculty/requests/{request}/generate-claim-slip', [RequestController::class, 'generateClaimSlip'])->name('faculty.requests.generate-claim-slip');
         
         // Faculty acknowledgment access (for their own requests)
         Route::get('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'show'])->name('faculty.requests.acknowledgment.show');

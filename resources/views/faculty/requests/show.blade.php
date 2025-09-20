@@ -165,18 +165,27 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        @if($request->canBeAcknowledgedByRequester())
-                            <a href="{{ route('faculty.requests.acknowledgment.show', $request) }}"
-                               class="btn btn-success w-100 mb-2">
-                                <i class="fas fa-signature me-2"></i>Acknowledge Receipt
-                            </a>
+                        @if($request->canGenerateClaimSlip())
+                            <form action="{{ route('faculty.requests.generate-claim-slip', $request) }}" method="POST" class="mb-2">
+                                @csrf
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-ticket-alt me-2"></i>Generate Claim Slip
+                                </button>
+                            </form>
                         @endif
 
-                        @if($request->isFulfilled() || $request->isClaimed())
+                        @if($request->isReadyForPickup() || $request->isFulfilled() || $request->isClaimed())
                             <a href="{{ route('requests.claim-slip', $request) }}"
                                class="btn btn-warning w-100 mb-2"
                                target="_blank">
                                 <i class="fas fa-print me-2"></i>Print Claim Slip
+                            </a>
+                        @endif
+
+                        @if($request->canBeAcknowledgedByRequester())
+                            <a href="{{ route('faculty.requests.acknowledgment.show', $request) }}"
+                               class="btn btn-success w-100 mb-2">
+                                <i class="fas fa-signature me-2"></i>Acknowledge Receipt
                             </a>
                         @endif
 
@@ -185,10 +194,15 @@
                                 <i class="fas fa-info-circle me-2"></i>
                                 Your request is being reviewed. You'll be notified once it's approved.
                             </div>
-                        @elseif($request->isApproved())
+                        @elseif($request->isApprovedByAdmin())
                             <div class="alert alert-success">
                                 <i class="fas fa-check-circle me-2"></i>
-                                Your request has been approved and is being prepared.
+                                Your request has been approved! Click "Generate Claim Slip" to prepare for pickup.
+                            </div>
+                        @elseif($request->isReadyForPickup())
+                            <div class="alert alert-info">
+                                <i class="fas fa-ticket-alt me-2"></i>
+                                Claim slip generated. Print it and visit the supply office to pick up your items.
                             </div>
                         @elseif($request->isFulfilled())
                             <div class="alert alert-warning">
@@ -231,9 +245,9 @@
                             </div>
 
                             <!-- Admin Approval -->
-                            <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined' ? 'declined' : '') }}">
-                                <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined' ? 'bg-danger' : 'bg-secondary') }}">
-                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
+                            <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined' ? 'declined' : '') }}">
+                                <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined' ? 'bg-danger' : 'bg-secondary') }}">
+                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
                                 </div>
                                 <div class="timeline-content">
                                     <h6 class="mb-1">Admin Approval</h6>
@@ -251,37 +265,34 @@
                                 </div>
                             </div>
 
-                            <!-- Request Fulfilled -->
-                            <div class="timeline-item {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'completed' : '' }}">
-                                <div class="timeline-marker {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
-                                    <i class="fas {{ in_array($request->workflow_status, ['fulfilled', 'claimed']) ? 'fa-box' : 'fa-box-open' }} text-white"></i>
+                            <!-- Claim Slip Generation -->
+                            <div class="timeline-item {{ in_array($request->workflow_status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : '' }}">
+                                <div class="timeline-marker {{ in_array($request->workflow_status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
+                                    <i class="fas {{ in_array($request->workflow_status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-ticket-alt' : 'fa-ticket-alt' }} text-white"></i>
                                 </div>
                                 <div class="timeline-content">
-                                    <h6 class="mb-1">Items Prepared</h6>
-                                    @if($request->fulfilled_date)
-                                        <p class="mb-1 text-success small">{{ $request->fulfilled_date->format('M j, Y g:i A') }}</p>
-                                        <p class="mb-1 small">Prepared by {{ $request->fulfilledBy->name ?? 'Administrator' }}</p>
-                                        @if($request->claim_slip_number)
-                                            <p class="mb-0 small">Claim slip: <code>{{ $request->claim_slip_number }}</code></p>
-                                        @endif
+                                    <h6 class="mb-1">Claim Slip Generation</h6>
+                                    @if($request->claim_slip_number && $request->workflow_status !== 'approved_by_admin')
+                                        <p class="mb-1 text-success small">Generated</p>
+                                        <p class="mb-0 small">Claim slip: <code>{{ $request->claim_slip_number }}</code></p>
                                     @else
-                                        <p class="mb-0 text-muted small">Items being prepared</p>
+                                        <p class="mb-0 text-muted small">Waiting for claim slip generation</p>
                                     @endif
                                 </div>
                             </div>
 
-                            <!-- Item Claimed -->
+                            <!-- Item Pickup -->
                             <div class="timeline-item {{ $request->workflow_status === 'claimed' ? 'completed' : '' }}">
                                 <div class="timeline-marker {{ $request->workflow_status === 'claimed' ? 'bg-success' : 'bg-secondary' }}">
                                     <i class="fas {{ $request->workflow_status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} text-white"></i>
                                 </div>
                                 <div class="timeline-content">
-                                    <h6 class="mb-1">Items Received</h6>
+                                    <h6 class="mb-1">Item Pickup & Claim</h6>
                                     @if($request->claimed_date)
                                         <p class="mb-1 text-success small">{{ $request->claimed_date->format('M j, Y g:i A') }}</p>
-                                        <p class="mb-0 small">Received and acknowledged</p>
+                                        <p class="mb-0 small">Items claimed and stock updated</p>
                                     @else
-                                        <p class="mb-0 text-muted small">Waiting for you to pick up and acknowledge receipt</p>
+                                        <p class="mb-0 text-muted small">Visit supply office with printed claim slip</p>
                                     @endif
                                 </div>
                             </div>

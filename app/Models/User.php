@@ -79,6 +79,14 @@ class User extends Authenticatable
         return $this->hasMany(Item::class, 'current_holder_id');
     }
 
+    /**
+     * Get the user's office
+     */
+    public function office()
+    {
+        return $this->belongsTo(Office::class);
+    }
+
     // Role helper methods
     /**
      * Check if user is an admin

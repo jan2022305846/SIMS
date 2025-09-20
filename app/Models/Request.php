@@ -121,14 +121,19 @@ class Request extends Model
         return $this->workflow_status === 'approved_by_admin';
     }
 
+    public function canGenerateClaimSlip()
+    {
+        return $this->workflow_status === 'approved_by_admin';
+    }
+
     public function canBeClaimed()
     {
-        return $this->workflow_status === 'fulfilled';
+        return $this->workflow_status === 'ready_for_pickup';
     }
 
     public function canBeAcknowledgedByRequester()
     {
-        return $this->workflow_status === 'fulfilled' && !$this->acknowledgment;
+        return $this->workflow_status === 'claimed' && !$this->acknowledgment;
     }
 
     public function approveByAdmin(User $user)
@@ -137,6 +142,17 @@ class Request extends Model
             'workflow_status' => 'approved_by_admin',
             'approved_by_admin_id' => $user->id,
             'admin_approval_date' => now(),
+        ]);
+    }
+
+    public function generateClaimSlip()
+    {
+        // Generate claim slip number
+        $claimSlipNumber = 'CS-' . date('Y') . '-' . str_pad($this->id, 6, '0', STR_PAD_LEFT);
+
+        $this->update([
+            'workflow_status' => 'ready_for_pickup',
+            'claim_slip_number' => $claimSlipNumber,
         ]);
     }
 
@@ -159,6 +175,10 @@ class Request extends Model
 
     public function markAsClaimed(User $user)
     {
+        // Reduce stock when items are actually claimed
+        $this->item->current_stock -= $this->quantity;
+        $this->item->save();
+
         $this->update([
             'workflow_status' => 'claimed',
             'claimed_by_id' => $user->id,
@@ -187,6 +207,11 @@ class Request extends Model
         return $this->workflow_status === 'approved_by_admin';
     }
 
+    public function isReadyForPickup()
+    {
+        return $this->workflow_status === 'ready_for_pickup';
+    }
+
     public function isFulfilled()
     {
         return $this->workflow_status === 'fulfilled';
@@ -207,6 +232,7 @@ class Request extends Model
         return match($this->workflow_status) {
             'pending' => 'bg-yellow-100 text-yellow-800',
             'approved_by_admin' => 'bg-green-100 text-green-800',
+            'ready_for_pickup' => 'bg-blue-100 text-blue-800',
             'fulfilled' => 'bg-purple-100 text-purple-800',
             'claimed' => 'bg-gray-100 text-gray-800',
             'declined_by_admin' => 'bg-red-100 text-red-800',
@@ -219,6 +245,7 @@ class Request extends Model
         return match($this->workflow_status) {
             'pending' => 'Pending Admin Review',
             'approved_by_admin' => 'Admin Approved',
+            'ready_for_pickup' => 'Ready for Pickup',
             'fulfilled' => 'Ready for Pickup',
             'claimed' => 'Claimed',
             'declined_by_admin' => 'Declined by Admin',
@@ -245,7 +272,7 @@ class Request extends Model
 
     public function scopeReadyForPickup($query)
     {
-        return $query->where('workflow_status', 'fulfilled');
+        return $query->whereIn('workflow_status', ['ready_for_pickup', 'fulfilled']);
     }
 
     public function scopeByDepartment($query, $department)

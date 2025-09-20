@@ -12,11 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('items', function (Blueprint $table) {
-            $table->date('warranty_date')->nullable()->after('supplier');
-            $table->integer('maximum_stock')->default(100)->after('minimum_stock');
-            $table->integer('current_stock')->default(0)->after('maximum_stock');
-            $table->decimal('unit_price', 10, 2)->default(0)->after('current_stock');
-            $table->decimal('total_value', 12, 2)->default(0)->after('unit_price');
+            if (!Schema::hasColumn('items', 'warranty_date')) {
+                $table->date('warranty_date')->nullable()->after('supplier');
+            }
+            if (!Schema::hasColumn('items', 'maximum_stock')) {
+                $table->integer('maximum_stock')->default(100)->after('minimum_stock');
+            }
+            if (!Schema::hasColumn('items', 'current_stock')) {
+                $table->integer('current_stock')->default(0)->after('maximum_stock');
+            }
+            if (!Schema::hasColumn('items', 'unit_price')) {
+                $table->decimal('unit_price', 10, 2)->default(0)->after('current_stock');
+            }
+            if (!Schema::hasColumn('items', 'total_value')) {
+                $table->decimal('total_value', 12, 2)->default(0)->after('unit_price');
+            }
         });
     }
 

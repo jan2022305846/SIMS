@@ -70,36 +70,51 @@ return new class extends Migration
                 $table->json('attachments')->nullable()->after('claim_slip_number');
             }
             
-            // Add foreign key constraints only if columns exist and constraints don't exist
-            $sm = Schema::getConnection()->getDoctrineSchemaManager();
-            $foreignKeys = $sm->listTableForeignKeys('requests');
-            $foreignKeyNames = array_map(fn($fk) => $fk->getName(), $foreignKeys);
+            // Add foreign key constraints only if columns exist
+            try {
+                if (Schema::hasColumn('requests', 'approved_by_office_head_id')) {
+                    $table->foreign('approved_by_office_head_id')->references('id')->on('users')->onDelete('set null');
+                }
+            } catch (\Exception $e) {
+                // Foreign key might already exist
+            }
+            try {
+                if (Schema::hasColumn('requests', 'approved_by_admin_id')) {
+                    $table->foreign('approved_by_admin_id')->references('id')->on('users')->onDelete('set null');
+                }
+            } catch (\Exception $e) {
+                // Foreign key might already exist
+            }
+            try {
+                if (Schema::hasColumn('requests', 'fulfilled_by_id')) {
+                    $table->foreign('fulfilled_by_id')->references('id')->on('users')->onDelete('set null');
+                }
+            } catch (\Exception $e) {
+                // Foreign key might already exist
+            }
+            try {
+                if (Schema::hasColumn('requests', 'claimed_by_id')) {
+                    $table->foreign('claimed_by_id')->references('id')->on('users')->onDelete('set null');
+                }
+            } catch (\Exception $e) {
+                // Foreign key might already exist
+            }
             
-            if (Schema::hasColumn('requests', 'approved_by_office_head_id') && !in_array('requests_approved_by_office_head_id_foreign', $foreignKeyNames)) {
-                $table->foreign('approved_by_office_head_id')->references('id')->on('users')->onDelete('set null');
-            }
-            if (Schema::hasColumn('requests', 'approved_by_admin_id') && !in_array('requests_approved_by_admin_id_foreign', $foreignKeyNames)) {
-                $table->foreign('approved_by_admin_id')->references('id')->on('users')->onDelete('set null');
-            }
-            if (Schema::hasColumn('requests', 'fulfilled_by_id') && !in_array('requests_fulfilled_by_id_foreign', $foreignKeyNames)) {
-                $table->foreign('fulfilled_by_id')->references('id')->on('users')->onDelete('set null');
-            }
-            if (Schema::hasColumn('requests', 'claimed_by_id') && !in_array('requests_claimed_by_id_foreign', $foreignKeyNames)) {
-                $table->foreign('claimed_by_id')->references('id')->on('users')->onDelete('set null');
-            }
-            
-            // Add indexes if they don't exist
-            $indexes = $sm->listTableIndexes('requests');
-            $indexNames = array_keys($indexes);
-            
-            if (!in_array('requests_workflow_status_index', $indexNames)) {
+            // Add indexes (skip if they already exist)
+            try {
                 $table->index(['workflow_status']);
+            } catch (\Exception $e) {
+                // Index might already exist
             }
-            if (!in_array('requests_priority_index', $indexNames)) {
+            try {
                 $table->index(['priority']);
+            } catch (\Exception $e) {
+                // Index might already exist
             }
-            if (!in_array('requests_department_index', $indexNames)) {
+            try {
                 $table->index(['department']);
+            } catch (\Exception $e) {
+                // Index might already exist
             }
         });
     }
