@@ -433,7 +433,10 @@
             <!-- Left Side - Branding -->
             <div class="login-branding-section">
                 <!-- System Logo/Icon -->
-                <i class="fas fa-boxes fa-4x"></i>
+                <img src="{{ asset('logos/USTP Logo against Dark Background.png') }}"
+                     alt="USTP Logo"
+                     class="ustp-logo mb-4"
+                     style="max-width: 150px; height: auto; filter: brightness(1.1);">
 
                 <!-- Main System Name -->
                 <h1 class="display-3 fw-bold mb-4">

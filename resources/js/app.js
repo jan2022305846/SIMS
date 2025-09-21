@@ -12,10 +12,22 @@ function toggleDarkMode() {
     const html = document.documentElement;
     const currentTheme = html.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
+
     html.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
-    
+
+    // Toggle USTP logo visibility based on theme
+    const lightLogo = document.querySelector('.ustp-logo-light');
+    const darkLogo = document.querySelector('.ustp-logo-dark');
+
+    if (newTheme === 'dark') {
+        if (lightLogo) lightLogo.style.display = 'none';
+        if (darkLogo) darkLogo.style.display = 'inline-block';
+    } else {
+        if (lightLogo) lightLogo.style.display = 'inline-block';
+        if (darkLogo) darkLogo.style.display = 'none';
+    }
+
     // Add a subtle animation to the toggle button
     const toggleBtn = document.querySelector('.dark-mode-toggle');
     if (toggleBtn) {
@@ -32,8 +44,20 @@ function initializeTheme() {
     const savedTheme = localStorage.getItem('theme');
     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     const theme = savedTheme || systemTheme;
-    
+
     html.setAttribute('data-theme', theme);
+
+    // Set USTP logo visibility based on initial theme
+    const lightLogo = document.querySelector('.ustp-logo-light');
+    const darkLogo = document.querySelector('.ustp-logo-dark');
+
+    if (theme === 'dark') {
+        if (lightLogo) lightLogo.style.display = 'none';
+        if (darkLogo) darkLogo.style.display = 'inline-block';
+    } else {
+        if (lightLogo) lightLogo.style.display = 'inline-block';
+        if (darkLogo) darkLogo.style.display = 'none';
+    }
 }
 
 // Listen for system theme changes
@@ -41,7 +65,20 @@ if (window.matchMedia) {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         if (!localStorage.getItem('theme')) {
             const html = document.documentElement;
-            html.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+            const newTheme = e.matches ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+
+            // Update USTP logo visibility for system theme changes
+            const lightLogo = document.querySelector('.ustp-logo-light');
+            const darkLogo = document.querySelector('.ustp-logo-dark');
+
+            if (newTheme === 'dark') {
+                if (lightLogo) lightLogo.style.display = 'none';
+                if (darkLogo) darkLogo.style.display = 'inline-block';
+            } else {
+                if (lightLogo) lightLogo.style.display = 'inline-block';
+                if (darkLogo) darkLogo.style.display = 'none';
+            }
         }
     });
 }

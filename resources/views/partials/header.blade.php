@@ -10,6 +10,18 @@
                 </svg>
             </button>
             <div class="header-brand-section">
+                <!-- USTP Logo - Light Mode -->
+                <img src="{{ asset('logos/USTP Logo against Light Background.png') }}"
+                     alt="USTP Logo"
+                     class="ustp-logo ustp-logo-light"
+                     style="max-width: 60px; height: auto; margin-right: 15px;">
+
+                <!-- USTP Logo - Dark Mode -->
+                <img src="{{ asset('logos/USTP Logo against Dark Background.png') }}"
+                     alt="USTP Logo"
+                     class="ustp-logo ustp-logo-dark"
+                     style="max-width: 60px; height: auto; margin-right: 15px; display: none;">
+
                 <a href="{{ route('dashboard') }}" class="header-brand">SIMS</a>
                 <h1 class="header-title">Supply Office Inventory Management System</h1>
             </div>
