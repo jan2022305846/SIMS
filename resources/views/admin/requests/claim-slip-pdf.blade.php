@@ -6,43 +6,42 @@
     <title>Claim Slip - {{ $request->claim_slip_number }}</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'DejaVu Sans', 'Arial', sans-serif;
             margin: 0;
-            padding: 10px;
-            background: #f8f9fa;
+            padding: 20px;
+            background: #ffffff;
+            color: #333;
             font-size: 12px;
-            line-height: 1.3;
+            line-height: 1.4;
         }
 
         .claim-slip {
             background: white;
             max-width: 800px;
             margin: 0 auto;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 30px;
             border: 2px solid #fcb315;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #fcb315;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #fcb315;
         }
 
         .logo {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: bold;
             color: #2c3e50;
             margin-bottom: 3px;
         }
 
         .title {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: bold;
             color: #fcb315;
-            margin: 5px 0;
+            margin: 8px 0;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
@@ -54,135 +53,142 @@
         }
 
         .section {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .section-title {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: bold;
             color: #2c3e50;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             padding-bottom: 3px;
-            border-bottom: 1px solid #e9ecef;
+            border-bottom: 2px solid #e9ecef;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 10px;
+            display: table;
+            width: 100%;
+            margin-bottom: 15px;
         }
 
-        .info-item {
-            display: flex;
-            margin-bottom: 3px;
+        .info-row {
+            display: table-row;
+        }
+
+        .info-cell {
+            display: table-cell;
+            padding: 4px 0;
+            vertical-align: top;
+        }
+
+        .info-cell:first-child {
+            width: 35%;
         }
 
         .info-label {
             font-weight: bold;
             color: #495057;
-            min-width: 80px;
-            margin-right: 8px;
-            font-size: 11px;
         }
 
         .info-value {
             color: #212529;
-            flex: 1;
-            font-size: 11px;
         }
 
         .item-details {
             background: #f8f9fa;
-            padding: 12px;
+            padding: 15px;
             border-radius: 6px;
-            border-left: 3px solid #fcb315;
-            margin: 8px 0;
+            border-left: 4px solid #fcb315;
+            margin: 12px 0;
         }
 
         .item-name {
             font-size: 16px;
             font-weight: bold;
             color: #2c3e50;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
         .quantity-box {
             background: #fcb315;
             color: white;
-            padding: 6px 12px;
+            padding: 8px 15px;
             border-radius: 4px;
             font-size: 14px;
             font-weight: bold;
             text-align: center;
             display: inline-block;
-            margin: 5px 0;
+            margin: 8px 0;
         }
 
         .purpose-section {
             background: #e3f2fd;
-            padding: 10px;
+            padding: 12px;
             border-radius: 6px;
-            border-left: 3px solid #2196f3;
-            font-size: 11px;
+            border-left: 4px solid #2196f3;
         }
 
         .qr-section {
             text-align: center;
-            margin: 15px 0;
-            padding: 12px;
+            margin: 20px 0;
+            padding: 15px;
             background: #f8f9fa;
-            border-radius: 6px;
-            border: 2px solid #fcb315;
+            border-radius: 8px;
         }
 
         .qr-title {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: bold;
             color: #2c3e50;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .qr-code {
-            width: 100px;
-            height: 100px;
+            width: 120px;
+            height: 120px;
             margin: 0 auto;
-            border: 1px solid #fcb315;
-            border-radius: 4px;
+            border: 2px solid #fcb315;
+            border-radius: 6px;
         }
 
         .qr-note {
             font-size: 10px;
             color: #6c757d;
-            margin-top: 5px;
+            margin-top: 8px;
             font-style: italic;
         }
 
         .signatures {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
-            page-break-inside: avoid;
+            display: table;
+            width: 100%;
+            margin-top: 30px;
+            border-collapse: separate;
+            border-spacing: 30px 0;
         }
 
-        .signature-box {
+        .signature-row {
+            display: table-row;
+        }
+
+        .signature-cell {
+            display: table-cell;
             text-align: center;
+            width: 33%;
         }
 
         .signature-line {
             border-top: 1px solid #333;
-            margin-top: 30px;
+            margin-top: 40px;
             padding-top: 3px;
             font-weight: bold;
-            font-size: 10px;
+            font-size: 11px;
         }
 
         .footer {
-            margin-top: 15px;
-            padding-top: 10px;
+            margin-top: 30px;
+            padding-top: 15px;
             border-top: 1px solid #e9ecef;
             text-align: center;
             color: #6c757d;
@@ -191,9 +197,9 @@
 
         .status-badge {
             display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 10px;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 11px;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -214,83 +220,35 @@
         .important-notes {
             background: #fff3cd;
             border: 1px solid #ffeaa7;
-            border-radius: 4px;
-            padding: 8px;
-            margin-top: 10px;
-            font-size: 10px;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 20px;
         }
 
         .notes-title {
             font-weight: bold;
             color: #856404;
-            margin-bottom: 3px;
+            margin-bottom: 5px;
         }
 
         .notes-list {
             margin: 0;
-            padding-left: 12px;
+            padding-left: 15px;
         }
 
         .notes-list li {
-            margin-bottom: 2px;
-        }
-
-        @media print {
-            body {
-                background: white;
-                padding: 5px;
-            }
-
-            .claim-slip {
-                box-shadow: none;
-                border: 1px solid #fcb315;
-                margin: 0;
-                padding: 15px;
-                font-size: 11px;
-            }
-
-            .no-print {
-                display: none;
-            }
-
-            .qr-code {
-                width: 80px;
-                height: 80px;
-            }
-        }
-
-        .print-button {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: #fcb315;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-        }
-
-        .print-button:hover {
-            background: #e09e00;
+            margin-bottom: 3px;
+            font-size: 11px;
         }
     </style>
 </head>
 <body>
-    <button class="print-button no-print" onclick="window.print()">
-        🖨️ Print Claim Slip
-    </button>
-
     <div class="claim-slip">
         <div class="header">
             <div class="logo">SUPPLY OFFICE MANAGEMENT SYSTEM</div>
             <div class="title">Official Claim Slip</div>
             <div class="claim-number">{{ $request->claim_slip_number }}</div>
-            <div style="margin-top: 5px;">
+            <div style="margin-top: 8px;">
                 <span class="status-badge {{ $request->isClaimed() ? 'status-claimed' : 'status-fulfilled' }}">
                     {{ $request->isClaimed() ? 'CLAIMED' : 'READY FOR PICKUP' }}
                 </span>
@@ -300,31 +258,51 @@
         <div class="section">
             <div class="section-title">Requester Information</div>
             <div class="info-grid">
-                <div>
-                    <div class="info-item">
+                <div class="info-row">
+                    <div class="info-cell">
                         <span class="info-label">Name:</span>
+                    </div>
+                    <div class="info-cell">
                         <span class="info-value">{{ $request->user->name }}</span>
                     </div>
-                    <div class="info-item">
+                </div>
+                <div class="info-row">
+                    <div class="info-cell">
                         <span class="info-label">Email:</span>
+                    </div>
+                    <div class="info-cell">
                         <span class="info-value">{{ $request->user->email }}</span>
                     </div>
-                    <div class="info-item">
+                </div>
+                <div class="info-row">
+                    <div class="info-cell">
                         <span class="info-label">Department:</span>
+                    </div>
+                    <div class="info-cell">
                         <span class="info-value">{{ $request->department }}</span>
                     </div>
                 </div>
-                <div>
-                    <div class="info-item">
+                <div class="info-row">
+                    <div class="info-cell">
                         <span class="info-label">Request Date:</span>
+                    </div>
+                    <div class="info-cell">
                         <span class="info-value">{{ $request->request_date ? $request->request_date->format('M j, Y') : 'N/A' }}</span>
                     </div>
-                    <div class="info-item">
+                </div>
+                <div class="info-row">
+                    <div class="info-cell">
                         <span class="info-label">Needed Date:</span>
+                    </div>
+                    <div class="info-cell">
                         <span class="info-value">{{ $request->needed_date ? $request->needed_date->format('M j, Y') : 'N/A' }}</span>
                     </div>
-                    <div class="info-item">
+                </div>
+                <div class="info-row">
+                    <div class="info-cell">
                         <span class="info-label">Priority:</span>
+                    </div>
+                    <div class="info-cell">
                         <span class="info-value">{{ strtoupper($request->priority) }}</span>
                     </div>
                 </div>
@@ -335,11 +313,15 @@
             <div class="section-title">Item Details</div>
             <div class="item-details">
                 <div class="item-name">{{ $request->item->name }}</div>
-                <div class="info-item">
-                    <span class="info-label">Description:</span>
-                    <span class="info-value">{{ $request->item->description ?? 'N/A' }}</span>
+                <div class="info-row" style="display: table; width: 100%;">
+                    <div style="display: table-cell; padding: 4px 0;">
+                        <span class="info-label">Description:</span>
+                    </div>
+                    <div style="display: table-cell; padding: 4px 0;">
+                        <span class="info-value">{{ $request->item->description ?? 'N/A' }}</span>
+                    </div>
                 </div>
-                <div style="text-align: center; margin: 8px 0;">
+                <div style="text-align: center; margin: 12px 0;">
                     <div class="quantity-box">
                         Quantity: {{ $request->quantity }} {{ $request->item->unit ?? 'pcs' }}
                     </div>
@@ -358,75 +340,84 @@
             <div class="qr-title">Scan QR Code for Verification</div>
             <img src="{{ $qrCodeImage }}" alt="QR Code" class="qr-code">
             <div class="qr-note">
-                Present this code at the supply office for quick verification
+                Scan this code at the supply office for quick verification
             </div>
         </div>
 
         <div class="section">
             <div class="section-title">Fulfillment Information</div>
             <div class="info-grid">
-                <div>
-                    <div class="info-item">
+                <div class="info-row">
+                    <div class="info-cell">
                         <span class="info-label">Fulfilled By:</span>
+                    </div>
+                    <div class="info-cell">
                         <span class="info-value">{{ $request->fulfilledBy->name ?? 'N/A' }}</span>
                     </div>
-                    <div class="info-item">
+                </div>
+                <div class="info-row">
+                    <div class="info-cell">
                         <span class="info-label">Fulfilled Date:</span>
+                    </div>
+                    <div class="info-cell">
                         <span class="info-value">{{ $request->fulfilled_date ? $request->fulfilled_date->format('M j, Y g:i A') : 'N/A' }}</span>
                     </div>
                 </div>
-                <div>
-                    @if($request->isClaimed())
-                        <div class="info-item">
+                @if($request->isClaimed())
+                    <div class="info-row">
+                        <div class="info-cell">
                             <span class="info-label">Claimed By:</span>
+                        </div>
+                        <div class="info-cell">
                             <span class="info-value">{{ $request->claimedBy->name ?? 'N/A' }}</span>
                         </div>
-                        <div class="info-item">
+                    </div>
+                    <div class="info-row">
+                        <div class="info-cell">
                             <span class="info-label">Claimed Date:</span>
+                        </div>
+                        <div class="info-cell">
                             <span class="info-value">{{ $request->claimed_date ? $request->claimed_date->format('M j, Y g:i A') : 'N/A' }}</span>
                         </div>
-                    @endif
-                </div>
+                    </div>
+                @endif
             </div>
         </div>
 
         <div class="signatures">
-            <div class="signature-box">
-                <div class="signature-line">Requestor's Signature</div>
-                <div style="margin-top: 3px; font-size: 10px;">{{ $request->user->name }}</div>
-            </div>
-            <div class="signature-box">
-                <div class="signature-line">Supply Officer's Signature</div>
-                <div style="margin-top: 3px; font-size: 10px;">{{ $request->fulfilledBy->name ?? '_______________' }}</div>
-            </div>
-            <div class="signature-box">
-                <div class="signature-line">Date Received</div>
-                <div style="margin-top: 3px; font-size: 10px;">___/___/______</div>
+            <div class="signature-row">
+                <div class="signature-cell">
+                    <div class="signature-line">Requestor's Signature</div>
+                    <div style="margin-top: 3px; font-size: 10px;">{{ $request->user->name }}</div>
+                </div>
+                <div class="signature-cell">
+                    <div class="signature-line">Supply Officer's Signature</div>
+                    <div style="margin-top: 3px; font-size: 10px;">{{ $request->fulfilledBy->name ?? '_______________' }}</div>
+                </div>
+                <div class="signature-cell">
+                    <div class="signature-line">Date Received</div>
+                    <div style="margin-top: 3px; font-size: 10px;">___/___/______</div>
+                </div>
             </div>
         </div>
 
         <div class="important-notes">
             <div class="notes-title">IMPORTANT NOTES:</div>
             <ul class="notes-list">
-                <li>Present this claim slip when collecting your items</li>
-                <li>Items must be collected within 5 working days</li>
-                <li>Scan the QR code above for verification</li>
+                <li>Please present this claim slip when collecting your items</li>
+                <li>Items must be collected within 5 working days of fulfillment</li>
+                <li>Scan the QR code above for quick verification at the supply office</li>
+                <li>For questions, contact the Supply Office</li>
             </ul>
         </div>
 
         <div class="footer">
-            <p><strong>Generated:</strong> {{ now()->format('M j, Y g:i A') }} |
+            <p><strong>Generated on:</strong> {{ now()->format('F j, Y \a\t g:i A') }} |
             <strong>Claim Slip:</strong> {{ $request->claim_slip_number }}</p>
+            <p style="margin-top: 5px; font-size: 9px;">
+                Supply Office Management System - Official Document
+            </p>
         </div>
     </div>
-
-    <script>
-        // Auto-print when page loads if requested
-        if (new URLSearchParams(window.location.search).get('print') === 'true') {
-            window.onload = function() {
-                window.print();
-            };
-        }
-    </script>
 </body>
 </html>

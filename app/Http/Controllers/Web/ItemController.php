@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class ItemController extends Controller
@@ -376,12 +377,17 @@ class ItemController extends Controller
      */
     public function verifyBarcode($barcode)
     {
+        Log::info('Verify barcode request', ['barcode' => $barcode]);
+
         $item = Item::with('category')
             ->where('barcode', $barcode)
             ->orWhere('qr_code', $barcode)
             ->first();
 
+        Log::info('Item lookup result', ['found' => $item ? true : false, 'item_id' => $item ? $item->id : null]);
+
         if (!$item) {
+            Log::warning('Item not found for barcode', ['barcode' => $barcode]);
             return response()->json([
                 'success' => false,
                 'message' => 'Item not found with this barcode.'

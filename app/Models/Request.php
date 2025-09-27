@@ -128,7 +128,7 @@ class Request extends Model
 
     public function canBeClaimed()
     {
-        return $this->workflow_status === 'ready_for_pickup';
+        return in_array($this->workflow_status, ['ready_for_pickup', 'fulfilled']);
     }
 
     public function canBeAcknowledgedByRequester()
@@ -175,9 +175,12 @@ class Request extends Model
 
     public function markAsClaimed(User $user)
     {
-        // Reduce stock when items are actually claimed
-        $this->item->current_stock -= $this->quantity;
-        $this->item->save();
+        // Only reduce stock for requests that haven't been fulfilled yet
+        // (fulfilled requests already had their stock reduced)
+        if ($this->workflow_status === 'ready_for_pickup') {
+            $this->item->current_stock -= $this->quantity;
+            $this->item->save();
+        }
 
         $this->update([
             'workflow_status' => 'claimed',

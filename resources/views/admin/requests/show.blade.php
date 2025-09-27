@@ -24,11 +24,6 @@
                         </nav>
                     </div>
                     <div class="d-flex gap-2">
-                        @if($request->isFulfilled() || $request->isClaimed())
-                            <a href="{{ route('requests.claim-slip', $request) }}" class="btn btn-warning fw-bold" target="_blank">
-                                <i class="fas fa-print me-1"></i>Print Claim Slip
-                            </a>
-                        @endif
                         <a href="{{ route('requests.manage') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-1"></i>Back
                         </a>
@@ -233,11 +228,11 @@
                                     <label for="item_barcode" class="form-label fw-medium">Scan Item Barcode</label>
                                     <div class="input-group">
                                         <input type="text" name="item_barcode" id="item_barcode" 
-                                               class="form-control" placeholder="Scan or enter item barcode" readonly>
+                                               class="form-control" placeholder="Enter item barcode manually" value="">
                                         <button type="button" class="btn btn-outline-primary" id="scan-item-barcode-btn" title="Scan Barcode">
                                             <i class="fas fa-qrcode"></i>
                                         </button>
-                                        <button type="button" class="btn btn-outline-secondary" id="manual-item-barcode-btn" title="Manual Entry">
+                                        <button type="button" class="btn btn-outline-secondary" id="manual-item-barcode-btn" title="Manual Entry" style="display: none;">
                                             <i class="fas fa-keyboard"></i>
                                         </button>
                                     </div>
@@ -278,11 +273,11 @@
                                     <label for="complete_barcode" class="form-label fw-medium">Scan Item Barcode to Complete Request</label>
                                     <div class="input-group">
                                         <input type="text" name="complete_barcode" id="complete_barcode" 
-                                               class="form-control" placeholder="Scan or enter item barcode" readonly>
+                                               class="form-control" placeholder="Enter item barcode manually" value="">
                                         <button type="button" class="btn btn-outline-primary" id="scan-complete-barcode-btn" title="Scan Barcode">
                                             <i class="fas fa-qrcode"></i>
                                         </button>
-                                        <button type="button" class="btn btn-outline-secondary" id="manual-complete-barcode-btn" title="Manual Entry">
+                                        <button type="button" class="btn btn-outline-secondary" id="manual-complete-barcode-btn" title="Manual Entry" style="display: none;">
                                             <i class="fas fa-keyboard"></i>
                                         </button>
                                     </div>
@@ -322,13 +317,10 @@
                                 <div class="mb-3">
                                     <label for="claim_barcode" class="form-label fw-medium">Scan Claim Slip Barcode</label>
                                     <div class="input-group">
-                                        <input type="text" name="claim_barcode" id="claim_barcode" 
-                                               class="form-control" placeholder="Scan claim slip barcode" readonly>
+                                        <input type="text" name="claim_barcode" id="claim_barcode"
+                                               class="form-control" placeholder="Enter claim slip number manually" value="">
                                         <button type="button" class="btn btn-outline-primary" id="scan-claim-barcode-btn" title="Scan Barcode">
                                             <i class="fas fa-qrcode"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-outline-secondary" id="manual-claim-barcode-btn" title="Manual Entry">
-                                            <i class="fas fa-keyboard"></i>
                                         </button>
                                     </div>
                                     <div class="form-text">
@@ -338,7 +330,7 @@
                                         </small>
                                     </div>
                                 </div>
-                                
+
                                 <div id="verified-claim-details" class="mb-3" style="display: none;">
                                     <div class="card border-success">
                                         <div class="card-header bg-success text-white">
@@ -353,7 +345,39 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
+                                <div class="mb-3">
+                                    <label for="claim_item_barcode" class="form-label fw-medium">Scan Item Barcode</label>
+                                    <div class="input-group">
+                                        <input type="text" name="claim_item_barcode" id="claim_item_barcode"
+                                               class="form-control" placeholder="Enter item barcode manually" value="">
+                                        <button type="button" class="btn btn-outline-primary" id="scan-claim-item-barcode-btn" title="Scan Barcode">
+                                            <i class="fas fa-qrcode"></i>
+                                        </button>
+                                    </div>
+                                    <div class="form-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Scan the item's barcode to verify the physical item matches the request
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <div id="verified-claim-item-details" class="mb-3" style="display: none;">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-check-circle me-2"></i>Item Verified
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="claim-item-details-content">
+                                                <!-- Item details will be populated here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <form method="POST" action="{{ route('requests.claim', $request) }}" class="mb-2">
                                     @csrf
                                     <input type="hidden" name="scanned_barcode" id="scanned_claim_barcode_input">
@@ -391,75 +415,257 @@
                     </div>
                 @endif                <!-- Workflow Timeline -->
                 <div class="card shadow-sm">
-                    <div class="card-header bg-info text-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-history me-2"></i>Workflow Timeline
-                        </h5>
+                    <div class="card-header bg-info text-white d-flex align-items-center">
+                        <i class="fas fa-route me-2"></i>
+                        <h5 class="mb-0">Request Workflow Progress</h5>
+                        <div class="ms-auto">
+                            <small class="text-white-50">
+                                <i class="fas fa-clock me-1"></i>
+                                @if($request->claimed_date)
+                                    Completed in {{ $request->request_date->diffInDays($request->claimed_date) + 1 }} days
+                                @elseif($request->workflow_status === 'claimed')
+                                    Completed
+                                @else
+                                    In Progress
+                                @endif
+                            </small>
+                        </div>
                     </div>
                     <div class="card-body">
-                        <div class="timeline">
-                            <!-- Request Submitted -->
-                            <div class="timeline-item completed">
-                                <div class="timeline-marker bg-success">
-                                    <i class="fas fa-paper-plane text-white"></i>
+                        <div class="workflow-timeline">
+                            <!-- Step 1: Request Submitted -->
+                            <div class="workflow-step completed">
+                                <div class="step-indicator">
+                                    <div class="step-number">1</div>
+                                    <i class="fas fa-paper-plane step-icon"></i>
                                 </div>
-                                <div class="timeline-content">
-                                    <h6 class="mb-1">Request Submitted</h6>
-                                    <p class="mb-1 text-muted small">{{ $request->request_date ? $request->request_date->format('M j, Y g:i A') : 'N/A' }}</p>
-                                    <p class="mb-0 small">Request created by {{ $request->user->name }}</p>
+                                <div class="step-content">
+                                    <div class="step-header">
+                                        <h6 class="step-title mb-1">Request Submitted</h6>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                            <i class="fas fa-check-circle me-1"></i>Completed
+                                        </span>
+                                    </div>
+                                    <div class="step-details">
+                                        <div class="row g-2">
+                                            <div class="col-sm-6">
+                                                <small class="text-muted d-block">
+                                                    <i class="fas fa-calendar me-1"></i>
+                                                    {{ $request->request_date ? $request->request_date->format('M j, Y g:i A') : 'N/A' }}
+                                                </small>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <small class="text-muted d-block">
+                                                    <i class="fas fa-user me-1"></i>
+                                                    {{ $request->user->name }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="step-description mt-2">
+                                            <small class="text-muted">
+                                                Faculty member submitted a request for {{ $request->quantity }} {{ $request->item->unit ?? 'pcs' }} of {{ $request->item->name }}
+                                            </small>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Admin Approval -->
-                            <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined_by_admin' ? 'declined' : '') }}">
-                                <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined_by_admin' ? 'bg-danger' : 'bg-secondary') }}">
-                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined_by_admin' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
+                            <!-- Step 2: Admin Approval -->
+                            <div class="workflow-step {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined_by_admin' ? 'declined' : 'current') }}">
+                                <div class="step-indicator">
+                                    <div class="step-number">2</div>
+                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined_by_admin' ? 'fa-times' : 'fa-shield-alt') }} step-icon"></i>
                                 </div>
-                                <div class="timeline-content">
-                                    <h6 class="mb-1">Admin Approval</h6>
-                                    @if($request->admin_approval_date)
-                                        <p class="mb-1 text-success small">{{ $request->admin_approval_date->format('M j, Y g:i A') }}</p>
-                                        <p class="mb-0 small">Approved by {{ $request->adminApprover->name ?? 'Administrator' }}</p>
-                                    @elseif($request->workflow_status === 'declined_by_admin')
-                                        <p class="mb-1 text-danger small">Declined</p>
-                                        @if($request->admin_notes)
-                                            <p class="mb-0 small text-muted">"{{ $request->admin_notes }}"</p>
+                                <div class="step-content">
+                                    <div class="step-header">
+                                        <h6 class="step-title mb-1">Admin Approval</h6>
+                                        @if(in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']))
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="fas fa-check-circle me-1"></i>Approved
+                                            </span>
+                                        @elseif($request->workflow_status === 'declined_by_admin')
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                                <i class="fas fa-times-circle me-1"></i>Declined
+                                            </span>
+                                        @else
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                                <i class="fas fa-clock me-1"></i>Pending
+                                            </span>
                                         @endif
-                                    @else
-                                        <p class="mb-0 text-muted small">Pending admin approval</p>
-                                    @endif
+                                    </div>
+                                    <div class="step-details">
+                                        @if($request->admin_approval_date)
+                                            <div class="row g-2">
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-calendar-check me-1"></i>
+                                                        {{ $request->admin_approval_date->format('M j, Y g:i A') }}
+                                                    </small>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-user-shield me-1"></i>
+                                                        {{ $request->adminApprover->name ?? 'Administrator' }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <div class="step-description mt-2">
+                                                <small class="text-muted">
+                                                    Request approved and ready for fulfillment
+                                                </small>
+                                            </div>
+                                        @elseif($request->workflow_status === 'declined_by_admin')
+                                            <div class="row g-2">
+                                                <div class="col-12">
+                                                    <small class="text-danger d-block">
+                                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                                        <strong>Declined:</strong> {{ $request->admin_notes ?? 'No reason provided' }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="step-description">
+                                                <small class="text-muted">
+                                                    Waiting for administrator review and approval
+                                                </small>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Claim Slip Generation -->
-                            <div class="timeline-item {{ in_array($request->workflow_status, ['ready_for_pickup', 'claimed']) ? 'completed' : '' }}">
-                                <div class="timeline-marker {{ in_array($request->workflow_status, ['ready_for_pickup', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
-                                    <i class="fas {{ in_array($request->workflow_status, ['ready_for_pickup', 'claimed']) ? 'fa-ticket-alt' : 'fa-ticket-alt' }} text-white"></i>
+                            <!-- Step 3: Claim Slip Generation -->
+                            <div class="workflow-step {{ in_array($request->workflow_status, ['ready_for_pickup', 'claimed']) ? 'completed' : (in_array($request->workflow_status, ['approved_by_admin', 'fulfilled']) ? 'current' : '') }}">
+                                <div class="step-indicator">
+                                    <div class="step-number">3</div>
+                                    <i class="fas fa-ticket-alt step-icon"></i>
                                 </div>
-                                <div class="timeline-content">
-                                    <h6 class="mb-1">Claim Slip Generation</h6>
-                                    @if($request->claim_slip_number && $request->workflow_status !== 'approved_by_admin')
-                                        <p class="mb-1 text-success small">Generated by faculty</p>
-                                        <p class="mb-0 small">Claim slip: <code>{{ $request->claim_slip_number }}</code></p>
-                                    @else
-                                        <p class="mb-0 text-muted small">Waiting for faculty to generate claim slip</p>
-                                    @endif
+                                <div class="step-content">
+                                    <div class="step-header">
+                                        <h6 class="step-title mb-1">Claim Slip Generation</h6>
+                                        @if(in_array($request->workflow_status, ['ready_for_pickup', 'claimed']))
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="fas fa-check-circle me-1"></i>Generated
+                                            </span>
+                                        @elseif(in_array($request->workflow_status, ['approved_by_admin', 'fulfilled']))
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                                <i class="fas fa-clock me-1"></i>Pending
+                                            </span>
+                                        @else
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                                <i class="fas fa-pause me-1"></i>Waiting
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="step-details">
+                                        @if($request->claim_slip_number && $request->workflow_status !== 'approved_by_admin')
+                                            <div class="row g-2">
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-hashtag me-1"></i>
+                                                        <code class="bg-light px-1 rounded">{{ $request->claim_slip_number }}</code>
+                                                    </small>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-qrcode me-1"></i>
+                                                        QR Code Generated
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <div class="step-description mt-2">
+                                                <small class="text-muted">
+                                                    Faculty generated claim slip with QR code for pickup verification
+                                                </small>
+                                            </div>
+                                        @elseif(in_array($request->workflow_status, ['approved_by_admin', 'fulfilled']))
+                                            <div class="step-description">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    Faculty needs to generate a claim slip to proceed with pickup
+                                                </small>
+                                            </div>
+                                        @else
+                                            <div class="step-description">
+                                                <small class="text-muted">
+                                                    Claim slip generation will be available after admin approval
+                                                </small>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Item Claimed -->
-                            <div class="timeline-item {{ $request->workflow_status === 'claimed' ? 'completed' : '' }}">
-                                <div class="timeline-marker {{ $request->workflow_status === 'claimed' ? 'bg-success' : 'bg-secondary' }}">
-                                    <i class="fas {{ $request->workflow_status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} text-white"></i>
+                            <!-- Step 4: Item Claimed -->
+                            <div class="workflow-step {{ $request->workflow_status === 'claimed' ? 'completed' : ($request->workflow_status === 'ready_for_pickup' ? 'current' : '') }}">
+                                <div class="step-indicator">
+                                    <div class="step-number">4</div>
+                                    <i class="fas {{ $request->workflow_status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} step-icon"></i>
                                 </div>
-                                <div class="timeline-content">
-                                    <h6 class="mb-1">Item Claimed</h6>
-                                    @if($request->claimed_date)
-                                        <p class="mb-1 text-success small">{{ $request->claimed_date->format('M j, Y g:i A') }}</p>
-                                        <p class="mb-0 small">Marked as claimed by {{ $request->claimedBy->name ?? 'Administrator' }}</p>
-                                    @else
-                                        <p class="mb-0 text-muted small">Waiting for faculty to pick up items</p>
-                                    @endif
+                                <div class="step-content">
+                                    <div class="step-header">
+                                        <h6 class="step-title mb-1">Item Pickup & Claim</h6>
+                                        @if($request->workflow_status === 'claimed')
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="fas fa-check-circle me-1"></i>Completed
+                                            </span>
+                                        @elseif($request->workflow_status === 'ready_for_pickup')
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                                <i class="fas fa-clock me-1"></i>Ready for Pickup
+                                            </span>
+                                        @else
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                                <i class="fas fa-pause me-1"></i>Waiting
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="step-details">
+                                        @if($request->claimed_date)
+                                            <div class="row g-2">
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-calendar-check me-1"></i>
+                                                        {{ $request->claimed_date->format('M j, Y g:i A') }}
+                                                    </small>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-user-check me-1"></i>
+                                                        {{ $request->claimedBy->name ?? 'Administrator' }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <div class="step-description mt-2">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-check-double me-1"></i>
+                                                    Dual verification completed: Claim slip QR + Item barcode scanned
+                                                </small>
+                                            </div>
+                                        @elseif($request->workflow_status === 'ready_for_pickup')
+                                            <div class="step-description">
+                                                <small class="text-primary">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    Ready for faculty pickup at supply office with claim slip
+                                                </small>
+                                            </div>
+                                            <div class="mt-2">
+                                                <small class="text-muted d-block">
+                                                    <strong>Next Steps:</strong>
+                                                </small>
+                                                <ul class="mb-0 mt-1 small text-muted">
+                                                    <li>Faculty presents claim slip QR code</li>
+                                                    <li>Admin scans item barcode for verification</li>
+                                                    <li>Items are handed over and marked as claimed</li>
+                                                </ul>
+                                            </div>
+                                        @else
+                                            <div class="step-description">
+                                                <small class="text-muted">
+                                                    Item pickup will be available after claim slip generation
+                                                </small>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -515,58 +721,239 @@
         background-color: #8b5cf6 !important;
     }
     
-    .timeline {
+    /* Enhanced Workflow Timeline Styles */
+    .workflow-timeline {
         position: relative;
-        padding-left: 30px;
+        padding-left: 60px;
     }
     
-    .timeline::before {
+    .workflow-timeline::before {
         content: '';
         position: absolute;
-        left: 18px;
+        left: 28px;
         top: 0;
         bottom: 0;
-        width: 2px;
-        background: #e9ecef;
+        width: 3px;
+        background: linear-gradient(to bottom, #e9ecef 0%, #dee2e6 100%);
+        border-radius: 2px;
     }
     
-    .timeline-item {
+    .workflow-step {
         position: relative;
-        margin-bottom: 30px;
+        margin-bottom: 40px;
+        opacity: 0.7;
+        transition: all 0.3s ease;
     }
     
-    .timeline-item:last-child {
+    .workflow-step.completed {
+        opacity: 1;
+    }
+    
+    .workflow-step.current {
+        opacity: 1;
+        animation: pulse 2s infinite;
+    }
+    
+    .workflow-step.declined {
+        opacity: 1;
+    }
+    
+    .workflow-step:last-child {
         margin-bottom: 0;
     }
     
-    .timeline-marker {
+    .step-indicator {
         position: absolute;
-        left: -42px;
+        left: -52px;
         top: 0;
-        width: 36px;
-        height: 36px;
+        width: 56px;
+        height: 56px;
         border-radius: 50%;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        border: 3px solid #fff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 4px solid #fff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        transition: all 0.3s ease;
+        z-index: 2;
     }
     
-    .timeline-content {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        border-left: 3px solid #dee2e6;
+    .workflow-step.completed .step-indicator {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
     }
     
-    .timeline-item.completed .timeline-content {
-        border-left-color: #28a745;
+    .workflow-step.current .step-indicator {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
+        animation: pulse-ring 2s infinite;
     }
     
-    .timeline-item.declined .timeline-content {
-        border-left-color: #dc3545;
-        background: #f8d7da;
+    .workflow-step.declined .step-indicator {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(220, 53, 69, 0.3);
+    }
+    
+    .step-number {
+        font-size: 12px;
+        font-weight: bold;
+        line-height: 1;
+        margin-bottom: 2px;
+    }
+    
+    .step-icon {
+        font-size: 16px;
+        line-height: 1;
+    }
+    
+    .step-content {
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 12px;
+        border: 2px solid #f1f3f4;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .workflow-step.completed .step-content {
+        border-color: #d4edda;
+        background: linear-gradient(135deg, #f8fff9 0%, #ffffff 100%);
+        box-shadow: 0 4px 16px rgba(40, 167, 69, 0.1);
+    }
+    
+    .workflow-step.current .step-content {
+        border-color: #cce7ff;
+        background: linear-gradient(135deg, #f0f8ff 0%, #ffffff 100%);
+        box-shadow: 0 4px 16px rgba(0, 123, 255, 0.15);
+        transform: translateY(-2px);
+    }
+    
+    .workflow-step.declined .step-content {
+        border-color: #f5c6cb;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+        box-shadow: 0 4px 16px rgba(220, 53, 69, 0.1);
+    }
+    
+    .step-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .step-title {
+        margin: 0;
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 1.1rem;
+    }
+    
+    .step-details {
+        color: #6c757d;
+    }
+    
+    .step-description {
+        font-style: italic;
+        line-height: 1.4;
+    }
+    
+    /* Badge improvements */
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 4px 8px;
+        border-radius: 6px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .workflow-timeline {
+            padding-left: 50px;
+        }
+        
+        .step-indicator {
+            left: -42px;
+            width: 48px;
+            height: 48px;
+        }
+        
+        .step-content {
+            padding: 16px;
+        }
+        
+        .step-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+        }
+        
+        .step-title {
+            font-size: 1rem;
+        }
+    }
+    
+    /* Pulse animations */
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.8;
+        }
+    }
+    
+    @keyframes pulse-ring {
+        0% {
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3), 0 0 0 0 rgba(0, 123, 255, 0.7);
+        }
+        70% {
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3), 0 0 0 10px rgba(0, 123, 255, 0);
+        }
+        100% {
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3), 0 0 0 0 rgba(0, 123, 255, 0);
+        }
+    }
+    
+    /* Progress line styling */
+    .workflow-step.completed::before {
+        content: '';
+        position: absolute;
+        left: -35px;
+        top: 56px;
+        width: 3px;
+        height: 40px;
+        background: linear-gradient(to bottom, #28a745 0%, #dee2e6 100%);
+        z-index: 1;
+    }
+    
+    .workflow-step.current::before {
+        content: '';
+        position: absolute;
+        left: -35px;
+        top: 56px;
+        width: 3px;
+        height: 40px;
+        background: linear-gradient(to bottom, #007bff 0%, #dee2e6 100%);
+        z-index: 1;
+    }
+    
+    .workflow-step.declined::before {
+        content: '';
+        position: absolute;
+        left: -35px;
+        top: 56px;
+        width: 3px;
+        height: 40px;
+        background: linear-gradient(to bottom, #dc3545 0%, #dee2e6 100%);
+        z-index: 1;
     }
 
     /* Modal improvements */
@@ -610,8 +997,7 @@
 @endif
 
 @if(session('error') || $errors->any())
-    <!-- Temporarily disabled error display for debugging -->
-    {{-- <script>
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
             const toast = document.createElement('div');
             toast.className = 'toast align-items-center text-white bg-danger border-0';
@@ -625,20 +1011,20 @@
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                 </div>
             `;
-            
+
             const toastContainer = document.createElement('div');
             toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
             toastContainer.appendChild(toast);
             document.body.appendChild(toastContainer);
-            
+
             const bsToast = new bootstrap.Toast(toast);
             bsToast.show();
-            
+
             setTimeout(() => {
                 document.body.removeChild(toastContainer);
             }, 5000);
-});
-</script> --}}
+        });
+    </script>
 @endif
 
 @push('scripts')
@@ -650,6 +1036,8 @@ document.addEventListener('DOMContentLoaded', function() {
     script.src = 'https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js';
     script.onload = function() {
         initializeClaimBarcodeScanner();
+        initializeClaimItemBarcodeScanner();
+        initializeCompleteBarcodeScanner();
     };
     document.head.appendChild(script);
     
@@ -673,14 +1061,16 @@ function initializeItemBarcodeScanner() {
     let scannerContainer = null;
 
     const scanBtn = document.getElementById('scan-item-barcode-btn');
-    const manualBtn = document.getElementById('manual-item-barcode-btn');
     const barcodeInput = document.getElementById('item_barcode');
     const scannedBarcodeInput = document.getElementById('scanned_barcode_input');
     const fulfillBtn = document.getElementById('fulfill-btn');
     const itemDetailsDiv = document.getElementById('scanned-item-details');
     const itemDetailsContent = document.getElementById('item-details-content');
 
-    if (!scanBtn || !manualBtn || !barcodeInput) return; // Exit if elements don't exist
+    if (!scanBtn || !barcodeInput) return; // Exit if elements don't exist
+
+    // Add manual input handler directly to the input field
+    barcodeInput.addEventListener('input', handleManualBarcodeInput);
 
     // Scan barcode button
     scanBtn.addEventListener('click', function() {
@@ -689,17 +1079,6 @@ function initializeItemBarcodeScanner() {
         } else {
             startItemScanner();
         }
-    });
-
-    // Manual entry button
-    manualBtn.addEventListener('click', function() {
-        stopItemScanner();
-        barcodeInput.readOnly = false;
-        barcodeInput.placeholder = "Enter barcode manually";
-        barcodeInput.focus();
-        
-        // Add manual input handler
-        barcodeInput.addEventListener('input', handleManualBarcodeInput);
     });
 
     function handleManualBarcodeInput() {
@@ -713,9 +1092,8 @@ function initializeItemBarcodeScanner() {
 
     function startItemScanner() {
         scannerActive = true;
-        barcodeInput.readOnly = true;
         
-        // Create scanner container
+        // Create scanner container with better positioning
         scannerContainer = document.createElement('div');
         scannerContainer.id = 'item-barcode-scanner-container';
         scannerContainer.style.cssText = `
@@ -723,28 +1101,63 @@ function initializeItemBarcodeScanner() {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 9999;
+            z-index: 10000;
             background: white;
             border: 2px solid #007bff;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            width: 400px;
-            max-width: 90vw;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            width: 420px;
+            max-width: 95vw;
+            max-height: 90vh;
+            overflow-y: auto;
         `;
 
         scannerContainer.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>Scan Item Barcode</h5>
-                <button type="button" class="btn-close" id="close-item-scanner"></button>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-qrcode me-2 text-primary"></i>Scan Item Barcode</h5>
+                <button type="button" class="btn-close" id="close-item-scanner" aria-label="Close"></button>
             </div>
-            <div id="item-scanner-viewport" style="width: 100%; height: 300px; border: 1px solid #ddd;"></div>
+            <div id="item-scanner-viewport" style="
+                width: 100%; 
+                height: 320px; 
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                background: #f8f9fa;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+            "></div>
             <div class="mt-3 text-center">
-                <small class="text-muted">Position item barcode in front of camera</small>
+                <small class="text-muted">
+                    <i class="fas fa-camera me-1"></i>
+                    Position item barcode in front of camera
+                </small>
+            </div>
+            <div class="mt-3 text-center">
+                <small class="text-secondary">
+                    Camera will automatically detect and scan the barcode
+                </small>
             </div>
         `;
 
         document.body.appendChild(scannerContainer);
+
+        // Add backdrop
+        const backdrop = document.createElement('div');
+        backdrop.id = 'item-scanner-backdrop';
+        backdrop.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(2px);
+            z-index: 9999;
+        `;
+        document.body.appendChild(backdrop);
 
         // Initialize Quagga
         Quagga.init({
@@ -799,6 +1212,16 @@ function initializeItemBarcodeScanner() {
 
         // Close scanner button
         document.getElementById('close-item-scanner').addEventListener('click', stopItemScanner);
+        
+        // Close on backdrop click
+        backdrop.addEventListener('click', stopItemScanner);
+        
+        // Close on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                stopItemScanner();
+            }
+        });
     }
 
     function stopItemScanner() {
@@ -807,6 +1230,12 @@ function initializeItemBarcodeScanner() {
         if (scannerContainer) {
             document.body.removeChild(scannerContainer);
             scannerContainer = null;
+        }
+        
+        // Remove backdrop
+        const backdrop = document.getElementById('item-scanner-backdrop');
+        if (backdrop) {
+            document.body.removeChild(backdrop);
         }
         
         if (typeof Quagga !== 'undefined') {
@@ -832,7 +1261,7 @@ function initializeItemBarcodeScanner() {
         itemDetailsDiv.style.display = 'block';
 
         // Make AJAX request to verify item
-        fetch(`/api/items/verify-barcode/${barcode}`, {
+        fetch(`{{ url('items/verify-barcode') }}/${barcode}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -894,28 +1323,7 @@ function initializeItemBarcodeScanner() {
     function hideItemDetails() {
         itemDetailsDiv.style.display = 'none';
         scannedBarcodeInput.value = '';
-    }
-
-    function displayItemDetails(item) {
-        itemDetailsContent.innerHTML = `
-            <div class="row">
-                <div class="col-md-6">
-                    <h6 class="text-success mb-2"><i class="fas fa-tag me-1"></i>Item Information</h6>
-                    <p class="mb-1"><strong>Name:</strong> ${item.name}</p>
-                    <p class="mb-1"><strong>Barcode:</strong> <code>${item.barcode || 'N/A'}</code></p>
-                    <p class="mb-1"><strong>Brand:</strong> ${item.brand || 'N/A'}</p>
-                    <p class="mb-1"><strong>Category:</strong> ${item.category ? item.category.name : 'N/A'}</p>
-                </div>
-                <div class="col-md-6">
-                    <h6 class="text-success mb-2"><i class="fas fa-boxes me-1"></i>Stock Information</h6>
-                    <p class="mb-1"><strong>Current Stock:</strong> ${item.current_stock} ${item.unit || 'pcs'}</p>
-                    <p class="mb-1"><strong>Minimum Stock:</strong> ${item.minimum_stock || 'N/A'}</p>
-                    <p class="mb-1"><strong>Location:</strong> ${item.location || 'N/A'}</p>
-                    <p class="mb-1"><strong>Condition:</strong> ${item.condition || 'N/A'}</p>
-                </div>
-            </div>
-            ${item.description ? `<div class="mt-2"><strong>Description:</strong> ${item.description}</div>` : ''}
-        `;
+        fulfillBtn.disabled = true;
     }
 
     function showItemError(message) {
@@ -926,12 +1334,6 @@ function initializeItemBarcodeScanner() {
             </div>
         `;
         itemDetailsDiv.style.display = 'block';
-    }
-
-    function hideItemDetails() {
-        itemDetailsDiv.style.display = 'none';
-        fulfillBtn.disabled = true;
-        scannedBarcodeInput.value = '';
     }
 
     function showToast(message, type = 'info') {
@@ -962,14 +1364,16 @@ function initializeClaimBarcodeScanner() {
     let scannerContainer = null;
 
     const scanBtn = document.getElementById('scan-claim-barcode-btn');
-    const manualBtn = document.getElementById('manual-claim-barcode-btn');
     const barcodeInput = document.getElementById('claim_barcode');
     const scannedBarcodeInput = document.getElementById('scanned_claim_barcode_input');
     const claimBtn = document.getElementById('claim-btn');
     const claimDetailsDiv = document.getElementById('verified-claim-details');
     const claimDetailsContent = document.getElementById('claim-details-content');
 
-    if (!scanBtn || !manualBtn || !barcodeInput) return; // Exit if elements don't exist
+    if (!scanBtn || !barcodeInput) return; // Exit if elements don't exist
+
+    // Add manual input handler directly to the input field
+    barcodeInput.addEventListener('input', handleManualClaimInput);
 
     // Scan barcode button
     scanBtn.addEventListener('click', function() {
@@ -978,17 +1382,6 @@ function initializeClaimBarcodeScanner() {
         } else {
             startClaimScanner();
         }
-    });
-
-    // Manual entry button
-    manualBtn.addEventListener('click', function() {
-        stopClaimScanner();
-        barcodeInput.readOnly = false;
-        barcodeInput.placeholder = "Enter claim slip number manually";
-        barcodeInput.focus();
-        
-        // Add manual input handler
-        barcodeInput.addEventListener('input', handleManualClaimInput);
     });
 
     function handleManualClaimInput() {
@@ -1002,7 +1395,6 @@ function initializeClaimBarcodeScanner() {
 
     function startClaimScanner() {
         scannerActive = true;
-        barcodeInput.readOnly = true;
         
         // Create scanner container
         scannerContainer = document.createElement('div');
@@ -1123,8 +1515,7 @@ function initializeClaimBarcodeScanner() {
         // Check if the scanned claim slip matches this request
         if (claimSlipNumber === '{{ $request->claim_slip_number }}') {
             displayClaimDetails();
-            claimBtn.disabled = false;
-            scannedBarcodeInput.value = claimSlipNumber;
+            checkClaimButtonState(); // Check if both verifications are complete
         } else {
             showClaimError('Claim slip does not match this request. Please scan the correct claim slip.');
             claimBtn.disabled = true;
@@ -1167,7 +1558,618 @@ function initializeClaimBarcodeScanner() {
     function hideClaimDetails() {
         claimDetailsDiv.style.display = 'none';
         scannedBarcodeInput.value = '';
-        claimBtn.disabled = true;
+        checkClaimButtonState();
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = `
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            min-width: 300px;
+        `;
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 3000);
+    }
+}
+
+function initializeClaimItemBarcodeScanner() {
+    let scannerActive = false;
+    let scannerContainer = null;
+
+    const scanBtn = document.getElementById('scan-claim-item-barcode-btn');
+    const barcodeInput = document.getElementById('claim_item_barcode');
+    const claimBtn = document.getElementById('claim-btn');
+    const itemDetailsDiv = document.getElementById('verified-claim-item-details');
+    const itemDetailsContent = document.getElementById('claim-item-details-content');
+
+    if (!scanBtn || !barcodeInput) return; // Exit if elements don't exist
+
+    // Add manual input handler directly to the input field
+    barcodeInput.addEventListener('input', handleManualClaimItemInput);
+
+    // Scan barcode button
+    scanBtn.addEventListener('click', function() {
+        if (scannerActive) {
+            stopClaimItemScanner();
+        } else {
+            startClaimItemScanner();
+        }
+    });
+
+    function handleManualClaimItemInput() {
+        const barcode = barcodeInput.value.trim();
+        if (barcode.length > 0) {
+            verifyAndDisplayClaimItem(barcode);
+        } else {
+            hideClaimItemDetails();
+        }
+    }
+
+    function startClaimItemScanner() {
+        scannerActive = true;
+        
+        // Create scanner container with better positioning
+        scannerContainer = document.createElement('div');
+        scannerContainer.id = 'claim-item-barcode-scanner-container';
+        scannerContainer.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10000;
+            background: white;
+            border: 2px solid #007bff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            width: 420px;
+            max-width: 95vw;
+            max-height: 90vh;
+            overflow-y: auto;
+        `;
+
+        scannerContainer.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-qrcode me-2 text-primary"></i>Scan Item Barcode</h5>
+                <button type="button" class="btn-close" id="close-claim-item-scanner" aria-label="Close"></button>
+            </div>
+            <div id="claim-item-scanner-viewport" style="
+                width: 100%; 
+                height: 320px; 
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                background: #f8f9fa;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+            "></div>
+            <div class="mt-3 text-center">
+                <small class="text-muted">
+                    <i class="fas fa-camera me-1"></i>
+                    Position item barcode in front of camera
+                </small>
+            </div>
+            <div class="mt-3 text-center">
+                <small class="text-secondary">
+                    Camera will automatically detect and scan the barcode
+                </small>
+            </div>
+        `;
+
+        document.body.appendChild(scannerContainer);
+
+        // Add backdrop
+        const backdrop = document.createElement('div');
+        backdrop.id = 'claim-item-scanner-backdrop';
+        backdrop.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(2px);
+            z-index: 9999;
+        `;
+        document.body.appendChild(backdrop);
+
+        // Initialize Quagga
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: document.querySelector('#claim-item-scanner-viewport'),
+                constraints: {
+                    width: 640,
+                    height: 480,
+                    facingMode: "environment" // Use back camera on mobile
+                }
+            },
+            locator: {
+                patchSize: "medium",
+                halfSample: true
+            },
+            numOfWorkers: 2,
+            decoder: {
+                readers: [
+                    "code_128_reader",
+                    "ean_reader",
+                    "ean_8_reader",
+                    "code_39_reader",
+                    "upc_reader",
+                    "upc_e_reader",
+                    "codabar_reader"
+                ]
+            },
+            locate: true
+        }, function(err) {
+            if (err) {
+                console.error(err);
+                alert('Error initializing camera: ' + err.message);
+                stopClaimItemScanner();
+                return;
+            }
+            Quagga.start();
+        });
+
+        // Handle barcode detection
+        Quagga.onDetected(function(result) {
+            const code = result.codeResult.code;
+            barcodeInput.value = code;
+            verifyAndDisplayClaimItem(code);
+            stopClaimItemScanner();
+            
+            // Show success message
+            showToast('Item barcode scanned successfully!', 'success');
+        });
+
+        // Close scanner button
+        document.getElementById('close-claim-item-scanner').addEventListener('click', stopClaimItemScanner);
+        
+        // Close on backdrop click
+        backdrop.addEventListener('click', stopClaimItemScanner);
+        
+        // Close on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                stopClaimItemScanner();
+            }
+        });
+    }
+
+    function stopClaimItemScanner() {
+        scannerActive = false;
+        
+        if (scannerContainer) {
+            document.body.removeChild(scannerContainer);
+            scannerContainer = null;
+        }
+        
+        // Remove backdrop
+        const backdrop = document.getElementById('claim-item-scanner-backdrop');
+        if (backdrop) {
+            document.body.removeChild(backdrop);
+        }
+        
+        if (typeof Quagga !== 'undefined') {
+            Quagga.stop();
+        }
+        
+        scanBtn.innerHTML = '<i class="fas fa-qrcode"></i>';
+        scanBtn.classList.remove('btn-danger');
+        scanBtn.classList.add('btn-outline-primary');
+        scanBtn.title = 'Scan Barcode';
+    }
+
+    function verifyAndDisplayClaimItem(barcode) {
+        // Show loading state
+        itemDetailsContent.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-2">Verifying item...</div>
+            </div>
+        `;
+        itemDetailsDiv.style.display = 'block';
+
+        // Make AJAX request to verify item
+        fetch(`{{ url('items/verify-barcode') }}/${barcode}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Check if the scanned item matches the requested item
+                if (data.item.id == '{{ $request->item->id }}') {
+                    displayClaimItemDetails(data.item);
+                    // Set the hidden input to the verified item barcode
+                    document.getElementById('scanned_claim_barcode_input').value = barcode;
+                    checkClaimButtonState(); // Check if both verifications are complete
+                } else {
+                    showClaimItemError('Scanned item does not match the requested item. Please scan the correct item.');
+                    // Clear the hidden input on error
+                    document.getElementById('scanned_claim_barcode_input').value = '';
+                }
+            } else {
+                showClaimItemError('Item not found or invalid barcode');
+                // Clear the hidden input on error
+                document.getElementById('scanned_claim_barcode_input').value = '';
+            }
+        })
+        .catch(error => {
+            console.error('Error verifying barcode:', error);
+            showClaimItemError('Error verifying barcode. Please try again.');
+            // Clear the hidden input on error
+            document.getElementById('scanned_claim_barcode_input').value = '';
+        });
+    }
+
+    function displayClaimItemDetails(item) {
+        itemDetailsContent.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-success mb-2"><i class="fas fa-tag me-1"></i>Item Information</h6>
+                    <p class="mb-1"><strong>Name:</strong> ${item.name}</p>
+                    <p class="mb-1"><strong>Barcode:</strong> <code>${item.barcode || 'N/A'}</code></p>
+                    <p class="mb-1"><strong>Brand:</strong> ${item.brand || 'N/A'}</p>
+                    <p class="mb-1"><strong>Category:</strong> ${item.category ? item.category.name : 'N/A'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-success mb-2"><i class="fas fa-boxes me-1"></i>Stock Information</h6>
+                    <p class="mb-1"><strong>Current Stock:</strong> ${item.current_stock} ${item.unit || 'pcs'}</p>
+                    <p class="mb-1"><strong>Minimum Stock:</strong> ${item.minimum_stock || 'N/A'}</p>
+                    <p class="mb-1"><strong>Location:</strong> ${item.location || 'N/A'}</p>
+                    <p class="mb-1"><strong>Condition:</strong> ${item.condition || 'N/A'}</p>
+                </div>
+            </div>
+            <div class="mt-2">
+                <strong>Status:</strong> <span class="badge bg-success">Verified - Matches Request</span>
+            </div>
+        `;
+    }
+
+    function showClaimItemError(message) {
+        itemDetailsContent.innerHTML = `
+            <div class="alert alert-danger mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${message}
+            </div>
+        `;
+        itemDetailsDiv.style.display = 'block';
+    }
+
+    function hideClaimItemDetails() {
+        itemDetailsDiv.style.display = 'none';
+        // Clear the hidden input when item verification is cleared
+        document.getElementById('scanned_claim_barcode_input').value = '';
+        checkClaimButtonState();
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = `
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            min-width: 300px;
+        `;
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 3000);
+    }
+}
+
+function checkClaimButtonState() {
+    const claimBtn = document.getElementById('claim-btn');
+    const claimDetailsDiv = document.getElementById('verified-claim-details');
+    const itemDetailsDiv = document.getElementById('verified-claim-item-details');
+    
+    // Enable button only if both claim slip and item are verified
+    const claimSlipVerified = claimDetailsDiv.style.display !== 'none' && 
+                             !claimDetailsDiv.querySelector('.alert-danger');
+    const itemVerified = itemDetailsDiv.style.display !== 'none' && 
+                        !itemDetailsDiv.querySelector('.alert-danger');
+    
+    claimBtn.disabled = !(claimSlipVerified && itemVerified);
+}
+
+function initializeCompleteBarcodeScanner() {
+    let scannerActive = false;
+    let scannerContainer = null;
+
+    const scanBtn = document.getElementById('scan-complete-barcode-btn');
+    const barcodeInput = document.getElementById('complete_barcode');
+    const scannedBarcodeInput = document.getElementById('scanned_complete_barcode_input');
+    const completeBtn = document.getElementById('complete-btn');
+    const completeDetailsDiv = document.getElementById('verified-complete-details');
+    const completeDetailsContent = document.getElementById('complete-details-content');
+
+    if (!scanBtn || !barcodeInput) return; // Exit if elements don't exist
+
+    // Add manual input handler directly to the input field
+    barcodeInput.addEventListener('input', handleManualCompleteInput);
+
+    // Scan barcode button
+    scanBtn.addEventListener('click', function() {
+        if (scannerActive) {
+            stopCompleteScanner();
+        } else {
+            startCompleteScanner();
+        }
+    });
+
+    function handleManualCompleteInput() {
+        const barcode = barcodeInput.value.trim();
+        if (barcode.length > 0) {
+            verifyAndDisplayComplete(barcode);
+        } else {
+            hideCompleteDetails();
+        }
+    }
+
+    function startCompleteScanner() {
+        scannerActive = true;
+        
+        // Create scanner container with better positioning
+        scannerContainer = document.createElement('div');
+        scannerContainer.id = 'complete-barcode-scanner-container';
+        scannerContainer.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10000;
+            background: white;
+            border: 2px solid #007bff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            width: 420px;
+            max-width: 95vw;
+            max-height: 90vh;
+            overflow-y: auto;
+        `;
+
+        scannerContainer.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-qrcode me-2 text-primary"></i>Scan Item Barcode</h5>
+                <button type="button" class="btn-close" id="close-complete-scanner" aria-label="Close"></button>
+            </div>
+            <div id="complete-scanner-viewport" style="
+                width: 100%; 
+                height: 320px; 
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                background: #f8f9fa;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+            "></div>
+            <div class="mt-3 text-center">
+                <small class="text-muted">
+                    <i class="fas fa-camera me-1"></i>
+                    Position item barcode in front of camera
+                </small>
+            </div>
+            <div class="mt-3 text-center">
+                <small class="text-secondary">
+                    Camera will automatically detect and scan the barcode
+                </small>
+            </div>
+        `;
+
+        document.body.appendChild(scannerContainer);
+
+        // Add backdrop
+        const backdrop = document.createElement('div');
+        backdrop.id = 'complete-scanner-backdrop';
+        backdrop.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(2px);
+            z-index: 9999;
+        `;
+        document.body.appendChild(backdrop);
+
+        // Initialize Quagga
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: document.querySelector('#complete-scanner-viewport'),
+                constraints: {
+                    width: 640,
+                    height: 480,
+                    facingMode: "environment" // Use back camera on mobile
+                }
+            },
+            locator: {
+                patchSize: "medium",
+                halfSample: true
+            },
+            numOfWorkers: 2,
+            decoder: {
+                readers: [
+                    "code_128_reader",
+                    "ean_reader",
+                    "ean_8_reader",
+                    "code_39_reader",
+                    "upc_reader",
+                    "upc_e_reader",
+                    "codabar_reader"
+                ]
+            },
+            locate: true
+        }, function(err) {
+            if (err) {
+                console.error(err);
+                alert('Error initializing camera: ' + err.message);
+                stopCompleteScanner();
+                return;
+            }
+            Quagga.start();
+        });
+
+        // Handle barcode detection
+        Quagga.onDetected(function(result) {
+            const code = result.codeResult.code;
+            barcodeInput.value = code;
+            scannedBarcodeInput.value = code;
+            verifyAndDisplayComplete(code);
+            stopCompleteScanner();
+            
+            // Show success message
+            showToast('Item barcode scanned successfully!', 'success');
+        });
+
+        // Close scanner button
+        document.getElementById('close-complete-scanner').addEventListener('click', stopCompleteScanner);
+        
+        // Close on backdrop click
+        backdrop.addEventListener('click', stopCompleteScanner);
+        
+        // Close on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                stopCompleteScanner();
+            }
+        });
+    }
+
+    function stopCompleteScanner() {
+        scannerActive = false;
+        
+        if (scannerContainer) {
+            document.body.removeChild(scannerContainer);
+            scannerContainer = null;
+        }
+        
+        // Remove backdrop
+        const backdrop = document.getElementById('complete-scanner-backdrop');
+        if (backdrop) {
+            document.body.removeChild(backdrop);
+        }
+        
+        if (typeof Quagga !== 'undefined') {
+            Quagga.stop();
+        }
+        
+        scanBtn.innerHTML = '<i class="fas fa-qrcode"></i>';
+        scanBtn.classList.remove('btn-danger');
+        scanBtn.classList.add('btn-outline-primary');
+        scanBtn.title = 'Scan Barcode';
+    }
+
+    function verifyAndDisplayComplete(barcode) {
+        // Show loading state
+        completeDetailsContent.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-2">Verifying item...</div>
+            </div>
+        `;
+        completeDetailsDiv.style.display = 'block';
+
+        // Make AJAX request to verify item
+        fetch(`{{ url('items/verify-barcode') }}/${barcode}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayCompleteDetails(data.item);
+                completeBtn.disabled = false;
+                scannedBarcodeInput.value = barcode;
+            } else {
+                showCompleteError('Item not found or invalid barcode');
+                completeBtn.disabled = true;
+                scannedBarcodeInput.value = '';
+            }
+        })
+        .catch(error => {
+            console.error('Error verifying barcode:', error);
+            showCompleteError('Error verifying barcode. Please try again.');
+            completeBtn.disabled = true;
+            scannedBarcodeInput.value = '';
+        });
+    }
+
+    function displayCompleteDetails(item) {
+        completeDetailsContent.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-success mb-2"><i class="fas fa-tag me-1"></i>Item Information</h6>
+                    <p class="mb-1"><strong>Name:</strong> ${item.name}</p>
+                    <p class="mb-1"><strong>Barcode:</strong> <code>${item.barcode || 'N/A'}</code></p>
+                    <p class="mb-1"><strong>Brand:</strong> ${item.brand || 'N/A'}</p>
+                    <p class="mb-1"><strong>Category:</strong> ${item.category ? item.category.name : 'N/A'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-success mb-2"><i class="fas fa-boxes me-1"></i>Stock Information</h6>
+                    <p class="mb-1"><strong>Current Stock:</strong> ${item.current_stock} ${item.unit || 'pcs'}</p>
+                    <p class="mb-1"><strong>Minimum Stock:</strong> ${item.minimum_stock || 'N/A'}</p>
+                    <p class="mb-1"><strong>Location:</strong> ${item.location || 'N/A'}</p>
+                    <p class="mb-1"><strong>Condition:</strong> ${item.condition || 'N/A'}</p>
+                </div>
+            </div>
+            <div class="mt-2">
+                <strong>Status:</strong> <span class="badge bg-success">Verified - Ready to complete</span>
+            </div>
+        `;
+    }
+
+    function showCompleteError(message) {
+        completeDetailsContent.innerHTML = `
+            <div class="alert alert-danger mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${message}
+            </div>
+        `;
+        completeDetailsDiv.style.display = 'block';
+    }
+
+    function hideCompleteDetails() {
+        completeDetailsDiv.style.display = 'none';
+        scannedBarcodeInput.value = '';
+        completeBtn.disabled = true;
     }
 
     function showToast(message, type = 'info') {

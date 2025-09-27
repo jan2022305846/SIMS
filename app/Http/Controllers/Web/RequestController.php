@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Request Controller for managing supply requests
@@ -355,8 +356,15 @@ class RequestController extends Controller
         }
     }
 
-    public function markAsClaimed(Request $httpRequest, SupplyRequest $supplyRequest)
+    public function markAsClaimed(Request $httpRequest, $requestId)
     {
+        // Manual model loading since route model binding had issues
+        $supplyRequest = SupplyRequest::find($requestId);
+
+        if (!$supplyRequest) {
+            return back()->withErrors(['error' => 'Request not found.']);
+        }
+
         /** @var User $user */
         $user = Auth::user();
         if ($user->role !== 'admin') {
@@ -372,9 +380,11 @@ class RequestController extends Controller
             $supplyRequest->load('item');
         }
 
-        // Check stock availability one more time
-        if (!$supplyRequest->item || $supplyRequest->item->current_stock < $supplyRequest->quantity) {
-            return back()->withErrors(['error' => 'Insufficient stock to fulfill this request.']);
+        // Check stock availability one more time (only for requests that haven't been fulfilled yet)
+        if ($supplyRequest->workflow_status === 'ready_for_pickup') {
+            if (!$supplyRequest->item || $supplyRequest->item->current_stock < $supplyRequest->quantity) {
+                return back()->withErrors(['error' => 'Insufficient stock to fulfill this request.']);
+            }
         }
 
         // Verify scanned barcode if provided
@@ -416,11 +426,96 @@ class RequestController extends Controller
 
             DB::commit();
 
-            return back()->with('success', 'Request marked as claimed successfully! Stock has been updated.');
+            $stockMessage = $supplyRequest->workflow_status === 'ready_for_pickup' ? ' Stock has been updated.' : '';
+            return back()->with('success', 'Request marked as claimed successfully!' . $stockMessage);
 
         } catch (\Exception $e) {
             DB::rollback();
             return back()->withErrors(['error' => 'Failed to mark request as claimed: ' . $e->getMessage()]);
+        }
+    }
+
+    public function completeAndClaim(Request $httpRequest, SupplyRequest $supplyRequest)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if ($user->role !== 'admin') {
+            abort(403, 'Only administrators can complete requests.');
+        }
+
+        if ($supplyRequest->workflow_status !== 'approved_by_admin') {
+            return back()->withErrors(['error' => 'This request cannot be completed at this stage.']);
+        }
+
+        // Load item relationship if not already loaded
+        if (!$supplyRequest->relationLoaded('item')) {
+            $supplyRequest->load('item');
+        }
+
+        // Check stock availability one more time
+        if (!$supplyRequest->item || $supplyRequest->item->current_stock < $supplyRequest->quantity) {
+            return back()->withErrors(['error' => 'Insufficient stock to complete this request.']);
+        }
+
+        // Verify scanned barcode if provided
+        if ($httpRequest->filled('scanned_barcode')) {
+            $scannedBarcode = $httpRequest->scanned_barcode;
+
+            // Check if the scanned barcode matches the requested item
+            $scannedItem = Item::where('barcode', $scannedBarcode)
+                ->orWhere('qr_code', $scannedBarcode)
+                ->first();
+
+            if (!$scannedItem) {
+                return back()->withErrors(['error' => 'Scanned barcode does not match any item in the system.']);
+            }
+
+            if ($scannedItem->id !== $supplyRequest->item->id) {
+                return back()->withErrors(['error' => 'Scanned item does not match the requested item. Please scan the correct item.']);
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            // Generate claim slip number
+            $claimSlipNumber = 'CS-' . date('Y') . '-' . str_pad($supplyRequest->id, 6, '0', STR_PAD_LEFT);
+
+            // Complete the request in one step: fulfill and claim
+            $supplyRequest->update([
+                'workflow_status' => 'claimed',
+                'fulfilled_by_id' => $user->id,
+                'fulfilled_date' => now(),
+                'claimed_by_id' => $user->id,
+                'claimed_date' => now(),
+                'claim_slip_number' => $claimSlipNumber,
+            ]);
+
+            // Update item stock (reduce stock when completing the request)
+            $supplyRequest->item->current_stock -= $supplyRequest->quantity;
+            $supplyRequest->item->save();
+
+            // Create log entry with null check
+            $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
+            $logDetails = 'Completed and claimed request for ' . $supplyRequest->quantity . ' ' . $itemName . '. Claim slip: ' . $claimSlipNumber;
+
+            if ($httpRequest->filled('scanned_barcode')) {
+                $logDetails .= ' (Verified with barcode scan)';
+            }
+
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'complete_and_claim',
+                'details' => $logDetails,
+                'created_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return back()->with('success', 'Request completed and claimed successfully! Claim slip: ' . $claimSlipNumber);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->withErrors(['error' => 'Failed to complete request: ' . $e->getMessage()]);
         }
     }
 
@@ -493,11 +588,25 @@ class RequestController extends Controller
 
     public function printClaimSlip(SupplyRequest $request)
     {
-        if (!$request->isFulfilled() && !$request->isClaimed()) {
+        /** @var User $user */
+        $user = Auth::user();
+
+        // Only faculty and admin can view claim slips
+        if (($user->role !== 'faculty' && $user->role !== 'admin') || 
+            ($user->role === 'faculty' && $request->user_id !== $user->id)) {
+            abort(403, 'You are not authorized to view claim slips for this request.');
+        }
+
+        if (!$request->isApprovedByAdmin() && !$request->isReadyForPickup() && !$request->isFulfilled() && !$request->isClaimed()) {
             abort(404, 'Claim slip not available for this request.');
         }
 
-        return view('admin.requests.claim-slip', compact('request'));
+        // Generate QR code for the claim slip number
+        $qrCode = new \chillerlan\QRCode\QRCode();
+        $qrCodeData = $request->claim_slip_number;
+        $qrCodeImage = $qrCode->render($qrCodeData);
+
+        return view('admin.requests.claim-slip', compact('request', 'qrCodeImage'));
     }
 
     // Legacy methods for backwards compatibility
@@ -565,5 +674,40 @@ class RequestController extends Controller
         ]);
 
         return back()->with('success', 'Claim slip generated successfully! You can now print it and pick up your items from the supply office.');
+    }
+
+    public function downloadClaimSlip(SupplyRequest $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        // Only faculty and admin can download claim slips for fulfilled/claimed requests
+        if (($user->role !== 'faculty' && $user->role !== 'admin') || 
+            ($user->role === 'faculty' && $request->user_id !== $user->id)) {
+            abort(403, 'You are not authorized to download claim slips for this request.');
+        }
+
+        if (!$request->isApprovedByAdmin() && !$request->isReadyForPickup() && !$request->isFulfilled() && !$request->isClaimed()) {
+            abort(404, 'Claim slip not available for this request.');
+        }
+
+        // Generate QR code for the claim slip number
+        $qrCode = new \chillerlan\QRCode\QRCode();
+        $qrCodeData = $request->claim_slip_number;
+        $qrCodeImage = $qrCode->render($qrCodeData);
+
+        // Generate PDF with QR code
+        $pdf = Pdf::loadView('admin.requests.claim-slip-pdf', compact('request', 'qrCodeImage'))
+            ->setPaper('a4', 'portrait');
+
+        // Create log entry
+        ActivityLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'download_claim_slip',
+            'details' => 'Downloaded claim slip PDF for request: ' . $request->claim_slip_number,
+            'created_at' => now(),
+        ]);
+
+        return $pdf->download('claim-slip-' . $request->claim_slip_number . '.pdf');
     }
 }

@@ -129,4 +129,77 @@ class ItemController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Verify item by barcode (for request completion)
+     */
+    public function verifyBarcode(Request $request, string $barcode): JsonResponse
+    {
+        try {
+            $item = null;
+
+            // Try to find item by barcode field first
+            $item = Item::with(['category'])
+                ->where('barcode', $barcode)
+                ->first();
+
+            // If not found by barcode, try qr_code field
+            if (!$item && Schema::hasColumn('items', 'qr_code')) {
+                $item = Item::with(['category'])
+                    ->where('qr_code', $barcode)
+                    ->first();
+            }
+
+            // If still not found, try item_code field
+            if (!$item && Schema::hasColumn('items', 'item_code')) {
+                $item = Item::with(['category'])
+                    ->where('item_code', $barcode)
+                    ->first();
+            }
+
+            if ($item) {
+                return response()->json([
+                    'success' => true,
+                    'item' => [
+                        'id' => $item->id,
+                        'name' => $item->name,
+                        'barcode' => $item->barcode,
+                        'qr_code' => $item->qr_code ?? null,
+                        'item_code' => $item->item_code ?? null,
+                        'description' => $item->description,
+                        'current_stock' => $item->current_stock,
+                        'unit' => $item->unit,
+                        'location' => $item->location,
+                        'condition' => $item->condition,
+                        'brand' => $item->brand,
+                        'category' => $item->category ? [
+                            'id' => $item->category->id,
+                            'name' => $item->category->name,
+                        ] : null,
+                        'minimum_stock' => $item->minimum_stock,
+                        'stock_status' => $item->getStockStatus(),
+                    ]
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Item not found',
+                'barcode' => $barcode
+            ], 404);
+
+        } catch (\Exception $e) {
+            Log::error('Item verification error: ' . $e->getMessage(), [
+                'barcode' => $barcode,
+                'user_id' => Auth::id(),
+                'exception' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error verifying item',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

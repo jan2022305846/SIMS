@@ -7,9 +7,12 @@
             Request Details
         </h2>
         <div class="d-flex gap-2">
-            @if($request->isFulfilled() || $request->isClaimed())
+            @if($request->isReadyForPickup() || $request->isFulfilled() || $request->isClaimed())
                 <a href="{{ route('requests.claim-slip', $request) }}" class="btn btn-warning fw-bold" target="_blank">
                     <i class="fas fa-print me-1"></i>Print Claim Slip
+                </a>
+                <a href="{{ route('faculty.requests.download-claim-slip', $request) }}" class="btn btn-success fw-bold">
+                    <i class="fas fa-download me-1"></i>Download PDF
                 </a>
             @endif
             <a href="{{ route('faculty.requests.index') }}" class="btn btn-secondary">

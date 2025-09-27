@@ -22,3 +22,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // Item lookup for barcode/QR scanning
 Route::get('/items/lookup/{code}', [ItemController::class, 'lookup'])
     ->name('api.items.lookup');
+
+// Item verification for barcode scanning
+Route::get('/items/verify-barcode/{barcode}', [ItemController::class, 'verifyBarcode'])
+    ->name('api.items.verify-barcode');

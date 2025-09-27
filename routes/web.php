@@ -90,7 +90,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('items/expiring-soon', [ItemController::class, 'expiringSoon'])->name('items.expiring-soon');
         Route::get('items/trashed', [ItemController::class, 'trashed'])->name('items.trashed');
         Route::post('items/{id}/restore', [ItemController::class, 'restore'])->name('items.restore');
-        Route::get('items/verify-barcode/{barcode}', [ItemController::class, 'verifyBarcode'])->name('items.verify-barcode');
         
         // Item Assignment Management
         Route::get('items/{item}/assign', [ItemController::class, 'showAssignForm'])->name('items.assign');
@@ -102,12 +101,12 @@ Route::middleware(['auth'])->group(function () {
         
         // Requests Management
         Route::get('requests/manage', [RequestController::class, 'manage'])->name('requests.manage');
-        Route::get('requests/{request}/claim-slip', [RequestController::class, 'printClaimSlip'])->name('requests.claim-slip');
         Route::put('requests/{request}/status', [RequestController::class, 'updateStatus'])->name('requests.update-status');
         
         // New workflow actions
         Route::post('requests/{request}/approve-admin', [RequestController::class, 'approveByAdmin'])->name('requests.approve-admin');
         Route::post('requests/{request}/fulfill', [RequestController::class, 'fulfill'])->name('requests.fulfill');
+        Route::post('requests/{request}/complete', [RequestController::class, 'completeAndClaim'])->name('requests.complete');
         Route::post('requests/{request}/claim', [RequestController::class, 'markAsClaimed'])->name('requests.claim');
         Route::post('requests/{request}/decline', [RequestController::class, 'decline'])->name('requests.decline');
         
@@ -120,6 +119,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('requests/{request}/receipt', [AcknowledgmentController::class, 'receipt'])->name('requests.acknowledgment.receipt');
         Route::get('requests/{request}/receipt/download', [AcknowledgmentController::class, 'downloadReceipt'])->name('requests.acknowledgment.download');
         Route::get('requests/{request}/verify', [AcknowledgmentController::class, 'verify'])->name('requests.acknowledgment.verify');
+        
+        // Add claim slip download route for admins
+        Route::get('requests/{request}/download-claim-slip', [RequestController::class, 'downloadClaimSlip'])->name('admin.requests.download-claim-slip');
         
         // Admin Reports
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
@@ -147,6 +149,11 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('offices', \App\Http\Controllers\Web\OfficeController::class, ['as' => 'admin']);
     });
     
+    // Item verification (accessible to authenticated users for barcode scanning)
+    Route::middleware(['auth'])->group(function () {
+        Route::get('items/verify-barcode/{barcode}', [ItemController::class, 'verifyBarcode'])->name('items.verify-barcode');
+    });
+    
     // Faculty routes (includes admin access)
     Route::middleware(['faculty'])->group(function () {
         // Items browsing for faculty
@@ -161,6 +168,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('faculty/requests', [RequestController::class, 'store'])->name('faculty.requests.store');
         Route::get('faculty/requests/{request}', [RequestController::class, 'show'])->name('faculty.requests.show');
         Route::post('faculty/requests/{request}/generate-claim-slip', [RequestController::class, 'generateClaimSlip'])->name('faculty.requests.generate-claim-slip');
+        Route::get('faculty/requests/{request}/download-claim-slip', [RequestController::class, 'downloadClaimSlip'])->name('faculty.requests.download-claim-slip');
+        
+        // Claim slip printing (accessible by faculty and admin)
+        Route::get('requests/{request}/claim-slip', [RequestController::class, 'printClaimSlip'])->name('requests.claim-slip');
         
         // Faculty acknowledgment access (for their own requests)
         Route::get('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'show'])->name('faculty.requests.acknowledgment.show');
