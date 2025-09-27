@@ -8,6 +8,8 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class ItemController extends Controller
 {
@@ -72,7 +74,12 @@ class ItemController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
-            'barcode' => 'nullable|string|max:255|unique:items',
+            'barcode' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('items')->whereNull('deleted_at')
+            ],
             'current_stock' => 'required|integer|min:0',
             'minimum_stock' => 'required|integer|min:0',
             'maximum_stock' => 'nullable|integer|min:0',
@@ -114,10 +121,6 @@ class ItemController extends Controller
         $item->load('category');
         
         // Return different views based on user role
-        if (auth()->user()->isFaculty()) {
-            return view('faculty.items.show', compact('item'));
-        }
-        
         return view('admin.items.show', compact('item'));
     }
 
@@ -139,7 +142,12 @@ class ItemController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
-            'barcode' => 'nullable|string|max:255|unique:items,barcode,' . $item->id,
+            'barcode' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('items')->whereNull('deleted_at')->ignore($item->id)
+            ],
             'current_stock' => 'required|integer|min:0',
             'minimum_stock' => 'required|integer|min:0',
             'maximum_stock' => 'nullable|integer|min:0',

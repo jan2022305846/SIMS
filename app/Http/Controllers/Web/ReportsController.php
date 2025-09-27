@@ -621,7 +621,7 @@ class ReportsController extends Controller
      */
     public function itemScanHistory(Request $request, $itemId)
     {
-        $item = \App\Models\Item::findOrFail($itemId);
+        $item = Item::findOrFail($itemId);
 
         $dateFrom = $request->date_from ?? Carbon::now()->subMonth()->toDateString();
         $dateTo = $request->date_to ?? Carbon::now()->toDateString();
@@ -1316,7 +1316,7 @@ class ReportsController extends Controller
      */
     private function getOverallScanFrequency()
     {
-        $allItems = \App\Models\Item::all();
+        $allItems = Item::all();
         $frequencyData = [];
 
         foreach ($allItems as $item) {

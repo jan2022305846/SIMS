@@ -8,7 +8,7 @@
     <!-- QR Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <!-- Dashboard JavaScript -->
-    <script src="{{ asset('js/dashboard.js') }}"></script>
+    @vite(['resources/js/dashboard.js'])
 @endpush
 
 @section('content')
@@ -62,10 +62,16 @@
 
                                 <div id="qr-scanner-container">
                                     <div class="text-center mb-3">
-                                        <button id="start-scanner-btn" class="btn btn-warning btn-lg fw-semibold">
-                                            <i class="fas fa-camera me-2"></i>
-                                            Start Scanner
-                                        </button>
+                                        <div class="btn-group" role="group">
+                                            <button id="start-camera-btn" class="btn btn-warning fw-semibold">
+                                                <i class="fas fa-camera me-2"></i>
+                                                Camera Scan
+                                            </button>
+                                            <button id="start-barcode-btn" class="btn btn-outline-warning fw-semibold">
+                                                <i class="fas fa-barcode me-2"></i>
+                                                Barcode Reader
+                                            </button>
+                                        </div>
                                     </div>
                                     <div id="qr-reader" style="display: none; width: 100%; max-width: 300px; margin: 15px auto;"></div>
                                     <div id="scan-result" class="mt-3" style="display: none;">
@@ -182,4 +188,31 @@
         </div>
     </div>
 </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Custom Item Details Modal -->
+<div id="customItemModal" class="custom-modal-overlay" style="display: none;">
+    <div class="custom-modal">
+        <div class="custom-modal-header">
+            <h5 class="custom-modal-title">
+                <i class="fas fa-box me-2"></i>Item Details
+            </h5>
+            <button type="button" class="custom-modal-close" onclick="closeCustomModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="custom-modal-body" id="customModalContent">
+            <!-- Item details will be loaded here -->
+        </div>
+        <div class="custom-modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeCustomModal()">
+                <i class="fas fa-times me-1"></i>Close
+            </button>
+        </div>
+    </div>
+</div>
+
 @endsection

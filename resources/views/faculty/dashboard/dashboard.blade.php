@@ -5,8 +5,7 @@
 @endpush
 
 @push('scripts')
-    <!-- Dashboard JavaScript -->
-    <script src="{{ asset('js/dashboard.js') }}"></script>
+    <!-- Faculty Dashboard JavaScript -->
 @endpush
 
 @section('content')

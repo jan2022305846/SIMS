@@ -272,6 +272,51 @@
                                     </button>
                                 </form>
                             @endif
+
+                            @if($request->workflow_status === 'approved_by_admin')
+                                <div class="mb-3">
+                                    <label for="complete_barcode" class="form-label fw-medium">Scan Item Barcode to Complete Request</label>
+                                    <div class="input-group">
+                                        <input type="text" name="complete_barcode" id="complete_barcode" 
+                                               class="form-control" placeholder="Scan or enter item barcode" readonly>
+                                        <button type="button" class="btn btn-outline-primary" id="scan-complete-barcode-btn" title="Scan Barcode">
+                                            <i class="fas fa-qrcode"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="manual-complete-barcode-btn" title="Manual Entry">
+                                            <i class="fas fa-keyboard"></i>
+                                        </button>
+                                    </div>
+                                    <div class="form-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Scan the item's barcode to complete the request and mark as claimed
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div id="verified-complete-details" class="mb-3" style="display: none;">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-check-circle me-2"></i>Ready to Complete
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="complete-details-content">
+                                                <!-- Complete details will be populated here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <form method="POST" action="{{ route('requests.complete', $request) }}" class="mb-2">
+                                    @csrf
+                                    <input type="hidden" name="scanned_barcode" id="scanned_complete_barcode_input">
+                                    <button type="submit" class="btn btn-success w-100" id="complete-btn" disabled>
+                                        <i class="fas fa-check-double me-2"></i>Complete & Claim Request
+                                    </button>
+                                </form>
+                            @endif
                             
                             @if($request->canBeClaimed())
                                 <div class="mb-3">

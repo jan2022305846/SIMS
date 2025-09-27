@@ -169,6 +169,170 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 4px;
 }
 
+/* Modal Backdrop - Enhanced Styling */
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.15s linear;
+    pointer-events: none !important; /* Force no pointer events */
+}
+
+.modal-backdrop.show {
+    opacity: 1;
+    pointer-events: auto !important; /* Allow pointer events when visible */
+}
+
+/* Ensure modal backdrop fade out removes interaction */
+.modal-backdrop.fade {
+    pointer-events: none !important;
+}
+
+.modal-backdrop.fade.show {
+    pointer-events: auto !important;
+}
+
+/* Force remove backdrop when modal is not active */
+body:not(.modal-open) .modal-backdrop {
+    display: none !important;
+    pointer-events: none !important;
+}
+
+/* Fallback for browsers that don't support backdrop-filter */
+@supports (backdrop-filter: blur(4px)) {
+    .modal-backdrop {
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+}
+
+/* Modal Content - Clean Styling */
+.modal-content {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    background: var(--bg-primary);
+    position: relative;
+    z-index: 1060; /* Ensure modal content is above backdrop */
+}
+
+.modal {
+    z-index: 1055; /* Bootstrap default modal z-index */
+}
+
+.modal-backdrop {
+    z-index: 1050; /* Bootstrap default backdrop z-index */
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--border-light);
+    border-radius: 12px 12px 0 0;
+    background: var(--bg-secondary);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--border-light);
+    border-radius: 0 0 12px 12px;
+    background: var(--bg-secondary);
+}
+
+/* Modal animations */
+.modal.fade .modal-dialog {
+    transition: transform 0.3s ease-out;
+    transform: translate(0, -50px);
+}
+
+.modal.show .modal-dialog {
+    transform: translate(0, 0);
+}
+
+/* Custom Modal - Complete Replacement for Bootstrap Modal */
+.custom-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.custom-modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.custom-modal {
+    background: var(--bg-primary);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    max-width: 800px;
+    width: 90%;
+    max-height: 90vh;
+    overflow: hidden;
+    transform: scale(0.9) translateY(-20px);
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.custom-modal-overlay.show .custom-modal {
+    transform: scale(1) translateY(0);
+}
+
+.custom-modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.custom-modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.custom-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.custom-modal-close:hover {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.custom-modal-body {
+    padding: 1.5rem;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.custom-modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
 /* Responsive Design */
 @media (max-width: 576px) {
     #qr-reader {
@@ -183,5 +347,15 @@ h1, h2, h3, h4, h5, h6 {
     .stats-icon {
         width: 40px;
         height: 40px;
+    }
+
+    .custom-modal {
+        width: 95%;
+        margin: 1rem;
+    }
+
+    .custom-modal-body {
+        padding: 1rem;
+        max-height: 70vh;
     }
 }
