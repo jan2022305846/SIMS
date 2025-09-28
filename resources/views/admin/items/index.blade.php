@@ -17,6 +17,11 @@
                             <i class="fas fa-plus me-1"></i>
                             Add New Item
                         </a>
+                        <a href="{{ route('items.trashed') }}" 
+                           class="btn btn-secondary fw-bold">
+                            <i class="fas fa-trash me-1"></i>
+                            Trash
+                        </a>
                         <a href="{{ route('items.low-stock') }}" 
                            class="btn btn-danger fw-bold">
                             <i class="fas fa-exclamation-triangle me-1"></i>
