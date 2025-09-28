@@ -12,16 +12,23 @@
                         Scan History: {{ $item->name }}
                     </h2>
                     <div class="d-flex gap-2">
-                        <!-- Date Range Filter -->
-                        <form method="GET" class="d-flex gap-2">
-                            <input type="date" name="date_from" value="{{ $dateFrom }}" class="form-control form-control-sm" style="width: 140px;">
-                            <input type="date" name="date_to" value="{{ $dateTo }}" class="form-control form-control-sm" style="width: 140px;">
-                            <button type="submit" class="btn btn-primary btn-sm">
-                                <i class="fas fa-filter me-1"></i>Filter
-                            </button>
-                        </form>
+                        <!-- Period Selector -->
+                        <div class="btn-group" id="periodSelector">
+                            <a href="{{ route('reports.item-scan-history', ['itemId' => $item->id, 'period' => 'daily']) }}"
+                               class="btn {{ ($period ?? 'annually') === 'daily' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
+                                <i class="fas fa-calendar-day me-1"></i>Daily
+                            </a>
+                            <a href="{{ route('reports.item-scan-history', ['itemId' => $item->id, 'period' => 'weekly']) }}"
+                               class="btn {{ ($period ?? 'annually') === 'weekly' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
+                                <i class="fas fa-calendar-week me-1"></i>Weekly
+                            </a>
+                            <a href="{{ route('reports.item-scan-history', ['itemId' => $item->id, 'period' => 'annually']) }}"
+                               class="btn {{ ($period ?? 'annually') === 'annually' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
+                                <i class="fas fa-calendar me-1"></i>Annual
+                            </a>
+                        </div>
                         <!-- PDF Export -->
-                        <a href="{{ route('reports.item-scan-history', ['itemId' => $item->id, 'date_from' => $dateFrom, 'date_to' => $dateTo, 'format' => 'pdf']) }}"
+                        <a href="{{ route('reports.item-scan-history', ['itemId' => $item->id, 'period' => $period ?? 'annually', 'format' => 'pdf']) }}"
                            class="btn btn-danger btn-sm" target="_blank">
                             <i class="fas fa-file-pdf me-1"></i>Export PDF
                         </a>

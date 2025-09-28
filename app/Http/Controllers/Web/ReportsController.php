@@ -337,44 +337,72 @@ class ReportsController extends Controller
 
         if ($request->stock_status) {
             switch ($request->stock_status) {
-                case 'low':
-                    $query->whereRaw('current_stock <= minimum_stock');
+                case 'low_stock':
+                    $query->whereRaw('quantity_on_hand <= minimum_threshold');
                     break;
                 case 'out_of_stock':
-                    $query->where('current_stock', '<=', 0);
+                    $query->where('quantity_on_hand', '<=', 0);
                     break;
-                case 'in_stock':
-                    $query->where('current_stock', '>', 0);
+                case 'adequate':
+                    $query->where('quantity_on_hand', '>', 'minimum_threshold');
                     break;
             }
         }
 
-        if ($request->date_from) {
-            $query->where('created_at', '>=', $request->date_from);
+        // Apply sorting
+        $sortBy = $request->get('sort_by', 'name');
+        switch ($sortBy) {
+            case 'quantity':
+                $query->orderBy('quantity_on_hand', 'desc');
+                break;
+            case 'category':
+                $query->join('categories', 'items.category_id', '=', 'categories.id')
+                      ->orderBy('categories.name')
+                      ->select('items.*');
+                break;
+            case 'value':
+                $query->orderByRaw('quantity_on_hand * unit_cost DESC');
+                break;
+            default:
+                $query->orderBy('name');
         }
 
-        if ($request->date_to) {
-            $query->where('created_at', '<=', $request->date_to);
-        }
+        // Paginate results
+        $items = $query->paginate(25);
 
-        $items = $query->orderBy('name')->get();
+        // Get all categories for filter dropdown
         $categories = Category::all();
 
-        $totals = [
-            'total_items' => $items->count(),
-            'total_value' => $items->sum('total_value'),
-            'average_value' => $items->avg('total_value') ?? 0,
-            'low_stock_count' => $items->where('current_stock', '<=', 'minimum_stock')->count(),
+        // Calculate summary statistics
+        $allItems = Item::all(); // Get all items for summary stats
+        $summary = [
+            'total_items' => $allItems->count(),
+            'total_value' => $allItems->sum(function($item) {
+                return $item->quantity_on_hand * $item->unit_cost;
+            }),
+            'low_stock_items' => $allItems->where('quantity_on_hand', '<=', 'minimum_threshold')->count(),
+            'out_of_stock_items' => $allItems->where('quantity_on_hand', '<=', 0)->count(),
+            'adequate_stock_items' => $allItems->where('quantity_on_hand', '>', 'minimum_threshold')->count(),
         ];
 
+        // Category statistics for chart
+        $categoryStats = Category::with('items')->get()->map(function($category) {
+            return [
+                'name' => $category->name,
+                'items_count' => $category->items->count(),
+            ];
+        })->filter(function($category) {
+            return $category['items_count'] > 0;
+        });
+
         if ($request->input('format') === 'pdf') {
-            $pdf = Pdf::loadView('admin.reports.pdf.inventory-summary', compact('items', 'totals', 'request'))
+            $pdf = Pdf::loadView('admin.reports.pdf.inventory-summary', compact('items', 'summary', 'request'))
                 ->setPaper('a4', 'landscape');
-            
+
             return $pdf->download('inventory-summary-' . date('Y-m-d') . '.pdf');
         }
 
-        return view('admin.reports.inventory-summary', compact('items', 'categories', 'totals', 'request'));
+        return view('admin.reports.inventory-summary', compact('items', 'categories', 'summary', 'categoryStats'));
     }
 
     public function lowStockAlert(Request $request)
@@ -399,159 +427,35 @@ class ReportsController extends Controller
 
     public function requestAnalytics(Request $request)
     {
-        $dateFrom = $request->date_from ?? Carbon::now()->subMonth()->toDateString();
-        $dateTo = $request->date_to ?? Carbon::now()->toDateString();
+        // Handle period parameter for consistent filtering with main reports
+        $period = $request->get('period', 'daily');
 
-        $query = SupplyRequest::with(['user', 'item', 'item.category'])
-            ->whereBetween('created_at', [$dateFrom, $dateTo]);
-
-        if ($request->department) {
-            $query->where('department', $request->department);
-        }
-
-        if ($request->status) {
-            $query->where('workflow_status', $request->status);
-        }
-
-        if ($request->priority) {
-            $query->where('priority', $request->priority);
-        }
-
-        $requests = $query->orderBy('created_at', 'desc')->get();
-
-        // Analytics calculations
-        $analytics = [
-            'total_requests' => $requests->count(),
-            'approved_requests' => $requests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
-            'pending_requests' => $requests->where('workflow_status', 'pending')->count(),
-            'declined_requests' => $requests->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin'])->count(),
-            'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
-            'average_processing_time' => $this->calculateAverageProcessingTime($requests),
-            'most_requested_items' => $this->getMostRequestedItems($requests),
-            'requests_by_department' => $this->getRequestsByDepartment($requests),
-            'requests_by_priority' => $this->getRequestsByPriority($requests),
-            'monthly_trend' => $this->getMonthlyTrend($dateFrom, $dateTo),
-        ];
-
-        $departments = SupplyRequest::distinct()->pluck('department')->filter();
+        // Get report data based on period
+        $data = $this->getRequestAnalyticsReportData($period);
 
         if ($request->input('format') === 'pdf') {
-            $pdf = Pdf::loadView('admin.reports.pdf.request-analytics', compact('requests', 'analytics', 'dateFrom', 'dateTo'))
+            $pdf = Pdf::loadView('admin.reports.pdf.request-analytics', compact('data'))
                 ->setPaper('a4', 'landscape');
             
             return $pdf->download('request-analytics-' . date('Y-m-d') . '.pdf');
         }
 
-        return view('admin.reports.request-analytics', compact('requests', 'analytics', 'departments', 'dateFrom', 'dateTo'));
-    }
-
-    public function departmentReport(Request $request)
-    {
-        $departments = SupplyRequest::distinct()->pluck('department')->filter();
-        $selectedDepartment = $request->department;
-
-        if (!$selectedDepartment) {
-            return view('admin.reports.department-report', compact('departments'));
-        }
-
-        $dateFrom = $request->date_from ?? Carbon::now()->subMonth()->toDateString();
-        $dateTo = $request->date_to ?? Carbon::now()->toDateString();
-
-        $requests = SupplyRequest::with(['user', 'item', 'item.category'])
-            ->where('department', $selectedDepartment)
-            ->whereBetween('created_at', [$dateFrom, $dateTo])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $departmentStats = [
-            'total_requests' => $requests->count(),
-            'approved_requests' => $requests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
-            'pending_requests' => $requests->where('workflow_status', 'pending')->count(),
-            'total_value_requested' => $requests->sum(function($req) {
-                return $req->quantity * $req->item->unit_price;
-            }),
-            'most_active_users' => $requests->groupBy('user_id')->map(function($userRequests) {
-                return [
-                    'user' => $userRequests->first()->user,
-                    'count' => $userRequests->count()
-                ];
-            })->sortByDesc('count')->take(5),
-            'most_requested_categories' => $requests->groupBy('item.category_id')->map(function($categoryRequests) {
-                return [
-                    'category' => $categoryRequests->first()->item->category,
-                    'count' => $categoryRequests->count()
-                ];
-            })->sortByDesc('count')->take(5),
-        ];
-
-        if ($request->input('format') === 'pdf') {
-            $pdf = Pdf::loadView('admin.reports.pdf.department-report', compact('requests', 'departmentStats', 'selectedDepartment', 'dateFrom', 'dateTo'));
-            return $pdf->download('department-report-' . $selectedDepartment . '-' . date('Y-m-d') . '.pdf');
-        }
-
-        return view('admin.reports.department-report', compact('departments', 'requests', 'departmentStats', 'selectedDepartment', 'dateFrom', 'dateTo'));
-    }
-
-    public function financialSummary(Request $request)
-    {
-        $dateFrom = $request->date_from ?? Carbon::now()->startOfYear()->toDateString();
-        $dateTo = $request->date_to ?? Carbon::now()->toDateString();
-
-        // Inventory value
-        $totalInventoryValue = Item::sum('total_value');
-        $lowStockValue = Item::whereRaw('current_stock <= minimum_stock')->sum('total_value');
-
-        // Request values
-        $requestsInPeriod = SupplyRequest::with('item')
-            ->whereBetween('created_at', [$dateFrom, $dateTo])
-            ->get();
-
-        $totalRequestedValue = $requestsInPeriod->sum(function($request) {
-            return $request->quantity * $request->item->unit_price;
-        });
-
-        $approvedRequestsValue = $requestsInPeriod
-            ->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])
-            ->sum(function($request) {
-                return $request->quantity * $request->item->unit_price;
-            });
-
-        // Category-wise analysis
-        $categoryAnalysis = Category::with('items')->get()->map(function($category) {
-            return [
-                'category' => $category,
-                'total_items' => $category->items->count(),
-                'total_value' => $category->items->sum('total_value'),
-                'low_stock_items' => $category->items->where('current_stock', '<=', 'minimum_stock')->count(),
-            ];
-        })->sortByDesc('total_value');
-
-        $financialData = [
-            'total_inventory_value' => $totalInventoryValue,
-            'low_stock_value' => $lowStockValue,
-            'total_requested_value' => $totalRequestedValue,
-            'approved_requests_value' => $approvedRequestsValue,
-            'utilization_rate' => $totalInventoryValue > 0 ? ($approvedRequestsValue / $totalInventoryValue) * 100 : 0,
-            'category_analysis' => $categoryAnalysis,
-            'monthly_trends' => $this->getMonthlyFinancialTrends($dateFrom, $dateTo),
-        ];
-
-        if ($request->input('format') === 'pdf') {
-            $pdf = Pdf::loadView('admin.reports.pdf.financial-summary', compact('financialData', 'dateFrom', 'dateTo'));
-            return $pdf->download('financial-summary-' . date('Y-m-d') . '.pdf');
-        }
-
-        return view('admin.reports.financial-summary', compact('financialData', 'dateFrom', 'dateTo'));
+        return view('admin.reports.request-analytics', compact('data', 'period'));
     }
 
     public function userActivityReport(Request $request)
     {
-        $dateFrom = $request->date_from ?? Carbon::now()->subMonth()->toDateString();
-        $dateTo = $request->date_to ?? Carbon::now()->toDateString();
+        // Handle period parameter for consistent filtering with main reports
+        $period = $request->get('period', 'daily');
+
+        // Get date range based on period
+        $dateRange = $this->getDateRangeFromPeriod($period);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
 
         $logs = Log::with('user')
-            ->whereBetween('timestamp', [$dateFrom, $dateTo])
-            ->orderBy('timestamp', 'desc')
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->orderBy('created_at', 'desc')
             ->get();
 
         $activityStats = [
@@ -562,11 +466,11 @@ class ReportsController extends Controller
                 return [
                     'user' => $userLogs->first()->user,
                     'activity_count' => $userLogs->count(),
-                    'last_activity' => $userLogs->first()->timestamp
+                    'last_activity' => $userLogs->first()->created_at
                 ];
             })->sortByDesc('activity_count')->take(10),
             'daily_activity' => $logs->groupBy(function($log) {
-                return Carbon::parse($log->timestamp)->format('Y-m-d');
+                return Carbon::parse($log->created_at)->format('Y-m-d');
             })->map->count(),
         ];
 
@@ -575,7 +479,7 @@ class ReportsController extends Controller
             return $pdf->download('user-activity-report-' . date('Y-m-d') . '.pdf');
         }
 
-        return view('admin.reports.user-activity', compact('logs', 'activityStats', 'dateFrom', 'dateTo'));
+        return view('admin.reports.user-activity', compact('logs', 'activityStats', 'dateFrom', 'dateTo', 'period'));
     }
 
     /**
@@ -606,8 +510,13 @@ class ReportsController extends Controller
     {
         $item = Item::findOrFail($itemId);
 
-        $dateFrom = $request->date_from ?? Carbon::now()->subMonth()->toDateString();
-        $dateTo = $request->date_to ?? Carbon::now()->toDateString();
+        // Handle period parameter for consistent filtering with main reports
+        $period = $request->get('period', 'daily');
+
+        // Get date range based on period
+        $dateRange = $this->getDateRangeFromPeriod($period);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
 
         $scanLogs = \App\Models\ItemScanLog::with('user')
             ->where('item_id', $itemId)
@@ -635,7 +544,7 @@ class ReportsController extends Controller
             return $pdf->download('item-scan-history-' . $item->id . '-' . date('Y-m-d') . '.pdf');
         }
 
-        return view('admin.reports.item-scan-history', compact('item', 'scanLogs', 'analytics', 'dateFrom', 'dateTo'));
+        return view('admin.reports.item-scan-history', compact('item', 'scanLogs', 'analytics', 'dateFrom', 'dateTo', 'period'));
     }
 
     /**
@@ -728,36 +637,6 @@ class ReportsController extends Controller
         }
 
         return $trend;
-    }
-
-    private function getMonthlyFinancialTrends($dateFrom, $dateTo)
-    {
-        $start = Carbon::parse($dateFrom);
-        $end = Carbon::parse($dateTo);
-        $trends = [];
-
-        while ($start <= $end) {
-            $monthStart = $start->copy()->startOfMonth();
-            $monthEnd = $start->copy()->endOfMonth();
-
-            $monthRequests = SupplyRequest::with('item')
-                ->whereBetween('created_at', [$monthStart, $monthEnd])
-                ->get();
-
-            $trends[$start->format('Y-m')] = [
-                'requested_value' => $monthRequests->sum(function($req) {
-                    return $req->quantity * $req->item->unit_price;
-                }),
-                'approved_value' => $monthRequests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])
-                    ->sum(function($req) {
-                        return $req->quantity * $req->item->unit_price;
-                    }),
-            ];
-            
-            $start->addMonth();
-        }
-
-        return $trends;
     }
 
     /**
@@ -1516,5 +1395,255 @@ class ReportsController extends Controller
         });
 
         return array_slice($frequencyData, 0, 20); // Top 20 items by scan frequency
+    }
+
+    /**
+     * Get date range based on period
+     */
+    private function getDateRangeFromPeriod($period)
+    {
+        $now = Carbon::now();
+
+        switch ($period) {
+            case 'daily':
+                return [
+                    'from' => $now->copy()->startOfDay()->toDateString(),
+                    'to' => $now->copy()->endOfDay()->toDateString()
+                ];
+            case 'weekly':
+                return [
+                    'from' => $now->copy()->startOfWeek()->toDateString(),
+                    'to' => $now->copy()->endOfWeek()->toDateString()
+                ];
+            case 'annually':
+                return [
+                    'from' => $now->copy()->startOfYear()->toDateString(),
+                    'to' => $now->copy()->endOfYear()->toDateString()
+                ];
+            default:
+                return [
+                    'from' => $now->copy()->startOfDay()->toDateString(),
+                    'to' => $now->copy()->endOfDay()->toDateString()
+                ];
+        }
+    }
+
+    /**
+     * Get request analytics report data based on period
+     */
+    private function getRequestAnalyticsReportData($period)
+    {
+        $now = Carbon::now();
+
+        switch ($period) {
+            case 'daily':
+                return $this->getRequestAnalyticsDailyReportData($now);
+            case 'weekly':
+                return $this->getRequestAnalyticsWeeklyReportData($now);
+            case 'annually':
+                return $this->getRequestAnalyticsAnnualReportData($now);
+            default:
+                return $this->getRequestAnalyticsDailyReportData($now);
+        }
+    }
+
+    private function getRequestAnalyticsDailyReportData($date)
+    {
+        $startDate = $date->copy()->startOfDay();
+        $endDate = $date->copy()->endOfDay();
+
+        // Get last 7 days for chart - use single query with date grouping
+        $chartData = [];
+
+        // Get all requests for the last 7 days in one query
+        $requestsQuery = SupplyRequest::selectRaw('DATE(created_at) as date, COUNT(*) as total_requests')
+            ->whereBetween('created_at', [$date->copy()->subDays(6)->startOfDay(), $endDate])
+            ->groupByRaw('DATE(created_at)')
+            ->orderByRaw('DATE(created_at)');
+
+        $requestsData = $requestsQuery->get()->keyBy('date');
+
+        // Build chart data for last 7 days
+        for ($i = 6; $i >= 0; $i--) {
+            $checkDate = $date->copy()->subDays($i);
+            $dateKey = $checkDate->format('Y-m-d');
+
+            $data = $requestsData->get($dateKey);
+
+            $chartData[] = [
+                'date' => $checkDate->format('M j'),
+                'requests' => $data ? (int)$data->total_requests : 0,
+            ];
+        }
+
+        // Today's data - get all records for display
+        $requests = SupplyRequest::with(['user', 'item', 'item.category'])
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Analytics calculations
+        $analytics = [
+            'total_requests' => $requests->count(),
+            'approved_requests' => $requests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
+            'pending_requests' => $requests->where('workflow_status', 'pending')->count(),
+            'declined_requests' => $requests->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin'])->count(),
+            'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
+            'average_processing_time' => $this->calculateAverageProcessingTime($requests),
+            'most_requested_items' => $this->getMostRequestedItems($requests),
+            'requests_by_department' => $this->getRequestsByDepartment($requests),
+            'requests_by_priority' => $this->getRequestsByPriority($requests),
+            'monthly_trend' => $this->getMonthlyTrend($startDate->toDateString(), $endDate->toDateString()),
+        ];
+
+        $departments = SupplyRequest::distinct()->pluck('department')->filter();
+
+        return [
+            'period' => 'Daily',
+            'current_date' => $date->format('F j, Y'),
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_requests' => $analytics['total_requests'],
+                'approved_requests' => $analytics['approved_requests'],
+                'pending_requests' => $analytics['pending_requests'],
+                'declined_requests' => $analytics['declined_requests'],
+            ],
+            'analytics' => $analytics,
+            'departments' => $departments,
+            'records' => $requests
+        ];
+    }
+
+    private function getRequestAnalyticsWeeklyReportData($date)
+    {
+        $startDate = $date->copy()->startOfWeek();
+        $endDate = $date->copy()->endOfWeek();
+
+        // Get all requests for the last 8 weeks in one query
+        $requestsQuery = SupplyRequest::selectRaw('DATE(created_at) as date, COUNT(*) as total_requests')
+            ->whereBetween('created_at', [$date->copy()->subWeeks(7)->startOfWeek(), $endDate])
+            ->groupByRaw('DATE(created_at)')
+            ->orderByRaw('DATE(created_at)');
+
+        $requestsData = $requestsQuery->get()->groupBy(function($item) {
+            $date = Carbon::parse($item->date);
+            return $date->format('Y-W') . sprintf('%02d', $date->weekOfYear);
+        });
+
+        // Build chart data for last 8 weeks
+        $chartData = [];
+        for ($i = 7; $i >= 0; $i--) {
+            $weekStart = $date->copy()->subWeeks($i)->startOfWeek();
+            $weekKey = $weekStart->format('Y-W') . sprintf('%02d', $weekStart->weekOfYear);
+
+            $weekData = $requestsData->get($weekKey, collect());
+            $totalRequests = $weekData->sum('total_requests');
+
+            $chartData[] = [
+                'date' => $weekStart->format('M j') . ' - ' . $weekStart->copy()->endOfWeek()->format('M j'),
+                'requests' => (int)$totalRequests,
+            ];
+        }
+
+        // Current week requests for display
+        $requests = SupplyRequest::with(['user', 'item', 'item.category'])
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Analytics calculations
+        $analytics = [
+            'total_requests' => $requests->count(),
+            'approved_requests' => $requests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
+            'pending_requests' => $requests->where('workflow_status', 'pending')->count(),
+            'declined_requests' => $requests->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin'])->count(),
+            'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
+            'average_processing_time' => $this->calculateAverageProcessingTime($requests),
+            'most_requested_items' => $this->getMostRequestedItems($requests),
+            'requests_by_department' => $this->getRequestsByDepartment($requests),
+            'requests_by_priority' => $this->getRequestsByPriority($requests),
+            'monthly_trend' => $this->getMonthlyTrend($startDate->toDateString(), $endDate->toDateString()),
+        ];
+
+        $departments = SupplyRequest::distinct()->pluck('department')->filter();
+
+        return [
+            'period' => 'Weekly',
+            'current_date' => $startDate->format('M j') . ' - ' . $endDate->format('M j, Y'),
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_requests' => $analytics['total_requests'],
+                'approved_requests' => $analytics['approved_requests'],
+                'pending_requests' => $analytics['pending_requests'],
+                'declined_requests' => $analytics['declined_requests'],
+            ],
+            'analytics' => $analytics,
+            'departments' => $departments,
+            'records' => $requests
+        ];
+    }
+
+    private function getRequestAnalyticsAnnualReportData($date)
+    {
+        $startDate = $date->copy()->startOfYear();
+        $endDate = $date->copy()->endOfYear();
+
+        // Get all requests for the last 5 years in one query
+        $requestsQuery = SupplyRequest::selectRaw('YEAR(created_at) as year, COUNT(*) as total_requests')
+            ->whereBetween('created_at', [$date->copy()->subYears(4)->startOfYear(), $endDate])
+            ->groupByRaw('YEAR(created_at)')
+            ->orderByRaw('YEAR(created_at)');
+
+        $requestsData = $requestsQuery->get()->keyBy('year');
+
+        // Build chart data for last 5 years
+        $chartData = [];
+        for ($i = 4; $i >= 0; $i--) {
+            $year = $date->copy()->subYears($i)->year;
+
+            $data = $requestsData->get($year);
+
+            $chartData[] = [
+                'date' => (string)$year,
+                'requests' => $data ? (int)$data->total_requests : 0,
+            ];
+        }
+
+        // Current year requests for display
+        $requests = SupplyRequest::with(['user', 'item', 'item.category'])
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Analytics calculations
+        $analytics = [
+            'total_requests' => $requests->count(),
+            'approved_requests' => $requests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
+            'pending_requests' => $requests->where('workflow_status', 'pending')->count(),
+            'declined_requests' => $requests->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin'])->count(),
+            'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
+            'average_processing_time' => $this->calculateAverageProcessingTime($requests),
+            'most_requested_items' => $this->getMostRequestedItems($requests),
+            'requests_by_department' => $this->getRequestsByDepartment($requests),
+            'requests_by_priority' => $this->getRequestsByPriority($requests),
+            'monthly_trend' => $this->getMonthlyTrend($startDate->toDateString(), $endDate->toDateString()),
+        ];
+
+        $departments = SupplyRequest::distinct()->pluck('department')->filter();
+
+        return [
+            'period' => 'Annual',
+            'current_date' => (string)$date->year,
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_requests' => $analytics['total_requests'],
+                'approved_requests' => $analytics['approved_requests'],
+                'pending_requests' => $analytics['pending_requests'],
+                'declined_requests' => $analytics['declined_requests'],
+            ],
+            'analytics' => $analytics,
+            'departments' => $departments,
+            'records' => $requests
+        ];
     }
 }
