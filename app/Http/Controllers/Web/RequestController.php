@@ -118,9 +118,12 @@ class RequestController extends Controller
 
         DB::beginTransaction();
         try {
+            Log::info('Starting database transaction');
+
             // Handle file uploads
             $attachments = [];
             if ($request->hasFile('attachments')) {
+                Log::info('Processing file uploads', ['file_count' => count($request->file('attachments'))]);
                 foreach ($request->file('attachments') as $file) {
                     $filename = time() . '_' . $file->getClientOriginalName();
                     $path = $file->storeAs('request-attachments', $filename, 'public');
@@ -131,8 +134,14 @@ class RequestController extends Controller
                         'type' => $file->getClientMimeType(),
                     ];
                 }
+                Log::info('File uploads completed', ['attachments_count' => count($attachments)]);
             }
 
+            Log::info('Creating supply request record', [
+                'user_id' => Auth::id(),
+                'item_id' => $validatedData['item_id'],
+                'quantity' => $validatedData['quantity']
+            ]);
             $supplyRequest = SupplyRequest::create([
                 'user_id' => Auth::id(),
                 'item_id' => $validatedData['item_id'],
@@ -146,22 +155,49 @@ class RequestController extends Controller
                 'request_date' => now(),
                 'attachments' => $attachments,
             ]);
+            Log::info('Supply request created successfully', ['request_id' => $supplyRequest->id]);
 
             // Create log entry
+            Log::info('Creating activity log entry');
             ActivityLog::create([
                 'user_id' => Auth::id(),
                 'action' => 'create',
                 'details' => 'Created request for ' . $validatedData['quantity'] . ' ' . $item->name . ' (Priority: ' . $validatedData['priority'] . ')',
                 'created_at' => now(),
             ]);
+            Log::info('Activity log created successfully');
 
             DB::commit();
+            Log::info('Transaction committed successfully');
 
             return redirect()->route('faculty.requests.show', $supplyRequest)
                 ->with('success', 'Request submitted successfully!');
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollback();
+            Log::error('Model not found during request creation', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->withErrors(['error' => 'Required data not found. Please try again.']);
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollback();
+            Log::error('Database query error during request creation', [
+                'error' => $e->getMessage(),
+                'sql' => $e->getSql(),
+                'bindings' => $e->getBindings(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->withErrors(['error' => 'Database error occurred. Please try again.']);
         } catch (\Exception $e) {
             DB::rollback();
+            Log::error('Unexpected error during request creation', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'validated_data' => $validatedData
+            ]);
             return back()->withErrors(['error' => 'Failed to submit request: ' . $e->getMessage()]);
         }
     }
