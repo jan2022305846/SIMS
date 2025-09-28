@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Request as SupplyRequest;
 use App\Models\Item;
 use App\Models\Log as ActivityLog;
+use App\Models\ActivityLog as RequestActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -159,12 +160,17 @@ class RequestController extends Controller
 
             // Create log entry
             Log::info('Creating activity log entry');
-            ActivityLog::create([
-                'user_id' => Auth::id(),
-                'action' => 'create',
-                'details' => 'Created request for ' . $validatedData['quantity'] . ' ' . $item->name . ' (Priority: ' . $validatedData['priority'] . ')',
-                'created_at' => now(),
-            ]);
+            RequestActivityLog::logRequestActivity(
+                'Created request for {subject}',
+                $supplyRequest,
+                'created',
+                [
+                    'quantity' => $validatedData['quantity'],
+                    'item_name' => $item->name,
+                    'priority' => $validatedData['priority'],
+                    'purpose' => $validatedData['purpose']
+                ]
+            );
             Log::info('Activity log created successfully');
 
             DB::commit();
@@ -288,12 +294,12 @@ class RequestController extends Controller
         $request->update($validatedData);
 
         // Create log entry
-        ActivityLog::create([
-            'user_id' => Auth::id(),
-            'action' => 'update',
-            'details' => 'Updated request for ' . $item->name,
-            'created_at' => now(),
-        ]);
+        RequestActivityLog::logRequestActivity(
+            'Updated request for {subject}',
+            $request,
+            'updated',
+            ['item_name' => $item->name]
+        );
 
         return redirect()->route('requests.show', $request)
             ->with('success', 'Request updated successfully!');
@@ -327,12 +333,12 @@ class RequestController extends Controller
 
         // Create log entry with null check
         $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
-        ActivityLog::create([
-            'user_id' => Auth::id(),
-            'action' => 'approve',
-            'details' => 'Approved request by admin for ' . $itemName,
-            'created_at' => now(),
-        ]);
+        RequestActivityLog::logRequestActivity(
+            'Approved request by admin for {subject}',
+            $supplyRequest,
+            'approved',
+            ['item_name' => $itemName]
+        );
 
         return back()->with('success', 'Request approved by administrator successfully!');
     }
@@ -394,12 +400,17 @@ class RequestController extends Controller
                 $logDetails .= ' (Verified with barcode scan)';
             }
             
-            ActivityLog::create([
-                'user_id' => Auth::id(),
-                'action' => 'fulfill',
-                'details' => $logDetails,
-                'created_at' => now(),
-            ]);
+            RequestActivityLog::logRequestActivity(
+                $logDetails,
+                $supplyRequest,
+                'fulfilled',
+                [
+                    'quantity' => $supplyRequest->quantity,
+                    'item_name' => $itemName,
+                    'claim_slip_number' => $supplyRequest->claim_slip_number,
+                    'scanned_barcode' => $httpRequest->filled('scanned_barcode')
+                ]
+            );
 
             DB::commit();
 
@@ -472,12 +483,17 @@ class RequestController extends Controller
                 $logDetails .= ' (Verified with barcode scan)';
             }
             
-            ActivityLog::create([
-                'user_id' => Auth::id(),
-                'action' => 'claim',
-                'details' => $logDetails,
-                'created_at' => now(),
-            ]);
+            RequestActivityLog::logRequestActivity(
+                $logDetails,
+                $supplyRequest,
+                'claimed',
+                [
+                    'quantity' => $supplyRequest->quantity,
+                    'item_name' => $itemName,
+                    'claim_slip_number' => $supplyRequest->claim_slip_number,
+                    'scanned_barcode' => $httpRequest->filled('scanned_barcode')
+                ]
+            );
 
             DB::commit();
 
@@ -557,12 +573,17 @@ class RequestController extends Controller
                 $logDetails .= ' (Verified with barcode scan)';
             }
 
-            ActivityLog::create([
-                'user_id' => Auth::id(),
-                'action' => 'complete_and_claim',
-                'details' => $logDetails,
-                'created_at' => now(),
-            ]);
+            RequestActivityLog::logRequestActivity(
+                $logDetails,
+                $supplyRequest,
+                'fulfilled',
+                [
+                    'quantity' => $supplyRequest->quantity,
+                    'item_name' => $itemName,
+                    'claim_slip_number' => $claimSlipNumber,
+                    'scanned_barcode' => $httpRequest->filled('scanned_barcode')
+                ]
+            );
 
             DB::commit();
 
@@ -601,12 +622,15 @@ class RequestController extends Controller
 
         // Create log entry with null check
         $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
-        ActivityLog::create([
-            'user_id' => Auth::id(),
-            'action' => 'decline',
-            'details' => 'Declined request for ' . $itemName . '. Reason: ' . $validatedData['reason'],
-            'created_at' => now(),
-        ]);
+        RequestActivityLog::logRequestActivity(
+            'Declined request for {subject}',
+            $supplyRequest,
+            'declined',
+            [
+                'item_name' => $itemName,
+                'reason' => $validatedData['reason']
+            ]
+        );
 
         return back()->with('success', 'Request declined successfully!');
     }
@@ -628,12 +652,12 @@ class RequestController extends Controller
 
         // Create log entry before deletion with null check
         $itemName = $request->item ? $request->item->name : 'Unknown Item';
-        ActivityLog::create([
-            'user_id' => Auth::id(),
-            'action' => 'delete',
-            'details' => 'Deleted request for ' . $itemName,
-            'created_at' => now(),
-        ]);
+        RequestActivityLog::logRequestActivity(
+            'Deleted request for {subject}',
+            $request,
+            'deleted',
+            ['item_name' => $itemName]
+        );
 
         $request->delete();
 
@@ -721,12 +745,12 @@ class RequestController extends Controller
         $request->generateClaimSlip();
 
         // Create log entry
-        ActivityLog::create([
-            'user_id' => Auth::id(),
-            'action' => 'generate_claim_slip',
-            'details' => 'Generated claim slip for request: ' . $request->claim_slip_number,
-            'created_at' => now(),
-        ]);
+        RequestActivityLog::logRequestActivity(
+            'Generated claim slip for request: {subject}',
+            $request,
+            'updated',
+            ['claim_slip_number' => $request->claim_slip_number]
+        );
 
         return back()->with('success', 'Claim slip generated successfully! You can now print it and pick up your items from the supply office.');
     }
@@ -756,12 +780,12 @@ class RequestController extends Controller
             ->setPaper('a4', 'portrait');
 
         // Create log entry
-        ActivityLog::create([
-            'user_id' => Auth::id(),
-            'action' => 'download_claim_slip',
-            'details' => 'Downloaded claim slip PDF for request: ' . $request->claim_slip_number,
-            'created_at' => now(),
-        ]);
+        RequestActivityLog::logRequestActivity(
+            'Downloaded claim slip PDF for request: {subject}',
+            $request,
+            'updated',
+            ['claim_slip_number' => $request->claim_slip_number]
+        );
 
         return $pdf->download('claim-slip-' . $request->claim_slip_number . '.pdf');
     }
