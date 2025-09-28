@@ -583,37 +583,20 @@ class ReportsController extends Controller
      */
     public function qrScanAnalytics(Request $request)
     {
-        $dateFrom = $request->date_from ?? Carbon::now()->subMonth()->toDateString();
-        $dateTo = $request->date_to ?? Carbon::now()->toDateString();
+        // Handle period parameter for consistent filtering with main reports
+        $period = $request->get('period', 'daily');
 
-        $scanStats = \App\Models\ItemScanLog::getScanStats($dateFrom, $dateTo);
-
-        $scanLogs = \App\Models\ItemScanLog::with(['item', 'user'])
-            ->whereBetween('scanned_at', [$dateFrom, $dateTo])
-            ->orderBy('scanned_at', 'desc')
-            ->get();
-
-        $analytics = [
-            'total_scans' => $scanStats['total_scans'],
-            'unique_items_scanned' => $scanStats['unique_items_scanned'],
-            'unique_users_scanning' => $scanStats['unique_users_scanning'],
-            'scans_by_scanner_type' => $scanStats['scans_by_scanner_type'],
-            'most_scanned_items' => $scanStats['most_scanned_items'],
-            'scans_by_location' => $scanStats['scans_by_location'],
-            'daily_scan_trend' => $this->getDailyScanTrend($dateFrom, $dateTo),
-            'scan_frequency_analysis' => $this->getOverallScanFrequency(),
-            'unscanned_items' => \App\Models\ItemScanLog::getUnscannedItems(30)->count(),
-            'scan_alerts' => \App\Models\ItemScanLog::getScanAlerts(),
-        ];
+        // Get report data based on period
+        $data = $this->getQrScanReportData($period);
 
         if ($request->input('format') === 'pdf') {
-            $pdf = Pdf::loadView('admin.reports.pdf.qr-scan-analytics', compact('scanLogs', 'analytics', 'dateFrom', 'dateTo'))
+            $pdf = Pdf::loadView('admin.reports.pdf.qr-scan-analytics', compact('data'))
                 ->setPaper('a4', 'landscape');
 
             return $pdf->download('qr-scan-analytics-' . date('Y-m-d') . '.pdf');
         }
 
-        return view('admin.reports.qr-scan-analytics', compact('scanLogs', 'analytics', 'dateFrom', 'dateTo'));
+        return view('admin.reports.qr-scan-analytics', compact('data', 'period'));
     }
 
     /**
@@ -1297,6 +1280,204 @@ class ReportsController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Get QR scan report data based on period
+     */
+    private function getQrScanReportData($period)
+    {
+        $now = Carbon::now();
+
+        switch ($period) {
+            case 'daily':
+                return $this->getQrScanDailyReportData($now);
+            case 'weekly':
+                return $this->getQrScanWeeklyReportData($now);
+            case 'annually':
+                return $this->getQrScanAnnualReportData($now);
+            default:
+                return $this->getQrScanDailyReportData($now);
+        }
+    }
+
+    private function getQrScanDailyReportData($date)
+    {
+        $startDate = $date->copy()->startOfDay();
+        $endDate = $date->copy()->endOfDay();
+
+        // Get last 7 days for chart - use single query with date grouping
+        $chartData = [];
+
+        // Get all scans for the last 7 days in one query
+        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(scanned_at) as date, COUNT(*) as total_scans')
+            ->whereBetween('scanned_at', [$date->copy()->subDays(6)->startOfDay(), $endDate])
+            ->groupByRaw('DATE(scanned_at)')
+            ->orderByRaw('DATE(scanned_at)');
+
+        $scansData = $scansQuery->get()->keyBy('date');
+
+        // Build chart data for last 7 days
+        for ($i = 6; $i >= 0; $i--) {
+            $checkDate = $date->copy()->subDays($i);
+            $dateKey = $checkDate->format('Y-m-d');
+
+            $data = $scansData->get($dateKey);
+
+            $chartData[] = [
+                'date' => $checkDate->format('M j'),
+                'scans' => $data ? (int)$data->total_scans : 0,
+            ];
+        }
+
+        // Today's data - get all records for display
+        $todayScans = \App\Models\ItemScanLog::with(['item', 'user'])
+            ->whereBetween('scanned_at', [$startDate, $endDate])
+            ->orderBy('scanned_at', 'desc')
+            ->get();
+
+        // Get scan statistics for today
+        $scanStats = \App\Models\ItemScanLog::getScanStats($startDate->toDateString(), $endDate->toDateString());
+
+        return [
+            'period' => 'Daily',
+            'current_date' => $date->format('F j, Y'),
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_scans' => $scanStats['total_scans'],
+                'unique_items_scanned' => $scanStats['unique_items_scanned'],
+                'unique_users_scanning' => $scanStats['unique_users_scanning'],
+                'unscanned_items' => \App\Models\ItemScanLog::getUnscannedItems(30)->count(),
+            ],
+            'analytics' => [
+                'scans_by_scanner_type' => $scanStats['scans_by_scanner_type'],
+                'most_scanned_items' => $scanStats['most_scanned_items'],
+                'scans_by_location' => $scanStats['scans_by_location'],
+                'daily_scan_trend' => $this->getDailyScanTrend($startDate->toDateString(), $endDate->toDateString()),
+                'scan_frequency_analysis' => $this->getOverallScanFrequency(),
+                'scan_alerts' => \App\Models\ItemScanLog::getScanAlerts(),
+            ],
+            'records' => $todayScans
+        ];
+    }
+
+    private function getQrScanWeeklyReportData($date)
+    {
+        $startDate = $date->copy()->startOfWeek();
+        $endDate = $date->copy()->endOfWeek();
+
+        // Get all scans for the last 8 weeks in one query
+        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(scanned_at) as date, COUNT(*) as total_scans')
+            ->whereBetween('scanned_at', [$date->copy()->subWeeks(7)->startOfWeek(), $endDate])
+            ->groupByRaw('DATE(scanned_at)')
+            ->orderByRaw('DATE(scanned_at)');
+
+        $scansData = $scansQuery->get()->groupBy(function($item) {
+            $date = Carbon::parse($item->date);
+            return $date->format('Y-W') . sprintf('%02d', $date->weekOfYear);
+        });
+
+        // Build chart data for last 8 weeks
+        $chartData = [];
+        for ($i = 7; $i >= 0; $i--) {
+            $weekStart = $date->copy()->subWeeks($i)->startOfWeek();
+            $weekKey = $weekStart->format('Y-W') . sprintf('%02d', $weekStart->weekOfYear);
+
+            $weekData = $scansData->get($weekKey, collect());
+            $totalScans = $weekData->sum('total_scans');
+
+            $chartData[] = [
+                'date' => $weekStart->format('M j') . ' - ' . $weekStart->copy()->endOfWeek()->format('M j'),
+                'scans' => (int)$totalScans,
+            ];
+        }
+
+        // Current week scans for display
+        $weekScans = \App\Models\ItemScanLog::with(['item', 'user'])
+            ->whereBetween('scanned_at', [$startDate, $endDate])
+            ->orderBy('scanned_at', 'desc')
+            ->get();
+
+        // Get scan statistics for current week
+        $scanStats = \App\Models\ItemScanLog::getScanStats($startDate->toDateString(), $endDate->toDateString());
+
+        return [
+            'period' => 'Weekly',
+            'current_date' => $startDate->format('M j') . ' - ' . $endDate->format('M j, Y'),
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_scans' => $scanStats['total_scans'],
+                'unique_items_scanned' => $scanStats['unique_items_scanned'],
+                'unique_users_scanning' => $scanStats['unique_users_scanning'],
+                'unscanned_items' => \App\Models\ItemScanLog::getUnscannedItems(30)->count(),
+            ],
+            'analytics' => [
+                'scans_by_scanner_type' => $scanStats['scans_by_scanner_type'],
+                'most_scanned_items' => $scanStats['most_scanned_items'],
+                'scans_by_location' => $scanStats['scans_by_location'],
+                'daily_scan_trend' => $this->getDailyScanTrend($startDate->toDateString(), $endDate->toDateString()),
+                'scan_frequency_analysis' => $this->getOverallScanFrequency(),
+                'scan_alerts' => \App\Models\ItemScanLog::getScanAlerts(),
+            ],
+            'records' => $weekScans
+        ];
+    }
+
+    private function getQrScanAnnualReportData($date)
+    {
+        $startDate = $date->copy()->startOfYear();
+        $endDate = $date->copy()->endOfYear();
+
+        // Get all scans for the last 5 years in one query
+        $scansQuery = \App\Models\ItemScanLog::selectRaw('YEAR(scanned_at) as year, COUNT(*) as total_scans')
+            ->whereBetween('scanned_at', [$date->copy()->subYears(4)->startOfYear(), $endDate])
+            ->groupByRaw('YEAR(scanned_at)')
+            ->orderByRaw('YEAR(scanned_at)');
+
+        $scansData = $scansQuery->get()->keyBy('year');
+
+        // Build chart data for last 5 years
+        $chartData = [];
+        for ($i = 4; $i >= 0; $i--) {
+            $year = $date->copy()->subYears($i)->year;
+
+            $data = $scansData->get($year);
+
+            $chartData[] = [
+                'date' => (string)$year,
+                'scans' => $data ? (int)$data->total_scans : 0,
+            ];
+        }
+
+        // Current year scans for display
+        $yearScans = \App\Models\ItemScanLog::with(['item', 'user'])
+            ->whereBetween('scanned_at', [$startDate, $endDate])
+            ->orderBy('scanned_at', 'desc')
+            ->get();
+
+        // Get scan statistics for current year
+        $scanStats = \App\Models\ItemScanLog::getScanStats($startDate->toDateString(), $endDate->toDateString());
+
+        return [
+            'period' => 'Annual',
+            'current_date' => (string)$date->year,
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_scans' => $scanStats['total_scans'],
+                'unique_items_scanned' => $scanStats['unique_items_scanned'],
+                'unique_users_scanning' => $scanStats['unique_users_scanning'],
+                'unscanned_items' => \App\Models\ItemScanLog::getUnscannedItems(30)->count(),
+            ],
+            'analytics' => [
+                'scans_by_scanner_type' => $scanStats['scans_by_scanner_type'],
+                'most_scanned_items' => $scanStats['most_scanned_items'],
+                'scans_by_location' => $scanStats['scans_by_location'],
+                'daily_scan_trend' => $this->getDailyScanTrend($startDate->toDateString(), $endDate->toDateString()),
+                'scan_frequency_analysis' => $this->getOverallScanFrequency(),
+                'scan_alerts' => \App\Models\ItemScanLog::getScanAlerts(),
+            ],
+            'records' => $yearScans
+        ];
     }
 
     /**

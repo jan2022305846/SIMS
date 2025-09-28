@@ -24,7 +24,7 @@
     <div class="header">
         <h1>QR Code Scan Analytics Report</h1>
         <div class="date-range">
-            Period: {{ \Carbon\Carbon::parse($dateFrom)->format('M d, Y') }} - {{ \Carbon\Carbon::parse($dateTo)->format('M d, Y') }}
+            Period: {{ $data['period'] }} - {{ $data['current_date'] }}
         </div>
         <p>Generated on: {{ date('M d, Y H:i') }}</p>
     </div>
@@ -33,19 +33,19 @@
     <div class="section-title">Overview Statistics</div>
     <div class="stats">
         <div class="stat-box">
-            <div class="stat-number">{{ number_format($analytics['total_scans']) }}</div>
+            <div class="stat-number">{{ number_format($data['summary']['total_scans']) }}</div>
             <div class="stat-label">Total Scans</div>
         </div>
         <div class="stat-box">
-            <div class="stat-number">{{ number_format($analytics['unique_items_scanned']) }}</div>
+            <div class="stat-number">{{ number_format($data['summary']['unique_items_scanned']) }}</div>
             <div class="stat-label">Items Scanned</div>
         </div>
         <div class="stat-box">
-            <div class="stat-number">{{ number_format($analytics['unique_users_scanning']) }}</div>
+            <div class="stat-number">{{ number_format($data['summary']['unique_users_scanning']) }}</div>
             <div class="stat-label">Active Users</div>
         </div>
         <div class="stat-box">
-            <div class="stat-number">{{ number_format($analytics['unscanned_items']) }}</div>
+            <div class="stat-number">{{ number_format($data['summary']['unscanned_items']) }}</div>
             <div class="stat-label">Unscanned (30+ days)</div>
         </div>
     </div>
@@ -63,7 +63,7 @@
 
     <!-- Most Scanned Items -->
     <div class="section-title">Most Scanned Items</div>
-    @if($analytics['most_scanned_items']->count() > 0)
+    @if($data['analytics']['most_scanned_items']->count() > 0)
         <table>
             <thead>
                 <tr>
@@ -73,7 +73,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($analytics['most_scanned_items'] as $item)
+                @foreach($data['analytics']['most_scanned_items'] as $item)
                     <tr>
                         <td>{{ $item['item']->name }}</td>
                         <td>{{ $item['item']->category->name ?? 'N/A' }}</td>
@@ -88,7 +88,7 @@
 
     <!-- Scans by Location -->
     <div class="section-title">Scans by Location</div>
-    @if($analytics['scans_by_location']->count() > 0)
+    @if($data['analytics']['scans_by_location']->count() > 0)
         <table>
             <thead>
                 <tr>
@@ -98,11 +98,11 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($analytics['scans_by_location'] as $location => $count)
+                @foreach($data['analytics']['scans_by_location'] as $location => $count)
                     <tr>
                         <td>{{ $location ?: 'Unknown' }}</td>
                         <td>{{ $count }}</td>
-                        <td>{{ number_format(($count / $analytics['total_scans']) * 100, 1) }}%</td>
+                        <td>{{ number_format(($count / $data['summary']['total_scans']) * 100, 1) }}%</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -113,7 +113,7 @@
 
     <!-- Recent Scan Activity -->
     <div class="section-title">Recent Scan Activity</div>
-    @if($scanLogs->count() > 0)
+    @if($data['records']->count() > 0)
         <table>
             <thead>
                 <tr>
@@ -125,7 +125,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($scanLogs as $log)
+                @foreach($data['records'] as $log)
                     <tr>
                         <td>{{ $log->scanned_at->format('M d, Y H:i') }}</td>
                         <td>{{ $log->item->name }}</td>

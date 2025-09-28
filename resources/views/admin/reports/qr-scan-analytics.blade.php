@@ -12,16 +12,23 @@
                         QR Code Scan Analytics
                     </h2>
                     <div class="d-flex gap-2">
-                        <!-- Date Range Filter -->
-                        <form method="GET" class="d-flex gap-2">
-                            <input type="date" name="date_from" value="{{ $dateFrom }}" class="form-control form-control-sm" style="width: 140px;">
-                            <input type="date" name="date_to" value="{{ $dateTo }}" class="form-control form-control-sm" style="width: 140px;">
-                            <button type="submit" class="btn btn-primary btn-sm">
-                                <i class="fas fa-filter me-1"></i>Filter
-                            </button>
-                        </form>
+                        <!-- Period Selector -->
+                        <div class="btn-group" id="periodSelector">
+                            <a href="{{ route('reports.qr-scan-analytics', ['period' => 'daily']) }}"
+                               class="btn {{ ($period ?? 'daily') === 'daily' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
+                                <i class="fas fa-calendar-day me-1"></i>Daily
+                            </a>
+                            <a href="{{ route('reports.qr-scan-analytics', ['period' => 'weekly']) }}"
+                               class="btn {{ ($period ?? 'daily') === 'weekly' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
+                                <i class="fas fa-calendar-week me-1"></i>Weekly
+                            </a>
+                            <a href="{{ route('reports.qr-scan-analytics', ['period' => 'annually']) }}"
+                               class="btn {{ ($period ?? 'daily') === 'annually' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
+                                <i class="fas fa-calendar me-1"></i>Annual
+                            </a>
+                        </div>
                         <!-- PDF Export -->
-                        <a href="{{ route('reports.qr-scan-analytics', ['date_from' => $dateFrom, 'date_to' => $dateTo, 'format' => 'pdf']) }}"
+                        <a href="{{ route('reports.qr-scan-analytics', ['period' => $period ?? 'daily', 'format' => 'pdf']) }}"
                            class="btn btn-danger btn-sm" target="_blank">
                             <i class="fas fa-file-pdf me-1"></i>Export PDF
                         </a>
@@ -34,7 +41,7 @@
                         <div class="card text-center border-primary">
                             <div class="card-body">
                                 <i class="fas fa-qrcode fa-2x text-primary mb-2"></i>
-                                <h4 class="mb-0">{{ number_format($analytics['total_scans']) }}</h4>
+                                <h4 class="mb-0">{{ number_format($data['summary']['total_scans']) }}</h4>
                                 <small class="text-muted">Total Scans</small>
                             </div>
                         </div>
@@ -43,7 +50,7 @@
                         <div class="card text-center border-success">
                             <div class="card-body">
                                 <i class="fas fa-boxes fa-2x text-success mb-2"></i>
-                                <h4 class="mb-0">{{ number_format($analytics['unique_items_scanned']) }}</h4>
+                                <h4 class="mb-0">{{ number_format($data['summary']['unique_items_scanned']) }}</h4>
                                 <small class="text-muted">Items Scanned</small>
                             </div>
                         </div>
@@ -52,7 +59,7 @@
                         <div class="card text-center border-info">
                             <div class="card-body">
                                 <i class="fas fa-users fa-2x text-info mb-2"></i>
-                                <h4 class="mb-0">{{ number_format($analytics['unique_users_scanning']) }}</h4>
+                                <h4 class="mb-0">{{ number_format($data['summary']['unique_users_scanning']) }}</h4>
                                 <small class="text-muted">Active Users</small>
                             </div>
                         </div>
@@ -61,7 +68,7 @@
                         <div class="card text-center border-warning">
                             <div class="card-body">
                                 <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
-                                <h4 class="mb-0">{{ number_format($analytics['unscanned_items']) }}</h4>
+                                <h4 class="mb-0">{{ number_format($data['summary']['unscanned_items']) }}</h4>
                                 <small class="text-muted">Unscanned (30+ days)</small>
                             </div>
                         </div>
@@ -75,7 +82,7 @@
                             <div class="card-header">
                                 <h5 class="card-title mb-0">
                                     <i class="fas fa-chart-bar me-2"></i>
-                                    Daily Scan Activity
+                                    Daily Scan Activity - {{ ucfirst($period ?? 'daily') }}
                                 </h5>
                             </div>
                             <div class="card-body">
@@ -109,7 +116,7 @@
                                 </h5>
                             </div>
                             <div class="card-body">
-                                @if($analytics['most_scanned_items']->count() > 0)
+                                @if($data['analytics']['most_scanned_items']->count() > 0)
                                     <div class="table-responsive">
                                         <table class="table table-sm">
                                             <thead>
@@ -120,7 +127,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach($analytics['most_scanned_items'] as $item)
+                                                @foreach($data['analytics']['most_scanned_items'] as $item)
                                                     <tr>
                                                         <td>
                                                             <a href="{{ route('reports.item-scan-history', $item['item']->id) }}" class="text-decoration-none">
@@ -151,7 +158,7 @@
                                 </h5>
                             </div>
                             <div class="card-body">
-                                @if($analytics['scans_by_location']->count() > 0)
+                                @if($data['analytics']['scans_by_location']->count() > 0)
                                     <div class="table-responsive">
                                         <table class="table table-sm">
                                             <thead>
@@ -162,12 +169,12 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach($analytics['scans_by_location'] as $location => $count)
+                                                @foreach($data['analytics']['scans_by_location'] as $location => $count)
                                                     <tr>
                                                         <td>{{ $location ?: 'Unknown' }}</td>
                                                         <td class="text-center">{{ $count }}</td>
                                                         <td class="text-center">
-                                                            {{ number_format(($count / $analytics['total_scans']) * 100, 1) }}%
+                                                            {{ number_format(($count / $data['summary']['total_scans']) * 100, 1) }}%
                                                         </td>
                                                     </tr>
                                                 @endforeach
@@ -191,7 +198,7 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        @if($scanLogs->count() > 0)
+                        @if($data['records']->count() > 0)
                             <div class="table-responsive">
                                 <table class="table table-hover">
                                     <thead>
@@ -204,7 +211,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($scanLogs as $log)
+                                        @foreach($data['records'] as $log)
                                             <tr>
                                                 <td>{{ $log->scanned_at->format('M d, Y H:i') }}</td>
                                                 <td>
@@ -245,15 +252,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeCharts() {
     // Daily Scan Activity Chart
     const scanActivityCtx = document.getElementById('scanActivityChart').getContext('2d');
-    const scanData = @json($analytics['daily_scan_trend']);
+    const scanData = @json($data['chart_data']);
 
     new Chart(scanActivityCtx, {
         type: 'line',
         data: {
-            labels: Object.keys(scanData),
+            labels: scanData.map(item => item.date),
             datasets: [{
                 label: 'Daily Scans',
-                data: Object.values(scanData),
+                data: scanData.map(item => item.scans),
                 borderColor: 'rgba(54, 162, 235, 1)',
                 backgroundColor: 'rgba(54, 162, 235, 0.2)',
                 borderWidth: 2,
@@ -274,7 +281,7 @@ function initializeCharts() {
 
     // Scanner Type Chart
     const scannerTypeCtx = document.getElementById('scannerTypeChart').getContext('2d');
-    const scannerData = @json($analytics['scans_by_scanner_type']);
+    const scannerData = @json($data['analytics']['scans_by_scanner_type']);
 
     new Chart(scannerTypeCtx, {
         type: 'doughnut',
