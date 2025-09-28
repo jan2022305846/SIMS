@@ -90,6 +90,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('items/expiring-soon', [ItemController::class, 'expiringSoon'])->name('items.expiring-soon');
         Route::get('items/trashed', [ItemController::class, 'trashed'])->name('items.trashed');
         Route::post('items/{id}/restore', [ItemController::class, 'restore'])->name('items.restore');
+        Route::post('items/bulk-restore', [ItemController::class, 'bulkRestore'])->name('items.bulk-restore');
+        Route::delete('items/{id}/force-delete', [ItemController::class, 'forceDelete'])->name('items.force-delete');
+        Route::post('items/bulk-force-delete', [ItemController::class, 'bulkForceDelete'])->name('items.bulk-force-delete');
         
         // Item Assignment Management
         Route::get('items/{item}/assign', [ItemController::class, 'showAssignForm'])->name('items.assign');

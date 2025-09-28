@@ -352,24 +352,98 @@ class ItemController extends Controller
     }
 
     /**
-     * Display trashed items.
+     * Display trashed (soft-deleted) items.
+     *
+     * Shows items that have been soft-deleted and can be restored.
+     * Items in trash maintain their relationships and can be recovered.
+     *
+     * @param Request $request The HTTP request instance
+     * @return \Illuminate\View\View
      */
-    public function trashed()
+    public function trashed(Request $request)
     {
-        $items = Item::onlyTrashed()->with('category')->paginate(10);
-        return view('admin.items.trashed', compact('items'));
+        // Query trashed items with their category relationships
+        $query = Item::onlyTrashed()->with('category');
+
+        // Apply search filter if provided
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('brand', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('description', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('barcode', 'like', '%' . $searchTerm . '%');
+            });
+        }
+
+        // Apply category filter if provided
+        if ($request->filled('category')) {
+            $query->where('category_id', $request->category);
+        }
+
+        // Order by deletion date (most recently deleted first)
+        $query->orderBy('deleted_at', 'desc');
+
+        // Paginate results
+        $items = $query->paginate(15)->appends(request()->query());
+
+        // Get categories for filter dropdown
+        $categories = Category::orderBy('name')->get();
+
+        return view('admin.items.trashed', compact('items', 'categories'));
     }
 
     /**
-     * Restore a trashed item.
+     * Restore a trashed (soft-deleted) item.
+     *
+     * Restores an item from the trash, making it active again.
+     * All relationships and data are preserved during restoration.
+     *
+     * @param int $id The ID of the item to restore
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function restore($id)
     {
-        $item = Item::onlyTrashed()->findOrFail($id);
-        $item->restore();
+        try {
+            // Find the trashed item
+            $item = Item::onlyTrashed()->findOrFail($id);
 
-        return redirect()->route('items.trashed')
-            ->with('success', 'Item restored successfully.');
+            // Store item name for success message
+            $itemName = $item->name;
+
+            // Restore the item
+            $item->restore();
+
+            // Log the restoration activity
+            Log::info('Item restored from trash', [
+                'item_id' => $item->id,
+                'item_name' => $itemName,
+                'restored_by' => Auth::id(),
+                'restored_at' => now()
+            ]);
+
+            return redirect()->route('items.trashed')
+                ->with('success', "Item '{$itemName}' has been successfully restored and is now active.");
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::warning('Attempted to restore non-existent trashed item', [
+                'item_id' => $id,
+                'user_id' => Auth::id()
+            ]);
+
+            return redirect()->route('items.trashed')
+                ->with('error', 'The item you are trying to restore was not found in the trash.');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to restore item from trash', [
+                'item_id' => $id,
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            return redirect()->route('items.trashed')
+                ->with('error', 'An error occurred while restoring the item. Please try again.');
+        }
     }
 
     /**
@@ -465,18 +539,193 @@ class ItemController extends Controller
     }
 
     /**
-     * Update item location.
+     * Restore multiple trashed items at once.
+     *
+     * Allows bulk restoration of soft-deleted items.
+     * Validates that all provided IDs exist in trash before restoration.
+     *
+     * @param Request $request The HTTP request instance containing item IDs
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function updateLocation(Request $request, Item $item)
+    public function bulkRestore(Request $request)
     {
         $request->validate([
-            'location' => 'required|string|max:255',
+            'item_ids' => 'required|array|min:1',
+            'item_ids.*' => 'required|integer|exists:items,id'
         ]);
 
-        $oldLocation = $item->location;
-        $item->update(['location' => $request->location]);
+        try {
+            $itemIds = $request->item_ids;
 
-        return redirect()->route('items.show', $item)
-            ->with('success', "Item location updated from '{$oldLocation}' to '{$request->location}'.");
+            // Find trashed items only
+            $trashedItems = Item::onlyTrashed()->whereIn('id', $itemIds)->get();
+
+            if ($trashedItems->isEmpty()) {
+                return redirect()->route('items.trashed')
+                    ->with('error', 'No valid items found in trash to restore.');
+            }
+
+            $restoredCount = 0;
+            $skippedCount = count($itemIds) - $trashedItems->count();
+            $restoredNames = [];
+
+            // Restore each valid trashed item
+            foreach ($trashedItems as $item) {
+                $item->restore();
+                $restoredNames[] = $item->name;
+                $restoredCount++;
+            }
+
+            // Log the bulk restoration activity
+            Log::info('Bulk item restoration from trash', [
+                'restored_count' => $restoredCount,
+                'skipped_count' => $skippedCount,
+                'item_ids' => $itemIds,
+                'restored_by' => Auth::id(),
+                'restored_at' => now()
+            ]);
+
+            // Build success message
+            $message = "Successfully restored {$restoredCount} item" . ($restoredCount > 1 ? 's' : '') . '.';
+            if ($skippedCount > 0) {
+                $message .= " {$skippedCount} item" . ($skippedCount > 1 ? 's were' : ' was') . ' skipped (not found in trash).';
+            }
+
+            return redirect()->route('items.trashed')
+                ->with('success', $message);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to perform bulk item restoration', [
+                'item_ids' => $request->item_ids ?? [],
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            return redirect()->route('items.trashed')
+                ->with('error', 'An error occurred during bulk restoration. Please try again or restore items individually.');
+        }
+    }
+    /**
+     * Permanently delete a trashed item.
+     *
+     * WARNING: This action cannot be undone. The item will be completely removed
+     * from the database along with all its relationships and history.
+     *
+     * @param int $id The ID of the item to permanently delete
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function forceDelete($id)
+    {
+        try {
+            // Find the trashed item
+            $item = Item::onlyTrashed()->findOrFail($id);
+
+            // Store item name for logging and messages
+            $itemName = $item->name;
+
+            // Log the permanent deletion (before actually deleting)
+            Log::warning('Item permanently deleted from trash', [
+                'item_id' => $item->id,
+                'item_name' => $itemName,
+                'deleted_by' => Auth::id(),
+                'deleted_at' => now(),
+                'warning' => 'This action cannot be undone'
+            ]);
+
+            // Permanently delete the item
+            $item->forceDelete();
+
+            return redirect()->route('items.trashed')
+                ->with('success', "Item '{$itemName}' has been permanently deleted and cannot be recovered.");
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::warning('Attempted to permanently delete non-existent trashed item', [
+                'item_id' => $id,
+                'user_id' => Auth::id()
+            ]);
+
+            return redirect()->route('items.trashed')
+                ->with('error', 'The item you are trying to delete was not found in the trash.');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to permanently delete item from trash', [
+                'item_id' => $id,
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            return redirect()->route('items.trashed')
+                ->with('error', 'An error occurred while deleting the item. Please try again.');
+        }
+    }
+
+    /**
+     * Permanently delete multiple trashed items at once.
+     *
+     * WARNING: This action cannot be undone. All selected items will be completely
+     * removed from the database along with all their relationships and history.
+     *
+     * @param Request $request The HTTP request instance containing item IDs
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function bulkForceDelete(Request $request)
+    {
+        $request->validate([
+            'item_ids' => 'required|array|min:1',
+            'item_ids.*' => 'required|integer|exists:items,id'
+        ]);
+
+        try {
+            $itemIds = $request->item_ids;
+
+            // Find trashed items only
+            $trashedItems = Item::onlyTrashed()->whereIn('id', $itemIds)->get();
+
+            if ($trashedItems->isEmpty()) {
+                return redirect()->route('items.trashed')
+                    ->with('error', 'No valid items found in trash to delete.');
+            }
+
+            $deletedCount = 0;
+            $skippedCount = count($itemIds) - $trashedItems->count();
+            $deletedNames = [];
+
+            // Permanently delete each valid trashed item
+            foreach ($trashedItems as $item) {
+                $deletedNames[] = $item->name;
+
+                // Log each deletion
+                Log::warning('Item permanently deleted from trash (bulk operation)', [
+                    'item_id' => $item->id,
+                    'item_name' => $item->name,
+                    'deleted_by' => Auth::id(),
+                    'deleted_at' => now(),
+                    'warning' => 'This action cannot be undone'
+                ]);
+
+                $item->forceDelete();
+                $deletedCount++;
+            }
+
+            // Build success message
+            $message = "Successfully permanently deleted {$deletedCount} item" . ($deletedCount > 1 ? 's' : '') . '.';
+            if ($skippedCount > 0) {
+                $message .= " {$skippedCount} item" . ($skippedCount > 1 ? 's were' : ' was') . ' skipped (not found in trash).';
+            }
+            $message .= ' This action cannot be undone.';
+
+            return redirect()->route('items.trashed')
+                ->with('success', $message);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to perform bulk permanent deletion', [
+                'item_ids' => $request->item_ids ?? [],
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            return redirect()->route('items.trashed')
+                ->with('error', 'An error occurred during permanent deletion. No items were deleted.');
+        }
     }
 }
