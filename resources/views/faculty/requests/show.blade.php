@@ -169,12 +169,19 @@
                     </div>
                     <div class="card-body">
                         @if($request->canGenerateClaimSlip())
-                            <form action="{{ route('faculty.requests.generate-claim-slip', $request) }}" method="POST" class="mb-2">
-                                @csrf
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="fas fa-ticket-alt me-2"></i>Generate Claim Slip
-                                </button>
-                            </form>
+                            <div class="d-flex gap-2 mb-2">
+                                <a href="{{ route('requests.claim-slip', $request) }}"
+                                   class="btn btn-outline-info flex-fill"
+                                   target="_blank">
+                                    <i class="fas fa-eye me-2"></i>Preview Claim Slip
+                                </a>
+                                <form action="{{ route('faculty.requests.generate-claim-slip', $request) }}" method="POST" class="flex-fill">
+                                    @csrf
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-ticket-alt me-2"></i>Generate Claim Slip
+                                    </button>
+                                </form>
+                            </div>
                         @endif
 
                         @if($request->isReadyForPickup() || $request->isFulfilled() || $request->isClaimed())

@@ -752,7 +752,8 @@ class RequestController extends Controller
             ['claim_slip_number' => $request->claim_slip_number]
         );
 
-        return back()->with('success', 'Claim slip generated successfully! You can now print it and pick up your items from the supply office.');
+        // Redirect to claim slip view in new tab
+        return redirect()->route('requests.claim-slip', $request)->with('success', 'Claim slip generated successfully! You can now print it and pick up your items from the supply office.');
     }
 
     public function downloadClaimSlip(SupplyRequest $request)
