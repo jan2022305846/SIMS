@@ -82,6 +82,17 @@ class RequestController extends Controller
 
     public function store(Request $request)
     {
+        // Debug logging
+        Log::info('Faculty request submission attempt', [
+            'user_id' => Auth::id(),
+            'user_role' => Auth::user()->role ?? 'unknown',
+            'method' => $request->method(),
+            'all_data' => $request->all(),
+            'has_csrf' => $request->has('_token'),
+            'csrf_token' => $request->input('_token') ? 'present' : 'missing',
+            'session_id' => $request->session()->getId(),
+        ]);
+
         $validatedData = $request->validate([
             'item_id' => 'required|exists:items,id',
             'quantity' => 'required|integer|min:1',
@@ -92,9 +103,16 @@ class RequestController extends Controller
             'attachments.*' => 'file|max:5120|mimes:pdf,jpg,jpeg,png,doc,docx', // 5MB max per file
         ]);
 
+        Log::info('Validation passed', ['validated_data' => $validatedData]);
+
         // Check stock availability
         $item = Item::findOrFail($validatedData['item_id']);
         if ($item->current_stock < $validatedData['quantity']) {
+            Log::warning('Stock validation failed', [
+                'item_id' => $item->id,
+                'requested' => $validatedData['quantity'],
+                'available' => $item->current_stock
+            ]);
             return back()->withErrors(['quantity' => 'Requested quantity exceeds available stock (' . $item->current_stock . ' available)']);
         }
 
