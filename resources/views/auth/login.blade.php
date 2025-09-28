@@ -32,8 +32,14 @@
 .login-card-container {
     width: 100%;
     max-width: 1200px;
-    background: white;
-    border-radius: 20px;
+    background: whi        .finally(() => {
+            // Small delay to ensure visual feedback
+            setTimeout(() => {
+                // Reset button state
+                loginSubmit.disabled = false;
+                loginSubmit.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Sign in';
+            }, 100);
+        });   border-radius: 20px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
     overflow: hidden;
     position: relative;
@@ -210,6 +216,17 @@
     color: #212529;
     transform: translateY(-2px);
     box-shadow: 0 10px 25px rgba(255, 193, 7, 0.3);
+}
+
+.login-form-section .btn:disabled {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+    opacity: 0.8 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+    visibility: visible !important;
+    display: block !important;
 }
 
 /* Password input wrapper */
@@ -524,7 +541,7 @@
 
                     <button type="submit" id="login-submit" class="btn">
                         <i class="fas fa-sign-in-alt me-2"></i>
-                        Sign In to SIMS
+                        Sign in
                     </button>
                 </form>
             </div>
@@ -764,7 +781,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .finally(() => {
             // Reset button state
             loginSubmit.disabled = false;
-            loginSubmit.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Sign In to SIMS';
+            loginSubmit.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Sign in';
         });
     });
 
