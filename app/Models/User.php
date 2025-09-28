@@ -42,6 +42,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'status',
         'must_set_password',
     ];
 

@@ -162,9 +162,11 @@
                                             @switch($request->workflow_status)
                                                 @case('pending') bg-warning @break
                                                 @case('approved_by_admin') bg-success @break
+                                                @case('ready_for_pickup') bg-purple text-white @break
                                                 @case('fulfilled') bg-purple text-white @break
                                                 @case('claimed') bg-secondary @break
-                                                @default bg-danger @break
+                                                @case('declined_by_admin') bg-danger @break
+                                                @default bg-secondary @break
                                             @endswitch">
                                             {{ $request->getStatusDisplayName() }}
                                         </span>
@@ -210,12 +212,25 @@
                                             </a>
                                         @endif
 
-                                        @if($request->canBeAcknowledgedByRequester())
+                                        @if($request->canBeAcknowledgedByRequester() && !$request->isClaimed())
                                             <a href="{{ route('faculty.requests.acknowledgment.show', $request) }}"
                                                class="btn btn-outline-success btn-sm"
                                                title="Acknowledge Receipt">
                                                 <i class="fas fa-signature"></i>
                                             </a>
+                                        @endif
+                                        
+                                        @if($request->isPending() && $request->user_id === Auth::id())
+                                            <form method="POST" action="{{ route('faculty.requests.destroy', $request) }}" class="d-inline" 
+                                                  onsubmit="return confirm('Are you sure you want to delete this request? This action cannot be undone.')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" 
+                                                        class="btn btn-outline-danger btn-sm"
+                                                        title="Delete Request">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
                                         @endif
                                     </div>
                                 </div>

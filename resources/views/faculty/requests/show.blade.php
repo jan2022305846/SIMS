@@ -43,9 +43,11 @@
                                         @switch($request->workflow_status)
                                             @case('pending') bg-warning @break
                                             @case('approved_by_admin') bg-success @break
+                                            @case('ready_for_pickup') bg-purple text-white @break
                                             @case('fulfilled') bg-purple text-white @break
                                             @case('claimed') bg-secondary @break
-                                            @default bg-danger @break
+                                            @case('declined_by_admin') bg-danger @break
+                                            @default bg-secondary @break
                                         @endswitch">
                                         {{ $request->getStatusDisplayName() }}
                                     </span>
@@ -168,6 +170,20 @@
                         </h5>
                     </div>
                     <div class="card-body">
+                        <!-- Flash Messages -->
+                        @if(session('success'))
+                            <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+                                <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
+                        @if(session('error') || $errors->any())
+                            <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i>{{ session('error') ?? $errors->first() }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
                         @if($request->canGenerateClaimSlip())
                             <div class="d-flex gap-2 mb-2">
                                 <a href="{{ route('requests.claim-slip', $request) }}"
@@ -189,13 +205,6 @@
                                class="btn btn-warning w-100 mb-2"
                                target="_blank">
                                 <i class="fas fa-print me-2"></i>Print Claim Slip
-                            </a>
-                        @endif
-
-                        @if($request->canBeAcknowledgedByRequester())
-                            <a href="{{ route('faculty.requests.acknowledgment.show', $request) }}"
-                               class="btn btn-success w-100 mb-2">
-                                <i class="fas fa-signature me-2"></i>Acknowledge Receipt
                             </a>
                         @endif
 

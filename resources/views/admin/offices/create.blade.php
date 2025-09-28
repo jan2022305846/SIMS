@@ -72,7 +72,7 @@
                                 </label>
                                 <select name="office_head_id" id="office_head_id" class="form-select @error('office_head_id') is-invalid @enderror">
                                     <option value="">Select office head (optional)...</option>
-                                    @foreach($users as $user)
+                                    @foreach($availableHeads as $user)
                                         <option value="{{ $user->id }}" {{ old('office_head_id') == $user->id ? 'selected' : '' }}>
                                             {{ $user->name }} ({{ $user->email }})
                                         </option>

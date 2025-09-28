@@ -283,6 +283,20 @@
                                                                 <i class="fas fa-print"></i>
                                                             </a>
                                                         @endif
+                                                        
+                                                        @if($request->isPending())
+                                                            <form method="POST" action="{{ route('requests.destroy', $request) }}" class="d-inline" 
+                                                                  onsubmit="return confirm('Are you sure you want to delete this request? This action cannot be undone.')">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit" 
+                                                                        class="btn btn-outline-danger btn-sm"
+                                                                        data-bs-toggle="tooltip"
+                                                                        title="Delete Request">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        @endif
                                                     @endif
                                                 </div>
                                             </td>

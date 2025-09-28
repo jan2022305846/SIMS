@@ -661,8 +661,14 @@ class RequestController extends Controller
 
         $request->delete();
 
-        return redirect()->route('requests.manage')
-            ->with('success', 'Request deleted successfully!');
+        // Redirect based on user role
+        if ($user->role === 'admin') {
+            return redirect()->route('requests.manage')
+                ->with('success', 'Request deleted successfully!');
+        } else {
+            return redirect()->route('faculty.requests.index')
+                ->with('success', 'Request deleted successfully!');
+        }
     }
 
     public function printClaimSlip(SupplyRequest $request)
@@ -752,8 +758,8 @@ class RequestController extends Controller
             ['claim_slip_number' => $request->claim_slip_number]
         );
 
-        // Redirect to claim slip view in new tab
-        return redirect()->route('requests.claim-slip', $request)->with('success', 'Claim slip generated successfully! You can now print it and pick up your items from the supply office.');
+        // Redirect back to request details page
+        return redirect()->route('faculty.requests.show', $request)->with('success', 'Claim slip generated successfully! You can now print it and pick up your items from the supply office.');
     }
 
     public function downloadClaimSlip(SupplyRequest $request)

@@ -112,6 +112,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('requests/{request}/complete', [RequestController::class, 'completeAndClaim'])->name('requests.complete');
         Route::post('requests/{request}/claim', [RequestController::class, 'markAsClaimed'])->name('requests.claim');
         Route::post('requests/{request}/decline', [RequestController::class, 'decline'])->name('requests.decline');
+        Route::delete('requests/{request}', [RequestController::class, 'destroy'])->name('requests.destroy');
         
         // Add explicit show route
         Route::get('requests/{request}/details', [RequestController::class, 'show'])->name('requests.show');
@@ -172,6 +173,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('faculty/requests/{request}', [RequestController::class, 'show'])->name('faculty.requests.show');
         Route::post('faculty/requests/{request}/generate-claim-slip', [RequestController::class, 'generateClaimSlip'])->name('faculty.requests.generate-claim-slip');
         Route::get('faculty/requests/{request}/download-claim-slip', [RequestController::class, 'downloadClaimSlip'])->name('faculty.requests.download-claim-slip');
+        Route::delete('faculty/requests/{request}', [RequestController::class, 'destroy'])->name('faculty.requests.destroy');
         
         // Claim slip printing (accessible by faculty and admin)
         Route::get('requests/{request}/claim-slip', [RequestController::class, 'printClaimSlip'])->name('requests.claim-slip');
