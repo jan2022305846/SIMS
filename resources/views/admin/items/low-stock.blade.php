@@ -56,9 +56,9 @@
                                         <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
                                         <h4 class="mb-1">
                                             {{ $items->avg(function($item) {
-                                                return $item->minimum_stock > 0 ? ($item->quantity / $item->minimum_stock) * 100 : 0;
+                                                return $item->minimum_stock > 0 ? ($item->current_stock / $item->minimum_stock) * 100 : 0;
                                             }) ? round($items->avg(function($item) {
-                                                return $item->minimum_stock > 0 ? ($item->quantity / $item->minimum_stock) * 100 : 0;
+                                                return $item->minimum_stock > 0 ? ($item->current_stock / $item->minimum_stock) * 100 : 0;
                                             })) : 0 }}%
                                         </h4>
                                         <small class="text-muted">Avg Stock Level</small>
@@ -95,7 +95,7 @@
                                 <tbody>
                                     @forelse($items as $item)
                                         @php
-                                            $stockPercentage = $item->minimum_stock > 0 ? ($item->quantity / $item->minimum_stock) * 100 : 0;
+                                            $stockPercentage = $item->minimum_stock > 0 ? ($item->current_stock / $item->minimum_stock) * 100 : 0;
                                             $stockStatus = $stockPercentage <= 25 ? 'critical' : 'low';
                                         @endphp
                                         <tr>
@@ -117,10 +117,10 @@
                                             </td>
                                             <td>
                                                 <div class="d-flex align-items-center">
-                                                    <span class="fw-semibold me-2">{{ $item->quantity }}</span>
-                                                    @if($item->quantity <= 0)
+                                                    <span class="fw-semibold me-2">{{ $item->current_stock }}</span>
+                                                    @if($item->current_stock <= 0)
                                                         <span class="badge bg-danger">Out of Stock</span>
-                                                    @elseif($item->quantity <= ($item->minimum_stock ?? 10))
+                                                    @elseif($item->current_stock <= ($item->minimum_stock ?? 10))
                                                         <span class="badge bg-warning">Low Stock</span>
                                                     @else
                                                         <span class="badge bg-success">In Stock</span>
@@ -132,11 +132,11 @@
                                             </td>
                                             <td>
                                                 @php
-                                                    $unitsNeeded = max(0, ($item->minimum_stock ?? 10) - $item->quantity);
+                                                    $unitsNeeded = max(0, ($item->minimum_stock ?? 10) - $item->current_stock);
                                                     $status = $unitsNeeded > 0 ? "Needs {$unitsNeeded} more" : "Above minimum";
                                                 @endphp
                                                 <div class="d-flex flex-column">
-                                                    <span class="fw-semibold">{{ $item->quantity }} units</span>
+                                                    <span class="fw-semibold">{{ $item->current_stock }} units</span>
                                                     <small class="text-muted">{{ $status }}</small>
                                                 </div>
                                             </td>
@@ -154,7 +154,7 @@
                                                        title="Edit Item">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
-                                                    @if($item->quantity > 0)
+                                                    @if($item->current_stock > 0)
                                                         <button class="btn btn-outline-success"
                                                                 data-bs-toggle="tooltip"
                                                                 title="Restock Item"

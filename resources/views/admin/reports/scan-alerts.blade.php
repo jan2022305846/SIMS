@@ -14,7 +14,7 @@
                     <div class="d-flex gap-2">
                         <!-- PDF Export -->
                         <a href="{{ route('reports.scan-alerts', ['format' => 'pdf']) }}"
-                           class="btn btn-danger btn-sm" target="_blank">
+                           class="btn btn-danger btn-sm" download>
                             <i class="fas fa-file-pdf me-1"></i>Export PDF
                         </a>
                         <!-- Refresh -->

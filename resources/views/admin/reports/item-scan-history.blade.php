@@ -29,7 +29,7 @@
                         </div>
                         <!-- PDF Export -->
                         <a href="{{ route('reports.item-scan-history', ['itemId' => $item->id, 'period' => $period ?? 'annually', 'format' => 'pdf']) }}"
-                           class="btn btn-danger btn-sm" target="_blank">
+                           class="btn btn-danger btn-sm" download>
                             <i class="fas fa-file-pdf me-1"></i>Export PDF
                         </a>
                         <!-- Back to Analytics -->

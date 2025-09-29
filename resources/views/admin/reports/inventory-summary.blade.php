@@ -212,15 +212,15 @@
                                         <span class="badge badge-info">{{ $item->category->name }}</span>
                                     </td>
                                     <td>
-                                        <span class="font-weight-bold">{{ $item->quantity_on_hand }}</span>
+                                        <span class="font-weight-bold">{{ $item->current_stock }}</span>
                                         <small class="text-muted">{{ $item->unit }}</small>
                                     </td>
-                                    <td>₱{{ number_format($item->unit_cost, 2) }}</td>
-                                    <td>₱{{ number_format($item->quantity_on_hand * $item->unit_cost, 2) }}</td>
+                                    <td>₱{{ number_format($item->unit_price, 2) }}</td>
+                                    <td>₱{{ number_format($item->current_stock * $item->unit_price, 2) }}</td>
                                     <td>
-                                        @if($item->quantity_on_hand <= 0)
+                                        @if($item->current_stock <= 0)
                                             <span class="badge badge-danger">Out of Stock</span>
-                                        @elseif($item->quantity_on_hand <= $item->minimum_threshold)
+                                        @elseif($item->current_stock <= $item->minimum_stock)
                                             <span class="badge badge-warning">Low Stock</span>
                                         @else
                                             <span class="badge badge-success">Adequate</span>

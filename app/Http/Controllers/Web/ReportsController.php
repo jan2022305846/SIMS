@@ -338,13 +338,13 @@ class ReportsController extends Controller
         if ($request->stock_status) {
             switch ($request->stock_status) {
                 case 'low_stock':
-                    $query->whereRaw('quantity_on_hand <= minimum_threshold');
+                    $query->whereRaw('current_stock <= minimum_stock');
                     break;
                 case 'out_of_stock':
-                    $query->where('quantity_on_hand', '<=', 0);
+                    $query->where('current_stock', '<=', 0);
                     break;
                 case 'adequate':
-                    $query->where('quantity_on_hand', '>', 'minimum_threshold');
+                    $query->where('current_stock', '>', 'minimum_stock');
                     break;
             }
         }
@@ -353,7 +353,7 @@ class ReportsController extends Controller
         $sortBy = $request->get('sort_by', 'name');
         switch ($sortBy) {
             case 'quantity':
-                $query->orderBy('quantity_on_hand', 'desc');
+                $query->orderBy('current_stock', 'desc');
                 break;
             case 'category':
                 $query->join('categories', 'items.category_id', '=', 'categories.id')
@@ -361,7 +361,7 @@ class ReportsController extends Controller
                       ->select('items.*');
                 break;
             case 'value':
-                $query->orderByRaw('quantity_on_hand * unit_cost DESC');
+                $query->orderByRaw('current_stock * unit_price DESC');
                 break;
             default:
                 $query->orderBy('name');
@@ -378,11 +378,11 @@ class ReportsController extends Controller
         $summary = [
             'total_items' => $allItems->count(),
             'total_value' => $allItems->sum(function($item) {
-                return $item->quantity_on_hand * $item->unit_cost;
+                return $item->current_stock * $item->unit_price;
             }),
-            'low_stock_items' => $allItems->where('quantity_on_hand', '<=', 'minimum_threshold')->count(),
-            'out_of_stock_items' => $allItems->where('quantity_on_hand', '<=', 0)->count(),
-            'adequate_stock_items' => $allItems->where('quantity_on_hand', '>', 'minimum_threshold')->count(),
+            'low_stock_items' => $allItems->where('current_stock', '<=', 'minimum_stock')->count(),
+            'out_of_stock_items' => $allItems->where('current_stock', '<=', 0)->count(),
+            'adequate_stock_items' => $allItems->where('current_stock', '>', 'minimum_stock')->count(),
         ];
 
         // Category statistics for chart

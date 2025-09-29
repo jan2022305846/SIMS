@@ -113,10 +113,10 @@
                                             </td>
                                             <td>
                                                 <div class="d-flex align-items-center">
-                                                    <span class="fw-semibold me-2">{{ $item->quantity }}</span>
-                                                    @if($item->quantity <= 0)
+                                                    <span class="fw-semibold me-2">{{ $item->current_stock }}</span>
+                                                    @if($item->current_stock <= 0)
                                                         <span class="badge bg-danger">Out of Stock</span>
-                                                    @elseif($item->quantity <= ($item->minimum_stock ?? 10))
+                                                    @elseif($item->current_stock <= ($item->minimum_stock ?? 10))
                                                         <span class="badge bg-warning">Low Stock</span>
                                                     @else
                                                         <span class="badge bg-success">In Stock</span>

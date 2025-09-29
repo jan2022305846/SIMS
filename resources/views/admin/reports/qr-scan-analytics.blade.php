@@ -29,7 +29,7 @@
                         </div>
                         <!-- PDF Export -->
                         <a href="{{ route('reports.qr-scan-analytics', ['period' => $period ?? 'daily', 'format' => 'pdf']) }}"
-                           class="btn btn-danger btn-sm" target="_blank">
+                           class="btn btn-danger btn-sm" download>
                             <i class="fas fa-file-pdf me-1"></i>Export PDF
                         </a>
                     </div>
