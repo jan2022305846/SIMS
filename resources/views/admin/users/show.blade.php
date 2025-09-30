@@ -11,7 +11,7 @@
                         <h1 class="h2 mb-1 text-dark fw-bold">{{ $user->name }}</h1>
                         <p class="text-muted mb-0">
                             <i class="fas fa-user me-1"></i>
-                            {{ ucfirst($user->role) }} Account
+                            {{ $user->isAdmin() ? 'Admin' : 'Faculty' }} Account
                         </p>
                     </div>
                     <div class="d-flex gap-2">
@@ -49,23 +49,19 @@
                                         <p class="h6 mb-0">{{ $user->username }}</p>
                                     </div>
                                     <div class="col-md-6">
-                                        <p class="text-muted small mb-1">School ID</p>
-                                        <p class="h6 mb-0">{{ $user->school_id }}</p>
-                                    </div>
-                                    <div class="col-md-6">
                                         <p class="text-muted small mb-1">Email Address</p>
                                         <p class="h6 mb-0">{{ $user->email }}</p>
                                     </div>
                                     <div class="col-md-6">
-                                        <p class="text-muted small mb-1">Role</p>
-                                        <span class="badge {{ $user->role === 'admin' ? 'bg-danger' : 'bg-primary' }} fs-6">
-                                            {{ ucfirst($user->role) }}
+                                        <p class="text-muted small mb-1">Type</p>
+                                        <span class="badge {{ $user->isAdmin() ? 'bg-danger' : 'bg-primary' }} fs-6">
+                                            {{ $user->isAdmin() ? 'Admin' : 'Faculty' }}
                                         </span>
                                     </div>
-                                    @if($user->department)
+                                    @if($user->office)
                                     <div class="col-md-6">
-                                        <p class="text-muted small mb-1">Department</p>
-                                        <p class="h6 mb-0">{{ $user->department }}</p>
+                                        <p class="text-muted small mb-1">Office</p>
+                                        <p class="h6 mb-0">{{ $user->office->name }}</p>
                                     </div>
                                     @endif
                                 </div>

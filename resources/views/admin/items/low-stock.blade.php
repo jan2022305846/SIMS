@@ -189,7 +189,7 @@
                                     Showing {{ $items->firstItem() }}-{{ $items->lastItem() }} of {{ $items->total() }} low stock items
                                 </div>
                                 <nav aria-label="Items pagination">
-                                    {{ $items->links('pagination::bootstrap-4') }}
+                                    {{ $items->links('pagination::bootstrap-5') }}
                                 </nav>
                             </div>
                         @else

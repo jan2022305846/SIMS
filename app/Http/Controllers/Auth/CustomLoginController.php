@@ -37,7 +37,7 @@ class CustomLoginController extends Controller
      */
     public function username()
     {
-        return 'school_id';
+        return 'username';
     }
 
     /**
@@ -182,11 +182,11 @@ class CustomLoginController extends Controller
         $credentials = $this->credentials($request);
 
         // Check if user exists
-        $user = \App\Models\User::where('school_id', $credentials['school_id'])->first();
+        $user = \App\Models\User::where('username', $credentials['username'])->first();
 
         if (!$user) {
-            $message = 'No account found with this School ID.';
-            $field = 'school_id';
+            $message = 'No account found with this Username.';
+            $field = 'username';
         } else {
             // User exists but password is wrong
             $message = 'The password you entered is incorrect.';

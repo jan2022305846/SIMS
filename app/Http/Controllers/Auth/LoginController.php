@@ -92,11 +92,11 @@ class LoginController extends Controller
         $credentials = $this->credentials($request);
 
         // Check if user exists
-        $user = \App\Models\User::where('school_id', $credentials['school_id'])->first();
+        $user = \App\Models\User::where('username', $credentials['username'])->first();
 
         if (!$user) {
             throw ValidationException::withMessages([
-                'school_id' => ['No account found with this School ID.'],
+                'username' => ['No account found with this Username.'],
             ]);
         }
 
@@ -113,6 +113,6 @@ class LoginController extends Controller
      */
     public function username()
     {
-        return 'school_id';
+        return 'username';
     }
 }

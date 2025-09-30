@@ -10,13 +10,11 @@ use Laravel\Sanctum\HasApiTokens;
 /**
  * @property int $id
  * @property string $name
- * @property string|null $department
+ * @property int|null $office_id
  * @property string|null $username
- * @property string $school_id
  * @property string|null $email
  * @property \Carbon\Carbon|null $email_verified_at
  * @property string $password
- * @property string $role
  * @property string|null $remember_token
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -28,7 +26,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @method bool canApproveRequests()
  * @method bool canScanQR()
  * 
- * Note: There is NO 'position' property - use 'department' instead
+ * Note: Single admin system - only user ID 6 is admin
  */
 class User extends Authenticatable
 {
@@ -36,12 +34,10 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
-        'department',
+        'office_id',
         'username',
-        'school_id',
         'email',
         'password',
-        'role',
         'status',
         'must_set_password',
     ];
@@ -90,27 +86,27 @@ class User extends Authenticatable
 
     // Role helper methods
     /**
-     * Check if user is an admin
+     * Check if user is an admin (single admin system - only user ID 6 is admin)
      */
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->id === 6; // Denver Ian Gemino is the admin
     }
 
     /**
-     * Check if user is an office head
+     * Check if user is an office head (deprecated - no longer used)
      */
     public function isOfficeHead(): bool
     {
-        return $this->role === 'office_head';
+        return false; // No office heads in single admin system
     }
 
     /**
-     * Check if user is faculty
+     * Check if user is faculty (all non-admin users are faculty)
      */
     public function isFaculty(): bool
     {
-        return $this->role === 'faculty';
+        return !$this->isAdmin();
     }
 
     /**

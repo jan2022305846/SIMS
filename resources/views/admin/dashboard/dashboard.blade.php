@@ -27,7 +27,7 @@
                                     Welcome back, {{ Auth::user()->name }}!
                                 </h2>
                                 <div class="mb-3">
-                                    @if(Auth::user()->role === 'admin')
+                                    @if(Auth::user()->isAdmin())
                                         <span class="badge bg-primary fs-6 px-3 py-2">
                                             <i class="fas fa-shield-alt me-1"></i>
                                             Admin Dashboard
@@ -40,7 +40,7 @@
                                     @endif
                                 </div>
                                 <p class="text-muted mb-0">
-                                    @if(Auth::user()->role === 'admin')
+                                    @if(Auth::user()->isAdmin())
                                         Manage inventory, users, and monitor system activities.
                                     @else
                                         Manage office requests, browse items, and track submissions.
@@ -93,7 +93,7 @@
             <!-- Statistics Cards -->
             <div class="row g-4 mb-4">
                 <!-- Pending Requests Card -->
-                <div class="col-xl-3 col-lg-6 col-md-6">
+                <div class="col-lg-4 col-md-6">
                     <div class="card h-100 border-0 shadow-sm hover-lift">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center">
@@ -116,7 +116,7 @@
                 </div>
 
                 <!-- Low Stock Alerts Card -->
-                <div class="col-xl-3 col-lg-6 col-md-6">
+                <div class="col-lg-4 col-md-6">
                     <div class="card h-100 border-0 shadow-sm hover-lift">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center">
@@ -139,7 +139,7 @@
                 </div>
 
                 <!-- Number of Users Card -->
-                <div class="col-xl-3 col-lg-6 col-md-6">
+                <div class="col-lg-4 col-md-12">
                     <div class="card h-100 border-0 shadow-sm hover-lift">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center">
@@ -154,29 +154,6 @@
                                     <h2 class="stats-value">{{ number_format($totalUsers ?? 0) }}</h2>
                                     <small class="text-info">
                                         <i class="fas fa-user-graduate me-1"></i>Active system users
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Items for Disposal Card -->
-                <div class="col-xl-3 col-lg-6 col-md-6">
-                    <div class="card h-100 border-0 shadow-sm hover-lift">
-                        <div class="card-body p-4">
-                            <div class="d-flex align-items-center">
-                                <div class="flex-shrink-0 me-3">
-                                    <div class="bg-secondary bg-gradient rounded-circle d-flex align-items-center justify-content-center"
-                                         style="width: 70px; height: 70px;">
-                                        <i class="fas fa-trash-alt fa-xl text-white"></i>
-                                    </div>
-                                </div>
-                                <div class="flex-grow-1">
-                                    <h6 class="text-muted text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">Items for Disposal</h6>
-                                    <h2 class="stats-value">{{ number_format($expiringItems ?? 0) }}</h2>
-                                    <small class="text-secondary">
-                                        <i class="fas fa-calendar-times me-1"></i>Expired items
                                     </small>
                                 </div>
                             </div>

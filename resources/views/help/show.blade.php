@@ -155,8 +155,7 @@
                                     'dashboard-overview' => ['navigation', 'user-profile'],
                                     'add-item' => ['edit-item', 'categories', 'stock-management'],
                                     'create-request' => ['track-request', 'request-status'],
-                                    'process-requests' => ['approval-workflow', 'acknowledgments'],
-                                    'acknowledgment-process' => ['create-request', 'track-request']
+                                    'process-requests' => ['approval-workflow']
                                 ];
                                 $topicKey = isset($topic) ? $topic : '';
                                 $currentRelated = array_key_exists($topicKey, $relatedTopics) ? $relatedTopics[$topicKey] : [];

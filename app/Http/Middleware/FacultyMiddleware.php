@@ -16,8 +16,8 @@ class FacultyMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!Auth::check() || !in_array(Auth::user()->role, ['faculty', 'admin'])) {
-            return redirect()->route('dashboard')->with('error', 'Access denied. Faculty privileges required.');
+        if (!Auth::check()) {
+            return redirect()->route('dashboard')->with('error', 'Access denied. Authentication required.');
         }
 
         return $next($request);

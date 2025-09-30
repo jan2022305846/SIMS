@@ -214,12 +214,6 @@
                                     </label>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="tables[]" value="acknowledgments" id="backup_acks">
-                                    <label class="form-check-label" for="backup_acks">
-                                        <i class="fas fa-signature text-dark"></i> Acknowledgments ({{ $stats['acknowledgments'] ?? 0 }} records)
-                                    </label>
-                                </div>
-                                <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="tables[]" value="scan_logs" id="backup_scans">
                                     <label class="form-check-label" for="backup_scans">
                                         <i class="fas fa-qrcode text-muted"></i> Scan Logs ({{ $stats['scan_logs'] ?? 0 }} records)

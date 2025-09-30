@@ -85,14 +85,13 @@ class HelpController extends Controller
                 ]
             ];
 
-            $sections['request-processing'] = [
-                'title' => 'Request Processing',
+                        $sections['request-management'] = [
+                'title' => 'Request Management',
                 'description' => 'Handling supply requests and approvals',
                 'icon' => 'fas fa-clipboard-check',
                 'topics' => [
                     'process-requests' => 'How to Process Requests',
                     'approval-workflow' => 'Understanding Approval Workflow',
-                    'acknowledgments' => 'Digital Acknowledgment System',
                     'request-reports' => 'Request Reports and Analytics'
                 ]
             ];
@@ -130,8 +129,7 @@ class HelpController extends Controller
                 'topics' => [
                     'create-request' => 'How to Create a Request',
                     'track-request' => 'Tracking Your Requests',
-                    'request-status' => 'Understanding Request Status',
-                    'acknowledgment-process' => 'Digital Acknowledgment Process'
+                    'request-status' => 'Understanding Request Status'
                 ]
             ];
 
@@ -349,36 +347,6 @@ class HelpController extends Controller
                 'roles' => ['admin', 'office_head']
             ],
 
-            'acknowledgment-process' => [
-                'title' => 'Digital Acknowledgment Process',
-                'description' => 'Understanding the digital signature and acknowledgment system',
-                'content' => [
-                    [
-                        'type' => 'text',
-                        'content' => 'The digital acknowledgment system provides a secure, verifiable way to confirm receipt of requested items.'
-                    ],
-                    [
-                        'type' => 'steps',
-                        'title' => 'Acknowledgment process:',
-                        'steps' => [
-                            'Receive notification that items are ready for pickup',
-                            'Visit the supply office to collect items',
-                            'Verify all items and quantities are correct',
-                            'Provide digital signature using touch/mouse',
-                            'Optional: Take photo evidence of received items',
-                            'Submit acknowledgment form',
-                            'Receive digital receipt with verification hash'
-                        ]
-                    ],
-                    [
-                        'type' => 'info',
-                        'content' => 'The digital receipt includes GPS coordinates and timestamp for security verification.'
-                    ]
-                ],
-                'tags' => ['acknowledgment', 'digital signature', 'receipt'],
-                'roles' => ['faculty', 'admin', 'office_head']
-            ],
-
             'qr-codes' => [
                 'title' => 'Using QR Code System',
                 'description' => 'How to generate and scan QR codes for items',
@@ -571,7 +539,7 @@ class HelpController extends Controller
                             'If approved, request moves to Approved status',
                             'Items are prepared for pickup',
                             'Faculty receives notification and picks up items',
-                            'Digital acknowledgment completes the process'
+                            'Request is marked as fulfilled'
                         ]
                     ],
                     [
@@ -591,39 +559,6 @@ class HelpController extends Controller
                     ]
                 ],
                 'tags' => ['approval', 'workflow', 'process', 'requests'],
-                'roles' => ['admin', 'office_head']
-            ],
-
-            'acknowledgments' => [
-                'title' => 'Digital Acknowledgment System',
-                'description' => 'Managing digital signatures and item acknowledgments',
-                'content' => [
-                    [
-                        'type' => 'text',
-                        'content' => 'Digital acknowledgments provide secure, verifiable confirmation of item receipt with electronic signatures.'
-                    ],
-                    [
-                        'type' => 'steps',
-                        'title' => 'Acknowledgment process for admins:',
-                        'steps' => [
-                            'Prepare approved items for faculty pickup',
-                            'Mark request as fulfilled when ready',
-                            'Faculty receives pickup notification',
-                            'Faculty provides digital signature upon receipt',
-                            'System generates secure receipt with verification',
-                            'Transaction is complete and logged'
-                        ]
-                    ],
-                    [
-                        'type' => 'info',
-                        'content' => 'Digital receipts include timestamps, GPS data, and cryptographic verification for security.'
-                    ],
-                    [
-                        'type' => 'warning',
-                        'content' => 'Important: Ensure all items are physically verified before marking requests as fulfilled.'
-                    ]
-                ],
-                'tags' => ['acknowledgment', 'digital', 'signature', 'receipt'],
                 'roles' => ['admin', 'office_head']
             ],
 

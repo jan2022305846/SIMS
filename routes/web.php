@@ -9,10 +9,7 @@ use App\Http\Controllers\Web\CategoryController;
 use App\Http\Controllers\Web\ItemController;
 use App\Http\Controllers\Web\RequestController;
 use App\Http\Controllers\Web\ReportsController;
-use App\Http\Controllers\Web\AcknowledgmentController;
 use App\Http\Controllers\Web\HelpController;
-use App\Http\Controllers\Web\BackupController;
-use App\Http\Controllers\Web\RestoreController;
 use App\Http\Controllers\QRCodeController;
 use App\Http\Controllers\Auth\PasswordController;
 
@@ -59,22 +56,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/help/{topic}', [HelpController::class, 'show'])->name('help.show');
     Route::get('/help/api/search', [HelpController::class, 'search'])->name('help.search');
     
-    // Backup & Restore Routes (Admin only)
-    Route::middleware(['admin'])->group(function () {
-        Route::get('/backup', [BackupController::class, 'index'])->name('admin.backup.index');
-        Route::post('/backup/create', [BackupController::class, 'create'])->name('admin.backup.create');
-        Route::post('/backup/create-full', [BackupController::class, 'createFullBackup'])->name('admin.backup.create-full');
-        Route::post('/backup/create-selective', [BackupController::class, 'createSelectiveBackup'])->name('admin.backup.create-selective');
-        Route::get('/backup/download/{filename}', [BackupController::class, 'download'])->name('admin.backup.download');
-        Route::delete('/backup/delete/{filename}', [BackupController::class, 'delete'])->name('admin.backup.delete');
-        
-        // Restore routes
-        Route::get('/restore', [RestoreController::class, 'index'])->name('admin.restore.index');
-        Route::post('/restore/upload', [RestoreController::class, 'analyzeBackup'])->name('admin.restore.analyze');
-        Route::post('/restore/safety-backup', [RestoreController::class, 'createSafetyBackup'])->name('admin.restore.safety-backup');
-        Route::post('/restore/execute', [RestoreController::class, 'restore'])->name('admin.restore.execute');
-    });
-    
     // Admin routes
     Route::middleware(['admin'])->group(function () {
         // Users
@@ -86,7 +67,7 @@ Route::middleware(['auth'])->group(function () {
         // Items
         Route::get('items/summary', [ItemController::class, 'summary'])->name('items.summary');
         Route::get('items/low-stock', [ItemController::class, 'lowStock'])->name('items.low-stock');
-        Route::patch('items/{item}/restock', [ItemController::class, 'restock'])->name('items.restock');
+        Route::patch('items/{id}/restock', [ItemController::class, 'restock'])->name('items.restock');
         Route::get('items/expiring-soon', [ItemController::class, 'expiringSoon'])->name('items.expiring-soon');
         Route::get('items/trashed', [ItemController::class, 'trashed'])->name('items.trashed');
         Route::post('items/{id}/restore', [ItemController::class, 'restore'])->name('items.restore');
@@ -95,10 +76,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('items/bulk-force-delete', [ItemController::class, 'bulkForceDelete'])->name('items.bulk-force-delete');
         
         // Item Assignment Management
-        Route::get('items/{item}/assign', [ItemController::class, 'showAssignForm'])->name('items.assign');
-        Route::post('items/{item}/assign', [ItemController::class, 'assign'])->name('items.assign.store');
-        Route::delete('items/{item}/unassign', [ItemController::class, 'unassign'])->name('items.unassign');
-        Route::patch('items/{item}/location', [ItemController::class, 'updateLocation'])->name('items.update-location');
+        Route::get('items/{id}/assign', [ItemController::class, 'showAssignForm'])->name('items.assign');
+        Route::post('items/{id}/assign', [ItemController::class, 'assign'])->name('items.assign.store');
+        Route::delete('items/{id}/unassign', [ItemController::class, 'unassign'])->name('items.unassign');
+        Route::patch('items/{id}/location', [ItemController::class, 'updateLocation'])->name('items.update-location');
         
         Route::resource('items', ItemController::class);
         
@@ -116,13 +97,6 @@ Route::middleware(['auth'])->group(function () {
         
         // Add explicit show route
         Route::get('requests/{request}/details', [RequestController::class, 'show'])->name('requests.show');
-        
-        // Request Acknowledgments (Digital Signatures)
-        Route::get('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'show'])->name('requests.acknowledgment.show');
-        Route::post('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'store'])->name('requests.acknowledgment.store');
-        Route::get('requests/{request}/receipt', [AcknowledgmentController::class, 'receipt'])->name('requests.acknowledgment.receipt');
-        Route::get('requests/{request}/receipt/download', [AcknowledgmentController::class, 'downloadReceipt'])->name('requests.acknowledgment.download');
-        Route::get('requests/{request}/verify', [AcknowledgmentController::class, 'verify'])->name('requests.acknowledgment.verify');
         
         // Add claim slip download route for admins
         Route::get('requests/{request}/download-claim-slip', [RequestController::class, 'downloadClaimSlip'])->name('admin.requests.download-claim-slip');
@@ -148,9 +122,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports/qr-scan-analytics', [ReportsController::class, 'qrScanAnalytics'])->name('reports.qr-scan-analytics');
         Route::get('reports/item-scan-history/{itemId}', [ReportsController::class, 'itemScanHistory'])->name('reports.item-scan-history');
         Route::get('reports/scan-alerts', [ReportsController::class, 'scanAlerts'])->name('reports.scan-alerts');
-        
-        // Offices Management
-        Route::resource('offices', \App\Http\Controllers\Web\OfficeController::class, ['as' => 'admin']);
     });
     
     // Item verification (accessible to authenticated users for barcode scanning)
@@ -163,7 +134,7 @@ Route::middleware(['auth'])->group(function () {
         // Items browsing for faculty
         Route::get('browse-items', [ItemController::class, 'browse'])->name('faculty.items.index');
         Route::get('faculty/items', [ItemController::class, 'browse'])->name('faculty.items.browse');
-        Route::get('faculty/items/{item}', [ItemController::class, 'show'])->name('faculty.items.show');
+        Route::get('faculty/items/{id}', [ItemController::class, 'show'])->name('faculty.items.show');
         
         // Requests
         Route::get('my-requests', [RequestController::class, 'myRequests'])->name('faculty.requests.index');
@@ -178,12 +149,6 @@ Route::middleware(['auth'])->group(function () {
         // Claim slip printing (accessible by faculty and admin)
         Route::get('requests/{request}/claim-slip', [RequestController::class, 'printClaimSlip'])->name('requests.claim-slip');
         
-        // Faculty acknowledgment access (for their own requests)
-        Route::get('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'show'])->name('faculty.requests.acknowledgment.show');
-        Route::post('requests/{request}/acknowledgment', [AcknowledgmentController::class, 'store'])->name('faculty.requests.acknowledgment.store');
-        Route::get('requests/{request}/receipt', [AcknowledgmentController::class, 'receipt'])->name('faculty.requests.acknowledgment.receipt');
-        Route::get('requests/{request}/receipt/download', [AcknowledgmentController::class, 'downloadReceipt'])->name('faculty.requests.acknowledgment.download');
-        
         // QR Code scanner interface
         Route::get('qr/scanner', [QRCodeController::class, 'scanner'])->name('qr.scanner');
         Route::get('qr/test', [QRCodeController::class, 'test'])->name('qr.test');
@@ -193,8 +158,8 @@ Route::middleware(['auth'])->group(function () {
     
     // Admin QR code routes
     Route::middleware(['admin'])->group(function () {
-        Route::post('qr/generate/{item}', [QRCodeController::class, 'generate'])->name('qr.generate');
-        Route::get('qr/download/{item}', [QRCodeController::class, 'download'])->name('qr.download');
+        Route::post('qr/generate/{id}', [QRCodeController::class, 'generate'])->name('qr.generate');
+        Route::get('qr/download/{id}', [QRCodeController::class, 'download'])->name('qr.download');
 
         // Activity Logs (Admin only)
         Route::get('activity-logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity-logs.index');

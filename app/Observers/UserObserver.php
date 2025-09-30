@@ -22,7 +22,7 @@ class UserObserver
                 'user_name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
-                'department' => $user->department
+                'office' => $user->office->name ?? 'N/A'
             ])
             ->save();
     }
@@ -42,7 +42,7 @@ class UserObserver
         
         // Track important changes
         $importantChanges = [];
-        $significantFields = ['name', 'email', 'role', 'department', 'status'];
+        $significantFields = ['name', 'email', 'role', 'office_id', 'status'];
         
         foreach ($significantFields as $field) {
             if (isset($changes[$field])) {
@@ -92,7 +92,7 @@ class UserObserver
                 'user_name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
-                'department' => $user->department
+                'office' => $user->office->name ?? 'N/A'
             ])
             ->save();
     }

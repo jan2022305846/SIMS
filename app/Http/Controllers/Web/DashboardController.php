@@ -40,7 +40,7 @@ class DashboardController extends Controller
         // Flatten the data structure for backward compatibility with the view
         $flattenedData = $this->flattenDashboardData($dashboardData, $user);
 
-        if ($user->role === 'admin' || $user->role === 'office_head') {
+        if ($user->isAdmin()) {
             return view('admin.dashboard.dashboard', $flattenedData);
         } else {
             return view('faculty.dashboard.dashboard', $flattenedData);
@@ -121,8 +121,8 @@ class DashboardController extends Controller
      */
     public function systemHealth()
     {
-        // Only for admin/office_head
-        if (!in_array(Auth::user()->role, ['admin', 'office_head'])) {
+        // Only for admin
+        if (!Auth::user()->isAdmin()) {
             abort(403);
         }
         
@@ -221,9 +221,9 @@ class DashboardController extends Controller
         $totalItems = Item::count();
         $totalUsers = User::count();
         $totalRequests = Request::count();
-        $approvedRequests = Request::where('workflow_status', 'approved_by_admin')->count();
-        $rejectedRequests = Request::where('workflow_status', 'declined_by_admin')->count();
-        $pendingRequests = Request::where('workflow_status', 'pending')->count();
+        $approvedRequests = Request::where('status', 'approved_by_admin')->count();
+        $rejectedRequests = Request::where('status', 'declined')->count();
+        $pendingRequests = Request::where('status', 'pending')->count();
         
         // Monthly requests data
         $monthlyRequests = Request::selectRaw('MONTH(created_at) as month, COUNT(*) as count')
@@ -254,7 +254,7 @@ class DashboardController extends Controller
         $flattened = [];
         
         // Handle admin/office_head data structure
-        if (in_array($user->role, ['admin', 'office_head'])) {
+        if ($user->isAdmin()) {
             // Extract statistics
             if (isset($dashboardData['statistics'])) {
                 $stats = $dashboardData['statistics'];

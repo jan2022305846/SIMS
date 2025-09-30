@@ -23,5 +23,15 @@ class Category extends Model
     {
         return $this->hasMany(Item::class);
     }
+
+    public function consumables()
+    {
+        return $this->hasMany(Consumable::class);
+    }
+
+    public function nonConsumables()
+    {
+        return $this->hasMany(NonConsumable::class);
+    }
 }
 

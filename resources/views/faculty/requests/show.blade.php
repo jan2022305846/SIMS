@@ -40,7 +40,7 @@
                                 <h6 class="text-muted mb-2">Request Status</h6>
                                 <div class="mb-3">
                                     <span class="badge fs-6 px-3 py-2
-                                        @switch($request->workflow_status)
+                                        @switch($request->status)
                                             @case('pending') bg-warning @break
                                             @case('approved_by_admin') bg-success @break
                                             @case('ready_for_pickup') bg-purple text-white @break
@@ -88,16 +88,16 @@
                                 <h6 class="text-muted mb-2">Item Details</h6>
                                 <div class="card bg-light border-0 mb-3">
                                     <div class="card-body">
-                                        <h5 class="mb-2">{{ $request->item->name }}</h5>
+                                        <h5 class="mb-2">{{ $request->item ? $request->item->name : 'Item Not Found' }}</h5>
                                         <div class="row">
                                             <div class="col-6">
                                                 <small class="text-muted">Requested Quantity</small>
-                                                <div class="fw-bold fs-5">{{ $request->quantity }} {{ $request->item->unit ?? 'pcs' }}</div>
+                                                <div class="fw-bold fs-5">{{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}</div>
                                             </div>
                                             <div class="col-6">
                                                 <small class="text-muted">Available Stock</small>
-                                                <div class="fw-bold fs-5 {{ $request->item->current_stock < $request->quantity ? 'text-danger' : 'text-success' }}">
-                                                    {{ $request->item->current_stock }} {{ $request->item->unit ?? 'pcs' }}
+                                                <div class="fw-bold fs-5 {{ $request->item && $request->item->current_stock < $request->quantity ? 'text-danger' : 'text-success' }}">
+                                                    {{ $request->item ? $request->item->current_stock : 'N/A' }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}
                                                 </div>
                                             </div>
                                         </div>
@@ -264,16 +264,16 @@
                             </div>
 
                             <!-- Admin Approval -->
-                            <div class="timeline-item {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined' ? 'declined' : '') }}">
-                                <div class="timeline-marker {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->workflow_status === 'declined' ? 'bg-danger' : 'bg-secondary') }}">
-                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
+                            <div class="timeline-item {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->status === 'declined' ? 'declined' : '') }}">
+                                <div class="timeline-marker {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->status === 'declined' ? 'bg-danger' : 'bg-secondary') }}">
+                                    <i class="fas {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->status === 'declined' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
                                 </div>
                                 <div class="timeline-content">
                                     <h6 class="mb-1">Admin Approval</h6>
                                     @if($request->admin_approval_date)
                                         <p class="mb-1 text-success small">{{ $request->admin_approval_date->format('M j, Y g:i A') }}</p>
                                         <p class="mb-0 small">Approved by {{ $request->adminApprover->name ?? 'Administrator' }}</p>
-                                    @elseif($request->workflow_status === 'declined')
+                                    @elseif($request->status === 'declined')
                                         <p class="mb-1 text-danger small">Declined</p>
                                         @if($request->admin_notes)
                                             <p class="mb-0 small text-muted">"{{ $request->admin_notes }}"</p>
@@ -285,13 +285,13 @@
                             </div>
 
                             <!-- Claim Slip Generation -->
-                            <div class="timeline-item {{ in_array($request->workflow_status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : '' }}">
-                                <div class="timeline-marker {{ in_array($request->workflow_status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
-                                    <i class="fas {{ in_array($request->workflow_status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-ticket-alt' : 'fa-ticket-alt' }} text-white"></i>
+                            <div class="timeline-item {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : '' }}">
+                                <div class="timeline-marker {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
+                                    <i class="fas {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-ticket-alt' : 'fa-ticket-alt' }} text-white"></i>
                                 </div>
                                 <div class="timeline-content">
                                     <h6 class="mb-1">Claim Slip Generation</h6>
-                                    @if($request->claim_slip_number && $request->workflow_status !== 'approved_by_admin')
+                                    @if($request->claim_slip_number && $request->status !== 'approved_by_admin')
                                         <p class="mb-1 text-success small">Generated</p>
                                         <p class="mb-0 small">Claim slip: <code>{{ $request->claim_slip_number }}</code></p>
                                     @else
@@ -301,9 +301,9 @@
                             </div>
 
                             <!-- Item Pickup -->
-                            <div class="timeline-item {{ $request->workflow_status === 'claimed' ? 'completed' : '' }}">
-                                <div class="timeline-marker {{ $request->workflow_status === 'claimed' ? 'bg-success' : 'bg-secondary' }}">
-                                    <i class="fas {{ $request->workflow_status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} text-white"></i>
+                            <div class="timeline-item {{ $request->status === 'claimed' ? 'completed' : '' }}">
+                                <div class="timeline-marker {{ $request->status === 'claimed' ? 'bg-success' : 'bg-secondary' }}">
+                                    <i class="fas {{ $request->status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} text-white"></i>
                                 </div>
                                 <div class="timeline-content">
                                     <h6 class="mb-1">Item Pickup & Claim</h6>

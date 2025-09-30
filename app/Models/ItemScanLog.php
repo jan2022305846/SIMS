@@ -9,12 +9,10 @@ use Illuminate\Support\Facades\Auth;
 /**
  * @property int $id
  * @property int $item_id
- * @property \Carbon\Carbon $scanned_at
- * @property string|null $location
- * @property string $scanner_type
- * @property array|null $scan_data
- * @property string|null $ip_address
- * @property string|null $user_agent
+ * @property int $user_id
+ * @property string $action
+ * @property int|null $location_id
+ * @property string|null $notes
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -25,17 +23,13 @@ class ItemScanLog extends Model
     protected $fillable = [
         'item_id',
         'user_id',
-        'scanned_at',
-        'location',
-        'scanner_type',
-        'scan_data',
-        'ip_address',
-        'user_agent',
+        'action',
+        'location_id',
+        'notes',
     ];
 
     protected $casts = [
-        'scanned_at' => 'datetime',
-        'scan_data' => 'array',
+        // No specific casts needed for this model
     ];
 
     /**
@@ -55,19 +49,33 @@ class ItemScanLog extends Model
     }
 
     /**
+     * Get the office where the scan occurred
+     */
+    public function office()
+    {
+        return $this->belongsTo(Office::class, 'location_id');
+    }
+
+    /**
      * Create a scan log entry
      */
-    public static function logScan(Item $item, array $data = []): self
+    public static function logScan(Item $item, string $action = 'inventory_check', array $data = []): self
     {
+        $locationId = null;
+        if (isset($data['location_id'])) {
+            $locationId = $data['location_id'];
+        } elseif (isset($data['location'])) {
+            // If location name is provided, find the office by name
+            $office = Office::where('name', $data['location'])->first();
+            $locationId = $office ? $office->id : null;
+        }
+
         return self::create([
             'item_id' => $item->id,
             'user_id' => Auth::check() ? Auth::user()->id : null,
-            'scanned_at' => now(),
-            'location' => $data['location'] ?? null,
-            'scanner_type' => $data['scanner_type'] ?? 'admin',
-            'scan_data' => $data['scan_data'] ?? null,
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
+            'action' => $action,
+            'location_id' => $locationId,
+            'notes' => $data['notes'] ?? null,
         ]);
     }
 
@@ -77,7 +85,7 @@ class ItemScanLog extends Model
     public static function forItem(Item $item)
     {
         return self::where('item_id', $item->id)
-                   ->orderBy('scanned_at', 'desc');
+                   ->orderBy('created_at', 'desc');
     }
 
     /**
@@ -86,7 +94,7 @@ class ItemScanLog extends Model
     public static function recent($limit = 20)
     {
         return self::with('item')
-                   ->orderBy('scanned_at', 'desc')
+                   ->orderBy('created_at', 'desc')
                    ->limit($limit);
     }
 
@@ -96,8 +104,8 @@ class ItemScanLog extends Model
     public static function betweenDates($startDate, $endDate)
     {
         return self::with('item')
-                   ->whereBetween('scanned_at', [$startDate, $endDate])
-                   ->orderBy('scanned_at', 'desc');
+                   ->whereBetween('created_at', [$startDate, $endDate])
+                   ->orderBy('created_at', 'desc');
     }
 
     /**
@@ -105,7 +113,7 @@ class ItemScanLog extends Model
      */
     public function getFormattedScanTimeAttribute(): string
     {
-        return $this->scanned_at->format('M d, Y h:i A');
+        return $this->created_at->format('M d, Y h:i A');
     }
 
     /**
@@ -116,16 +124,13 @@ class ItemScanLog extends Model
         $query = self::query();
 
         if ($startDate && $endDate) {
-            $query->whereBetween('scanned_at', [$startDate, $endDate]);
+            $query->whereBetween('created_at', [$startDate, $endDate]);
         }
 
         return [
             'total_scans' => $query->count(),
             'unique_items_scanned' => $query->distinct('item_id')->count(),
             'unique_users_scanning' => $query->distinct('user_id')->count(),
-            'scans_by_scanner_type' => $query->selectRaw('scanner_type, COUNT(*) as count')
-                ->groupBy('scanner_type')
-                ->pluck('count', 'scanner_type'),
             'most_scanned_items' => $query->selectRaw('item_id, COUNT(*) as scan_count')
                 ->with('item')
                 ->groupBy('item_id')
@@ -138,11 +143,19 @@ class ItemScanLog extends Model
                         'scan_count' => $scan->scan_count
                     ];
                 }),
-            'scans_by_location' => $query->whereNotNull('location')
-                ->selectRaw('location, COUNT(*) as count')
-                ->groupBy('location')
-                ->orderBy('count', 'desc')
-                ->pluck('count', 'location'),
+            'scans_by_location' => $query->whereNotNull('location_id')
+                ->with('office')
+                ->get()
+                ->groupBy('location_id')
+                ->map(function($scans, $locationId) {
+                    $office = $scans->first()->office;
+                    return [
+                        'office_name' => $office ? $office->name : 'Unknown Office',
+                        'count' => $scans->count()
+                    ];
+                })
+                ->sortByDesc('count')
+                ->pluck('count', 'office_name'),
         ];
     }
 
@@ -153,8 +166,8 @@ class ItemScanLog extends Model
     {
         $startDate = now()->subDays($days);
 
-        return self::where('scanned_at', '>=', $startDate)
-            ->selectRaw('DATE(scanned_at) as date, COUNT(*) as scan_count')
+        return self::where('created_at', '>=', $startDate)
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as scan_count')
             ->groupBy('date')
             ->orderBy('date')
             ->pluck('scan_count', 'date');
@@ -168,7 +181,7 @@ class ItemScanLog extends Model
         $thresholdDate = now()->subDays($daysThreshold);
 
         return \App\Models\Item::whereDoesntHave('scanLogs', function($query) use ($thresholdDate) {
-            $query->where('scanned_at', '>=', $thresholdDate);
+            $query->where('created_at', '>=', $thresholdDate);
         })->get();
     }
 
@@ -183,7 +196,7 @@ class ItemScanLog extends Model
             $query->where('item_id', $itemId);
         }
 
-        $scans = $query->orderBy('scanned_at')->get();
+        $scans = $query->orderBy('created_at')->get();
 
         if ($scans->isEmpty()) {
             return [];
@@ -194,7 +207,7 @@ class ItemScanLog extends Model
 
         foreach ($scans as $scan) {
             if ($previousScan) {
-                $daysDiff = $scan->scanned_at->diffInDays($previousScan->scanned_at);
+                $daysDiff = $scan->created_at->diffInDays($previousScan->created_at);
                 $frequency[] = $daysDiff;
             }
             $previousScan = $scan;
@@ -205,8 +218,8 @@ class ItemScanLog extends Model
             'min_days_between_scans' => !empty($frequency) ? min($frequency) : 0,
             'max_days_between_scans' => !empty($frequency) ? max($frequency) : 0,
             'total_scans' => $scans->count(),
-            'first_scan' => $scans->first()->scanned_at,
-            'last_scan' => $scans->last()->scanned_at,
+            'first_scan' => $scans->first()->created_at,
+            'last_scan' => $scans->last()->created_at,
         ];
     }
 
@@ -224,7 +237,7 @@ class ItemScanLog extends Model
         }
 
         // Items with unusual scan patterns (scanned more than 10 times in a day)
-        $unusualScans = self::selectRaw('item_id, DATE(scanned_at) as scan_date, COUNT(*) as daily_scans')
+        $unusualScans = self::selectRaw('item_id, DATE(created_at) as scan_date, COUNT(*) as daily_scans')
             ->groupBy('item_id', 'scan_date')
             ->having('daily_scans', '>', 10)
             ->with('item')

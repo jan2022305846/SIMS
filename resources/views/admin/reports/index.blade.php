@@ -14,16 +14,16 @@
                     <div class="d-flex gap-2">
                         <!-- Period Selector -->
                         <div class="btn-group" id="periodSelector">
-                            <a href="{{ route('reports.index', ['period' => 'daily']) }}" 
-                               class="btn {{ ($period ?? 'daily') === 'daily' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
-                                <i class="fas fa-calendar-day me-1"></i>Daily
+                            <a href="{{ route('reports.index', ['period' => 'monthly']) }}" 
+                               class="btn {{ ($period ?? 'monthly') === 'monthly' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
+                                <i class="fas fa-calendar-alt me-1"></i>Monthly
                             </a>
-                            <a href="{{ route('reports.index', ['period' => 'weekly']) }}" 
-                               class="btn {{ ($period ?? 'daily') === 'weekly' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
-                                <i class="fas fa-calendar-week me-1"></i>Weekly
+                            <a href="{{ route('reports.index', ['period' => 'quarterly']) }}" 
+                               class="btn {{ ($period ?? 'monthly') === 'quarterly' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
+                                <i class="fas fa-calendar-plus me-1"></i>Quarterly
                             </a>
                             <a href="{{ route('reports.index', ['period' => 'annually']) }}" 
-                               class="btn {{ ($period ?? 'daily') === 'annually' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
+                               class="btn {{ ($period ?? 'monthly') === 'annually' ? 'btn-primary' : 'btn-outline-primary' }} period-btn">
                                 <i class="fas fa-calendar me-1"></i>Annual
                             </a>
                         </div>
@@ -51,7 +51,7 @@
                         <div class="card text-center border-primary">
                             <div class="card-body">
                                 <i class="fas fa-clipboard-list fa-2x text-primary mb-2"></i>
-                                <h4 class="mb-0">{{ $data['total_requests'] ?? 0 }}</h4>
+                                <h4 class="mb-0">{{ $data['summary']['total_requests'] ?? 0 }}</h4>
                                 <small class="text-muted">Total Requests</small>
                             </div>
                         </div>
@@ -60,8 +60,8 @@
                         <div class="card text-center border-success">
                             <div class="card-body">
                                 <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                                <h4 class="mb-0">{{ $data['completed_requests'] ?? 0 }}</h4>
-                                <small class="text-muted">Completed</small>
+                                <h4 class="mb-0">{{ $data['summary']['fulfilled_requests'] ?? 0 }}</h4>
+                                <small class="text-muted">Fulfilled</small>
                             </div>
                         </div>
                     </div>
@@ -69,7 +69,7 @@
                         <div class="card text-center border-warning">
                             <div class="card-body">
                                 <i class="fas fa-clock fa-2x text-warning mb-2"></i>
-                                <h4 class="mb-0">{{ $data['pending_requests'] ?? 0 }}</h4>
+                                <h4 class="mb-0">{{ $data['summary']['pending_requests'] ?? 0 }}</h4>
                                 <small class="text-muted">Pending</small>
                             </div>
                         </div>
@@ -77,9 +77,9 @@
                     <div class="col-md-3">
                         <div class="card text-center border-info">
                             <div class="card-body">
-                                <i class="fas fa-boxes fa-2x text-info mb-2"></i>
-                                <h4 class="mb-0">{{ $data['items_requested'] ?? 0 }}</h4>
-                                <small class="text-muted">Items Requested</small>
+                                <i class="fas fa-users fa-2x text-info mb-2"></i>
+                                <h4 class="mb-0">{{ $data['unique_users'] ?? 0 }}</h4>
+                                <small class="text-muted">Active Users</small>
                             </div>
                         </div>
                     </div>
@@ -92,7 +92,7 @@
                             <div class="card-header">
                                 <h5 class="card-title mb-0">
                                     <i class="fas fa-chart-bar me-2"></i>
-                                    Requests Overview - {{ ucfirst($period ?? 'daily') }}
+                                    Request Status Overview - {{ ucfirst($period ?? 'monthly') }}
                                 </h5>
                             </div>
                             <div class="card-body">
@@ -104,12 +104,12 @@
                         <div class="card h-100">
                             <div class="card-header">
                                 <h5 class="card-title mb-0">
-                                    <i class="fas fa-chart-line me-2"></i>
-                                    Value Trends - {{ ucfirst($period ?? 'daily') }}
+                                    <i class="fas fa-chart-pie me-2"></i>
+                                    Request Distribution by Status
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <canvas id="itemsChart" style="max-height: 300px;"></canvas>
+                                <canvas id="statusChart" style="max-height: 300px;"></canvas>
                             </div>
                         </div>
                     </div>
@@ -205,26 +205,24 @@
 
 <script>
 // Global variables
-let requestsChart, itemsChart;
-let currentPeriod = '{{ $period ?? 'daily' }}';
+let requestsChart, statusChart;
+let currentPeriod = '{{ $period ?? 'monthly' }}';
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     @if(isset($data['chart_data']) && is_array($data['chart_data']) && count($data['chart_data']) > 0)
-        initializeCharts(@json($data['chart_data']));
+        initializeCharts(@json($data['chart_data']), @json($data['summary']));
     @else
         initializeEmptyCharts();
     @endif
 });
 
 // Initialize charts
-function initializeCharts(chartData) {
+function initializeCharts(chartData, summaryData) {
     // Transform chart data for Chart.js
     const labels = chartData.map(item => item.date);
     const requests = chartData.map(item => item.requests);
     const disbursements = chartData.map(item => item.disbursements);
-    const pending = chartData.map(item => 0); // We'll calculate this differently
-    const values = chartData.map(item => item.value);
 
     // Requests Chart
     const requestsCtx = document.getElementById('requestsChart').getContext('2d');
@@ -246,13 +244,6 @@ function initializeCharts(chartData) {
                     backgroundColor: 'rgba(75, 192, 192, 0.7)',
                     borderColor: 'rgba(75, 192, 192, 1)',
                     borderWidth: 1
-                },
-                {
-                    label: 'Pending',
-                    data: pending,
-                    backgroundColor: 'rgba(255, 206, 86, 0.7)',
-                    borderColor: 'rgba(255, 206, 86, 1)',
-                    borderWidth: 1
                 }
             ]
         },
@@ -270,28 +261,37 @@ function initializeCharts(chartData) {
         }
     });
 
-    // Items Chart
-    const itemsCtx = document.getElementById('itemsChart').getContext('2d');
-    itemsChart = new Chart(itemsCtx, {
-        type: 'line',
+    // Status Distribution Pie Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    statusChart = new Chart(statusCtx, {
+        type: 'pie',
         data: {
-            labels: labels,
+            labels: ['Fulfilled', 'Pending', 'Total'],
             datasets: [{
-                label: 'Total Value',
-                data: values,
-                borderColor: 'rgba(255, 99, 132, 1)',
-                backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
+                data: [
+                    summaryData.fulfilled_requests || 0,
+                    summaryData.pending_requests || 0,
+                    summaryData.total_requests || 0
+                ],
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(54, 162, 235, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(54, 162, 235, 1)'
+                ],
+                borderWidth: 2
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true
+            plugins: {
+                legend: {
+                    position: 'bottom'
                 }
             },
             animation: {
@@ -303,7 +303,7 @@ function initializeCharts(chartData) {
 
 // Initialize empty charts
 function initializeEmptyCharts() {
-    initializeCharts([]);
+    initializeCharts([], {fulfilled_requests: 0, pending_requests: 0, total_requests: 0});
 }
 
 // Download CSV Function
@@ -312,17 +312,17 @@ function downloadReport() {
     const now = new Date();
     
     switch(currentPeriod) {
-        case 'daily':
-            url = '{{ route("reports.daily-csv") }}?date=' + now.toISOString().split('T')[0];
+        case 'monthly':
+            url = '{{ route("reports.weekly-csv") }}?date=' + now.toISOString().split('T')[0];
             break;
-        case 'weekly':
+        case 'quarterly':
             url = '{{ route("reports.weekly-csv") }}?date=' + now.toISOString().split('T')[0];
             break;
         case 'annually':
             url = '{{ route("reports.annual-csv") }}?year=' + now.getFullYear();
             break;
         default:
-            url = '{{ route("reports.daily-csv") }}?date=' + now.toISOString().split('T')[0];
+            url = '{{ route("reports.weekly-csv") }}?date=' + now.toISOString().split('T')[0];
     }
     
     window.open(url, '_blank');

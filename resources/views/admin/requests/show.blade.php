@@ -51,7 +51,7 @@
                                         <div>
                                             <h5 class="mb-0">{{ $request->user->name }}</h5>
                                             <p class="text-muted mb-0">{{ $request->user->email }}</p>
-                                            <small class="text-muted">{{ ucfirst($request->user->role) }}</small>
+                                            <small class="text-muted">{{ $request->user->isAdmin() ? 'Admin' : 'Faculty' }}</small>
                                         </div>
                                     </div>
                                 </div>
@@ -60,7 +60,7 @@
                                 <h6 class="text-muted mb-2">Request Status</h6>
                                 <div class="mb-3">
                                     <span class="badge fs-6 px-3 py-2
-                                        @switch($request->workflow_status)
+                                        @switch($request->status)
                                             @case('pending') bg-warning @break
                                             @case('approved_by_admin') bg-success @break
                                             @case('ready_for_pickup') bg-info text-white @break
@@ -92,16 +92,16 @@
                                 <h6 class="text-muted mb-2">Item Details</h6>
                                 <div class="card bg-light border-0 mb-3">
                                     <div class="card-body">
-                                        <h5 class="mb-2">{{ $request->item->name }}</h5>
+                                        <h5 class="mb-2">{{ $request->item ? $request->item->name : 'Item Not Found' }}</h5>
                                         <div class="row">
                                             <div class="col-6">
                                                 <small class="text-muted">Requested Quantity</small>
-                                                <div class="fw-bold fs-5">{{ $request->quantity }} {{ $request->item->unit ?? 'pcs' }}</div>
+                                                <div class="fw-bold fs-5">{{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}</div>
                                             </div>
                                             <div class="col-6">
                                                 <small class="text-muted">Available Stock</small>
-                                                <div class="fw-bold fs-5 {{ $request->item->current_stock < $request->quantity ? 'text-danger' : 'text-success' }}">
-                                                    {{ $request->item->current_stock }} {{ $request->item->unit ?? 'pcs' }}
+                                                <div class="fw-bold fs-5 {{ $request->item && $request->item->current_stock < $request->quantity ? 'text-danger' : 'text-success' }}">
+                                                    {{ $request->item ? $request->item->current_stock : 'N/A' }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}
                                                 </div>
                                             </div>
                                         </div>
@@ -197,7 +197,7 @@
                                     </button>
                                 </form>
                             @else
-                                @if($request->workflow_status === 'declined_by_admin')
+                                @if($request->status === 'declined_by_admin')
                                     <div class="alert alert-danger mb-2">
                                         <i class="fas fa-ban me-2"></i>
                                         <strong>This request was declined</strong>
@@ -205,12 +205,12 @@
                                             <br><small>Reason: {{ $request->admin_notes }}</small>
                                         @endif
                                     </div>
-                                @elseif($request->workflow_status === 'approved_by_admin')
+                                @elseif($request->status === 'approved_by_admin')
                                     <div class="alert alert-success mb-2">
                                         <i class="fas fa-check-circle me-2"></i>
                                         <strong>This request has already been approved</strong>
                                     </div>
-                                @elseif(in_array($request->workflow_status, ['fulfilled', 'claimed']))
+                                @elseif(in_array($request->status, ['fulfilled', 'claimed']))
                                     <div class="alert alert-info mb-2">
                                         <i class="fas fa-check-double me-2"></i>
                                         <strong>This request has been completed</strong>
@@ -268,7 +268,7 @@
                                 </form>
                             @endif
 
-                            @if($request->workflow_status === 'approved_by_admin')
+                            @if($request->status === 'approved_by_admin')
                                 <div class="mb-3">
                                     <label for="complete_barcode" class="form-label fw-medium">Scan Item Barcode to Complete Request</label>
                                     <div class="input-group">
@@ -386,18 +386,18 @@
                                     </button>
                                 </form>
                             @else
-                                @if($request->workflow_status === 'claimed')
+                                @if($request->status === 'claimed')
                                     <div class="alert alert-success mb-2">
                                         <i class="fas fa-check-circle me-2"></i>
                                         <strong>This request has already been claimed</strong>
                                     </div>
-                                @elseif($request->workflow_status === 'approved_by_admin')
+                                @elseif($request->status === 'approved_by_admin')
                                     <div class="alert alert-info mb-2">
                                         <i class="fas fa-clock me-2"></i>
                                         <strong>Waiting for faculty to generate claim slip</strong>
                                         <br><small>Faculty will generate a claim slip and visit the supply office to pick up items.</small>
                                     </div>
-                                @elseif($request->workflow_status !== 'ready_for_pickup')
+                                @elseif($request->status !== 'ready_for_pickup')
                                     <div class="alert alert-warning mb-2">
                                         <i class="fas fa-exclamation-triangle me-2"></i>
                                         <strong>This request cannot be claimed yet</strong>
@@ -423,7 +423,7 @@
                                 <i class="fas fa-clock me-1"></i>
                                 @if($request->claimed_date)
                                     Completed in {{ $request->request_date->diffInDays($request->claimed_date) + 1 }} days
-                                @elseif($request->workflow_status === 'claimed')
+                                @elseif($request->status === 'claimed')
                                     Completed
                                 @else
                                     In Progress
@@ -463,7 +463,7 @@
                                         </div>
                                         <div class="step-description mt-2">
                                             <small class="text-muted">
-                                                Faculty member submitted a request for {{ $request->quantity }} {{ $request->item->unit ?? 'pcs' }} of {{ $request->item->name }}
+                                                Faculty member submitted a request for {{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }} of {{ $request->item ? $request->item->name : 'Unknown Item' }}
                                             </small>
                                         </div>
                                     </div>
@@ -471,19 +471,19 @@
                             </div>
 
                             <!-- Step 2: Admin Approval -->
-                            <div class="workflow-step {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->workflow_status === 'declined_by_admin' ? 'declined' : 'current') }}">
+                            <div class="workflow-step {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->status === 'declined_by_admin' ? 'declined' : 'current') }}">
                                 <div class="step-indicator">
                                     <div class="step-number">2</div>
-                                    <i class="fas {{ in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->workflow_status === 'declined_by_admin' ? 'fa-times' : 'fa-shield-alt') }} step-icon"></i>
+                                    <i class="fas {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->status === 'declined_by_admin' ? 'fa-times' : 'fa-shield-alt') }} step-icon"></i>
                                 </div>
                                 <div class="step-content">
                                     <div class="step-header">
                                         <h6 class="step-title mb-1">Admin Approval</h6>
-                                        @if(in_array($request->workflow_status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']))
+                                        @if(in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']))
                                             <span class="badge bg-success-subtle text-success border border-success-subtle">
                                                 <i class="fas fa-check-circle me-1"></i>Approved
                                             </span>
-                                        @elseif($request->workflow_status === 'declined_by_admin')
+                                        @elseif($request->status === 'declined_by_admin')
                                             <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
                                                 <i class="fas fa-times-circle me-1"></i>Declined
                                             </span>
@@ -514,7 +514,7 @@
                                                     Request approved and ready for fulfillment
                                                 </small>
                                             </div>
-                                        @elseif($request->workflow_status === 'declined_by_admin')
+                                        @elseif($request->status === 'declined_by_admin')
                                             <div class="row g-2">
                                                 <div class="col-12">
                                                     <small class="text-danger d-block">
@@ -535,7 +535,7 @@
                             </div>
 
                             <!-- Step 3: Claim Slip Generation -->
-                            <div class="workflow-step {{ in_array($request->workflow_status, ['ready_for_pickup', 'claimed']) ? 'completed' : (in_array($request->workflow_status, ['approved_by_admin', 'fulfilled']) ? 'current' : '') }}">
+                            <div class="workflow-step {{ in_array($request->status, ['ready_for_pickup', 'claimed']) ? 'completed' : (in_array($request->status, ['approved_by_admin', 'fulfilled']) ? 'current' : '') }}">
                                 <div class="step-indicator">
                                     <div class="step-number">3</div>
                                     <i class="fas fa-ticket-alt step-icon"></i>
@@ -543,11 +543,11 @@
                                 <div class="step-content">
                                     <div class="step-header">
                                         <h6 class="step-title mb-1">Claim Slip Generation</h6>
-                                        @if(in_array($request->workflow_status, ['ready_for_pickup', 'claimed']))
+                                        @if(in_array($request->status, ['ready_for_pickup', 'claimed']))
                                             <span class="badge bg-success-subtle text-success border border-success-subtle">
                                                 <i class="fas fa-check-circle me-1"></i>Generated
                                             </span>
-                                        @elseif(in_array($request->workflow_status, ['approved_by_admin', 'fulfilled']))
+                                        @elseif(in_array($request->status, ['approved_by_admin', 'fulfilled']))
                                             <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
                                                 <i class="fas fa-clock me-1"></i>Pending
                                             </span>
@@ -558,7 +558,7 @@
                                         @endif
                                     </div>
                                     <div class="step-details">
-                                        @if($request->claim_slip_number && $request->workflow_status !== 'approved_by_admin')
+                                        @if($request->claim_slip_number && $request->status !== 'approved_by_admin')
                                             <div class="row g-2">
                                                 <div class="col-sm-6">
                                                     <small class="text-muted d-block">
@@ -578,7 +578,7 @@
                                                     Faculty generated claim slip with QR code for pickup verification
                                                 </small>
                                             </div>
-                                        @elseif(in_array($request->workflow_status, ['approved_by_admin', 'fulfilled']))
+                                        @elseif(in_array($request->status, ['approved_by_admin', 'fulfilled']))
                                             <div class="step-description">
                                                 <small class="text-muted">
                                                     <i class="fas fa-info-circle me-1"></i>
@@ -597,19 +597,19 @@
                             </div>
 
                             <!-- Step 4: Item Claimed -->
-                            <div class="workflow-step {{ $request->workflow_status === 'claimed' ? 'completed' : ($request->workflow_status === 'ready_for_pickup' ? 'current' : '') }}">
+                            <div class="workflow-step {{ $request->status === 'claimed' ? 'completed' : ($request->status === 'ready_for_pickup' ? 'current' : '') }}">
                                 <div class="step-indicator">
                                     <div class="step-number">4</div>
-                                    <i class="fas {{ $request->workflow_status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} step-icon"></i>
+                                    <i class="fas {{ $request->status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} step-icon"></i>
                                 </div>
                                 <div class="step-content">
                                     <div class="step-header">
                                         <h6 class="step-title mb-1">Item Pickup & Claim</h6>
-                                        @if($request->workflow_status === 'claimed')
+                                        @if($request->status === 'claimed')
                                             <span class="badge bg-success-subtle text-success border border-success-subtle">
                                                 <i class="fas fa-check-circle me-1"></i>Completed
                                             </span>
-                                        @elseif($request->workflow_status === 'ready_for_pickup')
+                                        @elseif($request->status === 'ready_for_pickup')
                                             <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
                                                 <i class="fas fa-clock me-1"></i>Ready for Pickup
                                             </span>
@@ -641,7 +641,7 @@
                                                     Dual verification completed: Claim slip QR + Item barcode scanned
                                                 </small>
                                             </div>
-                                        @elseif($request->workflow_status === 'ready_for_pickup')
+                                        @elseif($request->status === 'ready_for_pickup')
                                             <div class="step-description">
                                                 <small class="text-primary">
                                                     <i class="fas fa-info-circle me-1"></i>
@@ -1534,8 +1534,8 @@ function initializeClaimBarcodeScanner() {
                 </div>
                 <div class="col-md-6">
                     <h6 class="text-success mb-2"><i class="fas fa-box me-1"></i>Item Information</h6>
-                    <p class="mb-1"><strong>Item:</strong> {{ $request->item->name }}</p>
-                    <p class="mb-1"><strong>Quantity:</strong> {{ $request->quantity }} {{ $request->item->unit ?? 'pcs' }}</p>
+                    <p class="mb-1"><strong>Item:</strong> {{ $request->item ? $request->item->name : 'Item Not Found' }}</p>
+                    <p class="mb-1"><strong>Quantity:</strong> {{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}</p>
                     <p class="mb-1"><strong>Purpose:</strong> {{ Str::limit($request->purpose, 30) }}</p>
                 </div>
             </div>

@@ -53,7 +53,6 @@
                         <option value="name" {{ request('sort_by', 'name') == 'name' ? 'selected' : '' }}>Name</option>
                         <option value="quantity" {{ request('sort_by') == 'quantity' ? 'selected' : '' }}>Stock Quantity</option>
                         <option value="category" {{ request('sort_by') == 'category' ? 'selected' : '' }}>Category</option>
-                        <option value="value" {{ request('sort_by') == 'value' ? 'selected' : '' }}>Total Value</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -73,7 +72,7 @@
 
     <!-- Summary Stats -->
     <div class="row">
-        <div class="col-xl-3 col-md-6 mb-4">
+        <div class="col-xl-4 col-md-6 mb-4">
             <div class="card border-left-primary shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
@@ -91,25 +90,7 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Total Stock Value
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">₱{{ number_format($summary['total_value'], 2) }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-peso-sign fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
+        <div class="col-xl-4 col-md-6 mb-4">
             <div class="card border-left-warning shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
@@ -127,7 +108,7 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
+        <div class="col-xl-4 col-md-6 mb-4">
             <div class="card border-left-danger shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
@@ -179,8 +160,6 @@
                                 <th>Name</th>
                                 <th>Category</th>
                                 <th>Current Stock</th>
-                                <th>Unit Price</th>
-                                <th>Total Value</th>
                                 <th>Stock Status</th>
                                 <th>Last Updated</th>
                             </tr>
@@ -215,8 +194,6 @@
                                         <span class="font-weight-bold">{{ $item->current_stock }}</span>
                                         <small class="text-muted">{{ $item->unit }}</small>
                                     </td>
-                                    <td>₱{{ number_format($item->unit_price, 2) }}</td>
-                                    <td>₱{{ number_format($item->current_stock * $item->unit_price, 2) }}</td>
                                     <td>
                                         @if($item->current_stock <= 0)
                                             <span class="badge badge-danger">Out of Stock</span>

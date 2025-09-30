@@ -219,14 +219,14 @@
                                                 <td>{{ $request->user->name ?? 'N/A' }}</td>
                                                 <td>{{ $request->department ?: 'N/A' }}</td>
                                                 <td>
-                                                    @if($request->workflow_status == 'approved_by_admin' || $request->workflow_status == 'fulfilled' || $request->workflow_status == 'claimed')
+                                                    @if($request->status == 'approved_by_admin' || $request->status == 'fulfilled' || $request->status == 'claimed')
                                                         <span class="badge bg-success">Approved</span>
-                                                    @elseif($request->workflow_status == 'pending')
+                                                    @elseif($request->status == 'pending')
                                                         <span class="badge bg-warning">Pending</span>
-                                                    @elseif($request->workflow_status == 'declined_by_office_head' || $request->workflow_status == 'declined_by_admin')
+                                                    @elseif($request->status == 'declined_by_office_head' || $request->status == 'declined_by_admin')
                                                         <span class="badge bg-danger">Declined</span>
                                                     @else
-                                                        <span class="badge bg-secondary">{{ ucfirst(str_replace('_', ' ', $request->workflow_status)) }}</span>
+                                                        <span class="badge bg-secondary">{{ ucfirst(str_replace('_', ' ', $request->status)) }}</span>
                                                     @endif
                                                 </td>
                                                 <td>

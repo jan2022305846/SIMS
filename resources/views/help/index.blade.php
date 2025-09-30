@@ -90,18 +90,6 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                    <span class="fw-bold">4</span>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold">Digital Acknowledgment</h6>
-                                    <p class="text-muted small mb-0">Provide digital signature when receiving items.</p>
-                                    <a href="{{ route('help.show', 'acknowledgment-process') }}" class="btn btn-sm btn-outline-warning mt-2">Learn More</a>
-                                </div>
-                            </div>
-                        </div>
                         @else
                         <div class="col-md-6 mb-3">
                             <div class="d-flex align-items-start">

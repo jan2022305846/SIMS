@@ -228,15 +228,6 @@
                                     <small class="text-muted">Receive notification when items are ready</small>
                                 </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <div class="text-center">
-                                    <div class="bg-dark bg-opacity-10 rounded-circle p-3 d-inline-block mb-2">
-                                        <i class="fas fa-signature text-dark fa-lg"></i>
-                                    </div>
-                                    <h6 class="mb-1">5. Digital Acknowledgment</h6>
-                                    <small class="text-muted">Sign digitally and receive secure receipt</small>
-                                </div>
-                            </div>
                         </div>
                         <div class="alert alert-info mt-3">
                             <i class="fas fa-clock me-2"></i>

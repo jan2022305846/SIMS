@@ -2,12 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\Consumable;
+use App\Models\NonConsumable;
 use App\Models\Item;
 use App\Models\Request as SupplyRequest;
 use App\Models\ActivityLog;
 use App\Models\User;
 use App\Models\Category;
-use App\Models\RequestAcknowledgment;
 use App\Models\ItemScanLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -21,10 +22,10 @@ class DashboardService
      */
     public function getDashboardData($user): array
     {
-        $cacheKey = "dashboard_data_{$user->role}_{$user->id}";
+        $cacheKey = "dashboard_data_" . ($user->isAdmin() ? 'admin' : 'faculty') . "_{$user->id}";
         
         return Cache::remember($cacheKey, 300, function () use ($user) {
-            if (in_array($user->role, ['admin', 'office_head'])) {
+            if ($user->isAdmin()) {
                 return $this->getAdminDashboardData($user);
             }
             
@@ -42,7 +43,6 @@ class DashboardService
             'low_stock_items' => $this->getLowStockItems(10, $user),
             'pending_requests' => $this->getPendingRequests($user, 10),
             'recent_activities' => $this->getRecentActivities($user, 10),
-            'expiring_items' => $this->getExpiringItems(10, $user),
             'quick_actions' => $this->getQuickActions($user),
             'system_health' => $this->getSystemHealth(),
             'stock_overview' => $this->getStockOverview(),
@@ -77,16 +77,16 @@ class DashboardService
     {
         return [
             'items' => [
-                'total' => Item::count(),
-                'active' => Item::where('current_stock', '>', 0)->count(),
-                'low_stock' => Item::whereRaw('current_stock <= minimum_stock')->count(),
-                'out_of_stock' => Item::where('current_stock', 0)->count()
+                            'total_items' => Consumable::count() + NonConsumable::count(),
+                'active' => Consumable::where('quantity', '>', 0)->count() + NonConsumable::where('quantity', '>', 0)->count(),
+                'low_stock' => Consumable::whereRaw('quantity <= min_stock')->count() + NonConsumable::whereRaw('quantity <= min_stock')->count(),
+                'out_of_stock' => Consumable::where('quantity', 0)->count() + NonConsumable::where('quantity', 0)->count()
             ],
             'requests' => [
                 'total' => SupplyRequest::count(),
-                'pending' => SupplyRequest::where('workflow_status', 'pending')->count(),
-                'approved' => SupplyRequest::where('workflow_status', 'approved_by_admin')->count(),
-                'completed' => SupplyRequest::where('workflow_status', 'claimed')->count(),
+                'pending' => SupplyRequest::where('status', 'pending')->count(),
+                'approved' => SupplyRequest::where('status', 'approved_by_admin')->count(),
+                'completed' => SupplyRequest::where('status', 'claimed')->count(),
                 'this_month' => SupplyRequest::whereMonth('created_at', Carbon::now()->month)->count(),
                 'today' => SupplyRequest::whereDate('created_at', today())->count()
             ],
@@ -94,13 +94,12 @@ class DashboardService
                 'total' => User::count(),
                 'active_today' => ActivityLog::whereDate('created_at', today())
                     ->distinct('causer_id')->count('causer_id'),
-                'faculty' => User::where('role', 'faculty')->count(),
-                'staff' => User::whereIn('role', ['admin', 'office_head'])->count()
+                'faculty' => User::where('id', '!=', 6)->count(), // Admin is ID 6
+                'staff' => 1 // Single admin system
             ],
             'activities' => [
                 'total_today' => ActivityLog::whereDate('created_at', today())->count(),
-                'scans_today' => ItemScanLog::whereDate('created_at', today())->count(),
-                'acknowledgments_today' => RequestAcknowledgment::whereDate('created_at', today())->count()
+                'scans_today' => ItemScanLog::whereDate('created_at', today())->count()
             ]
         ];
     }
@@ -113,9 +112,9 @@ class DashboardService
         return [
             'my_requests' => [
                 'total' => SupplyRequest::where('user_id', $user->id)->count(),
-                'pending' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'pending')->count(),
-                'approved' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'approved_by_admin')->count(),
-                'completed' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'claimed')->count(),
+                'pending' => SupplyRequest::where('user_id', $user->id)->where('status', 'pending')->count(),
+                'approved' => SupplyRequest::where('user_id', $user->id)->where('status', 'approved_by_admin')->count(),
+                'completed' => SupplyRequest::where('user_id', $user->id)->where('status', 'claimed')->count(),
                 'this_month' => SupplyRequest::where('user_id', $user->id)
                     ->whereMonth('created_at', Carbon::now()->month)->count()
             ],
@@ -133,33 +132,59 @@ class DashboardService
      */
     public function getLowStockItems($limit = null, $user = null): Collection
     {
-        $query = Item::with(['category'])
-            ->whereRaw('current_stock <= minimum_stock')
-            ->orderByRaw('(current_stock / GREATEST(minimum_stock, 1))')
-            ->orderBy('current_stock');
+        $consumables = Consumable::with(['category'])
+            ->whereRaw('quantity <= min_stock')
+            ->orderByRaw('(quantity / GREATEST(min_stock, 1))')
+            ->orderBy('quantity')
+            ->get()
+            ->map(function ($item) use ($user) {
+                $stockPercentage = $item->min_stock > 0 
+                    ? ($item->quantity / $item->min_stock) * 100 
+                    : 0;
+
+                $item->setAttribute('stock_percentage', round($stockPercentage, 1));
+                $item->setAttribute('stock_status', $stockPercentage <= 25 ? 'critical' : 'low');
+                $item->setAttribute('item_type', 'consumable');
+                
+                if ($user && $user->isAdmin()) {
+                    $item->setAttribute('url', route('items.show', $item->id));
+                } else {
+                    $item->setAttribute('url', route('faculty.items.show', $item->id));
+                }
+                
+                return $item;
+            });
+
+        $nonConsumables = NonConsumable::with(['category'])
+            ->whereRaw('quantity <= min_stock')
+            ->orderByRaw('(quantity / GREATEST(min_stock, 1))')
+            ->orderBy('quantity')
+            ->get()
+            ->map(function ($item) use ($user) {
+                $stockPercentage = $item->min_stock > 0 
+                    ? ($item->quantity / $item->min_stock) * 100 
+                    : 0;
+
+                $item->setAttribute('stock_percentage', round($stockPercentage, 1));
+                $item->setAttribute('stock_status', $stockPercentage <= 25 ? 'critical' : 'low');
+                $item->setAttribute('item_type', 'non_consumable');
+                
+                if ($user && $user->isAdmin()) {
+                    $item->setAttribute('url', route('items.show', $item->id));
+                } else {
+                    $item->setAttribute('url', route('faculty.items.show', $item->id));
+                }
+                
+                return $item;
+            });
+
+        $allItems = $consumables->concat($nonConsumables)->sortBy('stock_percentage');
 
         if ($limit) {
-            $query->limit($limit);
+            $allItems = $allItems->take($limit);
         }
 
-        return $query->get()->map(function ($item) use ($user) {
-            $stockPercentage = $item->minimum_stock > 0 
-                ? ($item->current_stock / $item->minimum_stock) * 100 
-                : 0;
-
-            // Add calculated properties to the model instance using setAttribute
-            $item->setAttribute('stock_percentage', round($stockPercentage, 1));
-            $item->setAttribute('stock_status', $stockPercentage <= 25 ? 'critical' : 'low');
-            
-            // Generate appropriate URL based on user role
-            if ($user && $user->role === 'faculty') {
-                $item->setAttribute('url', route('faculty.items.show', $item->id));
-            } else {
-                $item->setAttribute('url', route('items.show', $item->id));
-            }
-            
-            return $item;
-        });
+        return $allItems;
     }
 
     /**
@@ -168,11 +193,11 @@ class DashboardService
     public function getPendingRequests($user, $limit = null): Collection
     {
         $query = SupplyRequest::with(['user', 'item'])
-            ->where('workflow_status', 'pending')
+            ->where('status', 'pending')
             ->orderBy('created_at', 'desc');
 
         // Filter based on user role
-        if ($user->role === 'faculty') {
+        if (!$user->isAdmin()) {
             $query->where('user_id', $user->id);
         }
 
@@ -184,15 +209,15 @@ class DashboardService
             return [
                 'id' => $request->id,
                 'user_name' => $request->user->name,
-                'department' => $request->user->department ?? 'N/A',
+                'department' => $request->user->office->name ?? 'N/A',
                 'purpose' => $request->purpose,
                 'priority' => $request->priority,
                 'items_count' => $request->item ? 1 : 0,
                 'created_at' => $request->created_at,
                 'days_pending' => $request->created_at->diffInDays(now()),
-                'url' => $user->role === 'faculty' 
-                    ? route('faculty.requests.show', $request->id)
-                    : route('requests.show', $request->id)
+                'url' => $user->isAdmin() 
+                    ? route('requests.show', $request->id)
+                    : route('faculty.requests.show', $request->id)
             ];
         });
     }
@@ -217,50 +242,12 @@ class DashboardService
                 'description' => $activity->description,
                 'event' => $activity->event,
                 'causer_name' => $activity->causer->name ?? 'System',
-                'causer_role' => $activity->causer->role ?? 'system',
+                'causer_role' => $activity->causer ? ($activity->causer->isAdmin() ? 'admin' : 'faculty') : 'system',
                 'created_at' => $activity->created_at,
                 'time_ago' => $activity->created_at->diffForHumans(),
                 'properties' => $activity->properties,
                 'log_name' => $activity->log_name
             ];
-        });
-    }
-
-    /**
-     * Get expiring items
-     * 
-     * @param int|null $limit Optional limit on results
-     * @param User|null $user Optional user context for URL generation
-     * @return Collection<Item> Items with added properties: days_until_expiry, status, url
-     */
-    public function getExpiringItems($limit = null, $user = null): Collection
-    {
-        $query = Item::with(['category'])
-            ->whereNotNull('expiry_date')
-            ->whereBetween('expiry_date', [Carbon::now(), Carbon::now()->addDays(90)])
-            ->orderBy('expiry_date');
-
-        if ($limit) {
-            $query->limit($limit);
-        }
-
-        return $query->get()->map(function ($item) use ($user) {
-            $daysUntilExpiry = Carbon::parse($item->expiry_date)->diffInDays(now(), false);
-            $status = $daysUntilExpiry <= 0 ? 'expired' : 
-                     ($daysUntilExpiry <= 30 ? 'expiring_soon' : 'expiring_later');
-
-            // Add calculated properties to the model instance using setAttribute
-            $item->setAttribute('days_until_expiry', abs($daysUntilExpiry));
-            $item->setAttribute('status', $status);
-            
-            // Generate appropriate URL based on user role
-            if ($user && $user->role === 'faculty') {
-                $item->setAttribute('url', route('faculty.items.show', $item->id));
-            } else {
-                $item->setAttribute('url', route('items.show', $item->id));
-            }
-            
-            return $item;
         });
     }
 
@@ -271,7 +258,7 @@ class DashboardService
     {
         $actions = [];
 
-        if (in_array($user->role, ['admin', 'office_head'])) {
+        if ($user->isAdmin()) {
             $actions = [
                 [
                     'title' => 'Add New Item',
@@ -286,7 +273,7 @@ class DashboardService
                     'icon' => 'fas fa-clipboard-check',
                     'url' => route('requests.manage'),
                     'color' => 'success',
-                    'badge' => SupplyRequest::where('workflow_status', 'pending')->count()
+                    'badge' => SupplyRequest::where('status', 'pending')->count()
                 ],
                 [
                     'title' => 'Generate Reports',
@@ -346,30 +333,35 @@ class DashboardService
         ];
     }
 
-    /**
-     * Get stock overview by category
-     */
     public function getStockOverview(): Collection
     {
-        return Category::withCount('items')
-            ->with(['items' => function ($query) {
-                $query->select('category_id', 
-                    DB::raw('SUM(current_stock) as total_stock'),
-                    DB::raw('COUNT(CASE WHEN current_stock <= minimum_stock THEN 1 END) as low_stock_count')
-                )->groupBy('category_id');
-            }])
-            ->get()
-            ->map(function ($category) {
-                $item = $category->items->first();
-                return [
-                    'id' => $category->id,
-                    'name' => $category->name,
-                    'description' => $category->description,
-                    'total_items' => $category->getAttribute('items_count'),
-                    'total_stock' => $item ? $item->getAttribute('total_stock') : 0,
-                    'low_stock_count' => $item ? $item->getAttribute('low_stock_count') : 0
-                ];
-            });
+        $consumableStats = Consumable::select('category_id', 
+                DB::raw('SUM(quantity) as total_stock'),
+                DB::raw('COUNT(CASE WHEN quantity <= min_stock THEN 1 END) as low_stock_count')
+            )->groupBy('category_id')->get();
+
+        $nonConsumableStats = NonConsumable::select('category_id', 
+                DB::raw('SUM(quantity) as total_stock'),
+                DB::raw('COUNT(CASE WHEN quantity <= min_stock THEN 1 END) as low_stock_count')
+            )->groupBy('category_id')->get();
+
+        return Category::all()->map(function ($category) use ($consumableStats, $nonConsumableStats) {
+            $consumable = $consumableStats->where('category_id', $category->id)->first();
+            $nonConsumable = $nonConsumableStats->where('category_id', $category->id)->first();
+            
+            $totalStock = ($consumable ? $consumable->total_stock : 0) + ($nonConsumable ? $nonConsumable->total_stock : 0);
+            $lowStockCount = ($consumable ? $consumable->low_stock_count : 0) + ($nonConsumable ? $nonConsumable->low_stock_count : 0);
+            $totalItems = Consumable::where('category_id', $category->id)->count() + NonConsumable::where('category_id', $category->id)->count();
+
+            return [
+                'id' => $category->id,
+                'name' => $category->name,
+                'description' => $category->description,
+                'total_items' => $totalItems,
+                'total_stock' => $totalStock,
+                'low_stock_count' => $lowStockCount
+            ];
+        });
     }
 
     /**
@@ -379,15 +371,15 @@ class DashboardService
     {
         $baseQuery = SupplyRequest::query();
         
-        if ($user->role === 'faculty') {
+        if (!$user->isAdmin()) {
             $baseQuery->where('user_id', $user->id);
         }
 
         return [
-            'pending_approval' => (clone $baseQuery)->where('workflow_status', 'pending')->count(),
-            'ready_for_pickup' => (clone $baseQuery)->where('workflow_status', 'ready_for_pickup')->count(),
-            'acknowledged' => (clone $baseQuery)->where('workflow_status', 'acknowledged')->count(),
-            'completed' => (clone $baseQuery)->where('workflow_status', 'completed')->count(),
+            'pending_approval' => (clone $baseQuery)->where('status', 'pending')->count(),
+            'ready_for_pickup' => (clone $baseQuery)->where('status', 'fulfilled')->count(),
+            'acknowledged' => (clone $baseQuery)->where('status', 'approved_by_admin')->count(),
+            'completed' => (clone $baseQuery)->where('status', 'claimed')->count(),
             'average_processing_time' => $this->getAverageProcessingTime($user)
         ];
     }
@@ -399,9 +391,9 @@ class DashboardService
     {
         $notifications = [];
 
-        if (in_array($user->role, ['admin', 'office_head'])) {
+        if ($user->isAdmin()) {
             // Low stock notifications
-            $lowStockCount = Item::whereRaw('current_stock <= minimum_stock')->count();
+            $lowStockCount = Consumable::whereRaw('quantity <= min_stock')->count() + NonConsumable::whereRaw('quantity <= min_stock')->count();
             if ($lowStockCount > 0) {
                 $notifications[] = [
                     'type' => 'warning',
@@ -413,7 +405,7 @@ class DashboardService
             }
 
             // Pending requests notifications
-            $pendingCount = SupplyRequest::where('workflow_status', 'pending')->count();
+            $pendingCount = SupplyRequest::where('status', 'pending')->count();
             if ($pendingCount > 0) {
                 $notifications[] = [
                     'type' => 'info',
@@ -444,28 +436,40 @@ class DashboardService
         return $trends;
     }
 
-    /**
-     * Get top categories by item count
-     */
     public function getTopCategories($limit = 5): Collection
     {
-        return Category::withCount('items')
-            ->orderBy('items_count', 'desc')
-            ->limit($limit)
-            ->get();
+        return Category::select('categories.*', DB::raw('
+            (SELECT COUNT(*) FROM consumables WHERE consumables.category_id = categories.id) + 
+            (SELECT COUNT(*) FROM non_consumables WHERE non_consumables.category_id = categories.id) as items_count
+        '))
+        ->orderBy('items_count', 'desc')
+        ->limit($limit)
+        ->get();
     }
 
-    /**
-     * Get most requested items
-     */
     public function getMostRequestedItems($limit = 5): Collection
     {
-        return Item::withCount(['requests' => function ($query) {
+        $consumables = Consumable::withCount(['requests' => function ($query) {
             $query->whereMonth('created_at', Carbon::now()->month);
         }])
         ->orderBy('requests_count', 'desc')
-        ->limit($limit)
-        ->get();
+        ->get()
+        ->map(function ($item) {
+            $item->setAttribute('item_type', 'consumable');
+            return $item;
+        });
+
+        $nonConsumables = NonConsumable::withCount(['requests' => function ($query) {
+            $query->whereMonth('created_at', Carbon::now()->month);
+        }])
+        ->orderBy('requests_count', 'desc')
+        ->get()
+        ->map(function ($item) {
+            $item->setAttribute('item_type', 'non_consumable');
+            return $item;
+        });
+
+        return $consumables->concat($nonConsumables)->sortByDesc('requests_count')->take($limit);
     }
 
     /**
@@ -484,12 +488,9 @@ class DashboardService
         return $query->get();
     }
 
-    /**
-     * Get available items count
-     */
     public function getAvailableItemsCount(): int
     {
-        return Item::where('current_stock', '>', 0)->count();
+        return Consumable::where('quantity', '>', 0)->count() + NonConsumable::where('quantity', '>', 0)->count();
     }
 
     /**
@@ -498,10 +499,10 @@ class DashboardService
     public function getUserRequestStatusSummary($user): array
     {
         return [
-            'pending' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'pending')->count(),
-            'approved' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'approved_by_admin')->count(),
-            'completed' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'claimed')->count(),
-            'rejected' => SupplyRequest::where('user_id', $user->id)->where('workflow_status', 'declined_by_admin')->count()
+            'pending' => SupplyRequest::where('user_id', $user->id)->where('status', 'pending')->count(),
+            'approved' => SupplyRequest::where('user_id', $user->id)->where('status', 'approved_by_admin')->count(),
+            'completed' => SupplyRequest::where('user_id', $user->id)->where('status', 'claimed')->count(),
+            'rejected' => SupplyRequest::where('user_id', $user->id)->where('status', 'declined')->count()
         ];
     }
 
@@ -552,8 +553,8 @@ class DashboardService
 
     private function getAverageProcessingTime($user): string
     {
-        $avgHours = SupplyRequest::where('status', 'completed')
-            ->when($user->role === 'faculty', function ($query) use ($user) {
+        $avgHours = SupplyRequest::where('status', 'claimed')
+            ->when(!$user->isAdmin(), function ($query) use ($user) {
                 return $query->where('user_id', $user->id);
             })
             ->whereNotNull('updated_at')
@@ -574,13 +575,10 @@ class DashboardService
         return round($bytes, $precision) . ' ' . $units[$i];
     }
 
-    /**
-     * Clear dashboard cache
-     */
     public function clearCache($user = null): void
     {
         if ($user) {
-            Cache::forget("dashboard_data_{$user->role}_{$user->id}");
+            Cache::forget("dashboard_data_" . ($user->isAdmin() ? 'admin' : 'faculty') . "_{$user->id}");
         } else {
             Cache::flush();
         }

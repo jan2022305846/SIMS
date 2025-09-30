@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Item;
+use App\Models\Consumable;
+use App\Models\NonConsumable;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -19,12 +21,20 @@ class ItemController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Item::with('category');
+        // Get consumables
+        $consumablesQuery = Consumable::with('category');
+        // Get non-consumables
+        $nonConsumablesQuery = NonConsumable::with('category');
 
         // Handle search
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
+            $consumablesQuery->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('brand', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('description', 'like', '%' . $searchTerm . '%');
+            });
+            $nonConsumablesQuery->where(function ($q) use ($searchTerm) {
                 $q->where('name', 'like', '%' . $searchTerm . '%')
                   ->orWhere('brand', 'like', '%' . $searchTerm . '%')
                   ->orWhere('description', 'like', '%' . $searchTerm . '%');
@@ -33,27 +43,86 @@ class ItemController extends Controller
 
         // Handle category filter
         if ($request->filled('category')) {
-            $query->where('category_id', $request->category);
+            $consumablesQuery->where('category_id', $request->category);
+            $nonConsumablesQuery->where('category_id', $request->category);
         }
 
         // Handle stock filter
         if ($request->filled('stock')) {
             switch ($request->stock) {
                 case 'low':
-                    $query->whereRaw('quantity <= COALESCE(minimum_stock, 10)');
+                    $consumablesQuery->whereRaw('quantity <= COALESCE(min_stock, 10)');
+                    $nonConsumablesQuery->whereRaw('quantity <= COALESCE(min_stock, 10)');
                     break;
                 case 'in-stock':
-                    $query->whereRaw('quantity > COALESCE(minimum_stock, 10)');
+                    $consumablesQuery->whereRaw('quantity > COALESCE(min_stock, 10)');
+                    $nonConsumablesQuery->whereRaw('quantity > COALESCE(min_stock, 10)');
                     break;
                 case 'out-of-stock':
-                    $query->where('quantity', '<=', 0);
+                    $consumablesQuery->where('quantity', '<=', 0);
+                    $nonConsumablesQuery->where('quantity', '<=', 0);
                     break;
             }
         }
 
-        $items = $query->orderBy('name')->paginate(15)->appends(request()->query());
+        // Handle type filter
+        if ($request->filled('type')) {
+            if ($request->type === 'consumable') {
+                $nonConsumables = collect(); // Only show consumables
+                $consumables = $consumablesQuery->get()->map(function ($item) {
+                    $item->item_type = 'consumable';
+                    return $item;
+                });
+            } elseif ($request->type === 'non_consumable') {
+                $consumables = collect(); // Only show non-consumables
+                $nonConsumables = $nonConsumablesQuery->get()->map(function ($item) {
+                    $item->item_type = 'non_consumable';
+                    return $item;
+                });
+            } else {
+                // Show all types
+                $consumables = $consumablesQuery->get()->map(function ($item) {
+                    $item->item_type = 'consumable';
+                    return $item;
+                });
+                $nonConsumables = $nonConsumablesQuery->get()->map(function ($item) {
+                    $item->item_type = 'non_consumable';
+                    return $item;
+                });
+            }
+        } else {
+            // Get paginated results
+            $consumables = $consumablesQuery->get()->map(function ($item) {
+                $item->item_type = 'consumable';
+                return $item;
+            });
+            $nonConsumables = $nonConsumablesQuery->get()->map(function ($item) {
+                $item->item_type = 'non_consumable';
+                return $item;
+            });
+        }
+
+        // Combine and sort results
+        $allItems = $consumables->concat($nonConsumables)->sortBy('name');
+
+        // Manual pagination
+        $perPage = 10;
+        $page = $request->get('page', 1);
+        $offset = ($page - 1) * $perPage;
+        $paginatedItems = $allItems->slice($offset, $perPage);
+
+        // Create a LengthAwarePaginator
+        $items = new \Illuminate\Pagination\LengthAwarePaginator(
+            $paginatedItems,
+            $allItems->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => 'page']
+        );
+
+        $items->appends($request->query());
         $categories = Category::all();
-        
+
         return view('admin.items.index', compact('items', 'categories'));
     }
 
@@ -71,43 +140,42 @@ class ItemController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $rules = [
             'name' => 'required|string|max:255',
+            'item_type' => 'required|in:consumable,non_consumable',
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
-            'barcode' => [
+            'product_code' => [
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('items')->whereNull('deleted_at')
+                Rule::unique('consumables')->whereNull('deleted_at'),
+                Rule::unique('non_consumables')->whereNull('deleted_at')
             ],
-            'current_stock' => 'required|integer|min:0',
-            'minimum_stock' => 'required|integer|min:0',
-            'maximum_stock' => 'nullable|integer|min:0',
-            'unit' => 'nullable|string|max:50',
-            'unit_price' => 'nullable|numeric|min:0',
-            'total_value' => 'nullable|numeric|min:0',
-            'price' => 'nullable|numeric|min:0',
-            'location' => 'required|string|max:255',
-            'condition' => 'required|in:New,Good,Fair,Needs Repair',
+            'quantity' => 'required|integer|min:0',
+            'min_stock' => 'required|integer|min:0',
+            'max_stock' => 'nullable|integer|min:0',
             'brand' => 'nullable|string|max:255',
-            'supplier' => 'nullable|string|max:255',
-            'warranty_date' => 'nullable|date',
-            'expiry_date' => 'nullable|date',
-        ]);
+        ];
 
-        // Set quantity to current_stock for backward compatibility
+        // Add conditional validation for non-consumables
+        if ($request->item_type === 'non_consumable') {
+            $rules['location'] = 'required|string|max:255';
+            $rules['condition'] = 'required|in:New,Good,Fair,Needs Repair';
+        }
+
+        $request->validate($rules);
+
         $data = $request->all();
-        $data['quantity'] = $request->current_stock;
         
         // Generate unique QR code
         $data['qr_code'] = Str::uuid();
 
-        $item = Item::create($data);
-        
-        // Update total value if unit price is provided
-        if ($item->unit_price && $item->current_stock) {
-            $item->updateTotalValue();
+        // Create item in the appropriate table based on item_type
+        if ($request->item_type === 'consumable') {
+            $item = Consumable::create($data);
+        } else {
+            $item = NonConsumable::create($data);
         }
 
         return redirect()->route('items.index')
@@ -117,10 +185,24 @@ class ItemController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Item $item)
+    public function show($id)
     {
-        $item->load('category');
-        
+        // Try to find the item in consumables first
+        $item = Consumable::with('category')->find($id);
+
+        // If not found in consumables, try non-consumables
+        if (!$item) {
+            $item = NonConsumable::with('category')->find($id);
+        }
+
+        // If still not found, return 404
+        if (!$item) {
+            abort(404, 'Item not found');
+        }
+
+        // Add item type for the view
+        $item->item_type = $item instanceof Consumable ? 'consumable' : 'non_consumable';
+
         // Return different views based on user role
         return view('admin.items.show', compact('item'));
     }
@@ -128,8 +210,21 @@ class ItemController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Item $item)
+    public function edit($id)
     {
+        // Try to find the item in consumables first
+        $item = Consumable::find($id);
+
+        // If not found in consumables, try non-consumables
+        if (!$item) {
+            $item = NonConsumable::find($id);
+        }
+
+        // If still not found, return 404
+        if (!$item) {
+            abort(404, 'Item not found');
+        }
+
         $categories = Category::all();
         return view('admin.items.edit', compact('item', 'categories'));
     }
@@ -137,43 +232,48 @@ class ItemController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Item $item)
+    public function update(Request $request, $id)
     {
-        $request->validate([
+        // Try to find the item in consumables first
+        $item = Consumable::find($id);
+
+        // If not found in consumables, try non-consumables
+        if (!$item) {
+            $item = NonConsumable::find($id);
+        }
+
+        // If still not found, return 404
+        if (!$item) {
+            abort(404, 'Item not found');
+        }
+
+        $isConsumable = $item instanceof Consumable;
+
+        $rules = [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
-            'barcode' => [
+            'product_code' => [
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('items')->whereNull('deleted_at')->ignore($item->id)
+                Rule::unique($isConsumable ? 'consumables' : 'non_consumables')->whereNull('deleted_at')->ignore($item->id)
             ],
-            'current_stock' => 'required|integer|min:0',
-            'minimum_stock' => 'required|integer|min:0',
-            'maximum_stock' => 'nullable|integer|min:0',
-            'unit' => 'nullable|string|max:50',
-            'unit_price' => 'nullable|numeric|min:0',
-            'total_value' => 'nullable|numeric|min:0',
-            'price' => 'nullable|numeric|min:0',
-            'location' => 'required|string|max:255',
-            'condition' => 'required|in:New,Good,Fair,Needs Repair',
+            'quantity' => 'required|integer|min:0',
+            'min_stock' => 'required|integer|min:0',
+            'max_stock' => 'nullable|integer|min:0',
             'brand' => 'nullable|string|max:255',
-            'supplier' => 'nullable|string|max:255',
-            'warranty_date' => 'nullable|date',
-            'expiry_date' => 'nullable|date',
-        ]);
+        ];
 
-        // Update quantity to current_stock for backward compatibility
-        $data = $request->all();
-        $data['quantity'] = $request->current_stock;
-
-        $item->update($data);
-        
-        // Update total value if unit price is provided
-        if ($item->unit_price && $item->current_stock) {
-            $item->updateTotalValue();
+        // Add conditional validation for non-consumables
+        if (!$isConsumable) {
+            $rules['location'] = 'required|string|max:255';
+            $rules['condition'] = 'required|in:New,Good,Fair,Needs Repair';
         }
+
+        $request->validate($rules);
+
+        $item->update($request->all());
 
         return redirect()->route('items.show', $item)
             ->with('success', 'Item updated successfully.');
@@ -182,8 +282,21 @@ class ItemController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Item $item)
+    public function destroy($id)
     {
+        // Try to find the item in consumables first
+        $item = Consumable::find($id);
+
+        // If not found in consumables, try non-consumables
+        if (!$item) {
+            $item = NonConsumable::find($id);
+        }
+
+        // If still not found, return 404
+        if (!$item) {
+            abort(404, 'Item not found');
+        }
+
         $item->delete();
 
         return redirect()->route('items.index')
@@ -195,12 +308,20 @@ class ItemController extends Controller
      */
     public function browse(Request $request)
     {
-        $query = Item::with('category');
+        // Get consumables
+        $consumablesQuery = Consumable::with('category');
+        // Get non-consumables
+        $nonConsumablesQuery = NonConsumable::with('category');
 
         // Search functionality
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
+            $consumablesQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('brand', 'like', "%{$search}%");
+            });
+            $nonConsumablesQuery->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
                   ->orWhere('brand', 'like', "%{$search}%");
@@ -208,14 +329,41 @@ class ItemController extends Controller
         }
 
         // Category filter
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->category_id);
+        if ($request->filled('category')) {
+            $consumablesQuery->where('category_id', $request->category);
+            $nonConsumablesQuery->where('category_id', $request->category);
         }
 
-        $items = $query->paginate(12);
+        // Get results and add type indicators
+        $consumables = $consumablesQuery->get()->map(function ($item) {
+            $item->item_type = 'consumable';
+            return $item;
+        });
+        $nonConsumables = $nonConsumablesQuery->get()->map(function ($item) {
+            $item->item_type = 'non_consumable';
+            return $item;
+        });
+
+        // Combine results
+        $allItems = $consumables->concat($nonConsumables)->sortBy('name');
+
+        // Manual pagination
+        $perPage = 12;
+        $page = $request->get('page', 1);
+        $offset = ($page - 1) * $perPage;
+        $paginatedItems = $allItems->slice($offset, $perPage);
+
+        // Create a LengthAwarePaginator
+        $items = new \Illuminate\Pagination\LengthAwarePaginator(
+            $paginatedItems,
+            $allItems->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => 'page']
+        );
 
         // Build clean query parameters (remove empty values)
-        $cleanQuery = array_filter($request->only(['search', 'category_id']), function($value) {
+        $cleanQuery = array_filter($request->only(['search', 'category']), function($value) {
             return $value !== null && $value !== '';
         });
 
@@ -230,13 +378,20 @@ class ItemController extends Controller
      */
     public function summary(Request $request)
     {
-        $query = Item::with(['category'])
-            ->selectRaw('*, (current_stock / NULLIF(maximum_stock, 0) * 100) as stock_percentage');
+        // Get consumables
+        $consumablesQuery = Consumable::with(['category']);
+        // Get non-consumables
+        $nonConsumablesQuery = NonConsumable::with(['category']);
 
         // Search functionality
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
+            $consumablesQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('brand', 'like', "%{$search}%");
+            });
+            $nonConsumablesQuery->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
                   ->orWhere('brand', 'like', "%{$search}%")
@@ -245,61 +400,68 @@ class ItemController extends Controller
         }
 
         // Category filter
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->category_id);
+        if ($request->filled('category')) {
+            $consumablesQuery->where('category_id', $request->category);
+            $nonConsumablesQuery->where('category_id', $request->category);
         }
 
-        // Stock status filter
-        if ($request->filled('stock_status')) {
-            switch ($request->stock_status) {
-                case 'in_stock':
-                    $query->where('current_stock', '>', 0)
-                          ->whereRaw('current_stock > minimum_stock');
-                    break;
-                case 'low_stock':
-                    $query->whereRaw('current_stock <= minimum_stock')
-                          ->where('current_stock', '>', 0);
-                    break;
-                case 'out_of_stock':
-                    $query->where('current_stock', '<=', 0);
-                    break;
-                case 'critical':
-                    $query->whereRaw('current_stock <= (minimum_stock * 0.5)');
-                    break;
-            }
-        }
+        // Get results and add type indicators
+        $consumables = $consumablesQuery->get()->map(function ($item) {
+            $item->item_type = 'consumable';
+            $item->stock_percentage = $item->max_stock > 0 ? ($item->quantity / $item->max_stock) * 100 : 0;
+            return $item;
+        });
+        $nonConsumables = $nonConsumablesQuery->get()->map(function ($item) {
+            $item->item_type = 'non_consumable';
+            $item->stock_percentage = $item->max_stock > 0 ? ($item->quantity / $item->max_stock) * 100 : 0;
+            return $item;
+        });
 
-        // Location filter
-        if ($request->filled('location')) {
-            $query->where('location', 'like', "%{$request->location}%");
-        }
+        // Combine results
+        $allItems = $consumables->concat($nonConsumables);
 
         // Sorting
         $sortField = $request->get('sort', 'name');
         $sortDirection = $request->get('direction', 'asc');
-        
+
         if ($sortField === 'category_name') {
-            $query->join('categories', 'items.category_id', '=', 'categories.id')
-                  ->orderBy('categories.name', $sortDirection)
-                  ->select('items.*', 'categories.name as category_name');
+            $allItems = $allItems->sortBy(function ($item) use ($sortDirection) {
+                $categoryName = $item->category ? $item->category->name : '';
+                return $sortDirection === 'desc' ? strtoupper($categoryName) : $categoryName;
+            });
         } else {
-            $query->orderBy($sortField, $sortDirection);
+            $allItems = $allItems->sortBy($sortField, SORT_REGULAR, $sortDirection === 'desc');
         }
 
-        $items = $query->paginate(20)->appends($request->query());
-        
+        // Manual pagination
+        $perPage = 20;
+        $page = $request->get('page', 1);
+        $offset = ($page - 1) * $perPage;
+        $paginatedItems = $allItems->slice($offset, $perPage);
+
+        // Create a LengthAwarePaginator
+        $items = new \Illuminate\Pagination\LengthAwarePaginator(
+            $paginatedItems,
+            $allItems->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => 'page']
+        );
+
+        $items->appends($request->query());
+
         // Get summary statistics
-        $totalItems = Item::count();
-        $availableItems = Item::where('current_stock', '>', 0)->count();
-        $lowStockItems = Item::whereRaw('current_stock <= minimum_stock')->where('current_stock', '>', 0)->count();
-        $outOfStockItems = Item::where('current_stock', '<=', 0)->count();
-        
+        $totalItems = Consumable::count() + NonConsumable::count();
+        $availableItems = Consumable::where('quantity', '>', 0)->count() + NonConsumable::where('quantity', '>', 0)->count();
+        $lowStockItems = Consumable::whereRaw('quantity <= min_stock')->where('quantity', '>', 0)->count() +
+                        NonConsumable::whereRaw('quantity <= min_stock')->where('quantity', '>', 0)->count();
+        $outOfStockItems = Consumable::where('quantity', '<=', 0)->count() + NonConsumable::where('quantity', '<=', 0)->count();
+
         // Get all categories and locations for filters
         $categories = Category::orderBy('name')->get();
-        $locations = Item::distinct()->orderBy('location')->pluck('location')->filter();
-        
+
         return view('admin.items.summary', compact(
-            'items', 'categories', 'locations',
+            'items', 'categories',
             'totalItems', 'availableItems', 'lowStockItems', 'outOfStockItems'
         ));
     }
@@ -309,10 +471,43 @@ class ItemController extends Controller
      */
     public function lowStock()
     {
-        $items = Item::with('category')
-            ->whereRaw('quantity <= minimum_stock')
+        // Get low stock consumables
+        $consumables = Consumable::with('category')
+            ->whereRaw('quantity <= min_stock')
             ->orWhere('quantity', '<=', 10)
-            ->paginate(10);
+            ->get()
+            ->map(function ($item) {
+                $item->item_type = 'consumable';
+                return $item;
+            });
+
+        // Get low stock non-consumables
+        $nonConsumables = NonConsumable::with('category')
+            ->whereRaw('quantity <= min_stock')
+            ->orWhere('quantity', '<=', 10)
+            ->get()
+            ->map(function ($item) {
+                $item->item_type = 'non_consumable';
+                return $item;
+            });
+
+        // Combine and sort results
+        $allItems = $consumables->concat($nonConsumables)->sortBy('quantity');
+
+        // Manual pagination
+        $perPage = 10;
+        $page = request()->get('page', 1);
+        $offset = ($page - 1) * $perPage;
+        $paginatedItems = $allItems->slice($offset, $perPage);
+
+        // Create a LengthAwarePaginator
+        $items = new \Illuminate\Pagination\LengthAwarePaginator(
+            $paginatedItems,
+            $allItems->count(),
+            $perPage,
+            $page,
+            ['path' => request()->url(), 'pageName' => 'page']
+        );
 
         return view('admin.items.low-stock', compact('items'));
     }
@@ -320,19 +515,26 @@ class ItemController extends Controller
     /**
      * Restock an item.
      */
-    public function restock(Request $request, Item $item)
+    public function restock(Request $request, $id)
     {
+        // Try to find the item in consumables first
+        $item = Consumable::find($id);
+
+        // If not found in consumables, try non-consumables
+        if (!$item) {
+            $item = NonConsumable::find($id);
+        }
+
+        // If still not found, return 404
+        if (!$item) {
+            abort(404, 'Item not found');
+        }
+
         $request->validate([
             'additional_quantity' => 'required|integer|min:1'
         ]);
 
         $item->increment('quantity', $request->additional_quantity);
-        $item->increment('current_stock', $request->additional_quantity);
-
-        // Update total value if unit price exists
-        if ($item->unit_price) {
-            $item->updateTotalValue();
-        }
 
         return redirect()->back()
             ->with('success', "Successfully added {$request->additional_quantity} units to {$item->name}.");
@@ -343,10 +545,9 @@ class ItemController extends Controller
      */
     public function expiringSoon()
     {
-        $items = Item::with('category')
-            ->whereNotNull('expiry_date')
-            ->whereDate('expiry_date', '<=', now()->addDays(30))
-            ->paginate(10);
+        // Since expiry_date was removed during database normalization,
+        // return empty collection
+        $items = collect();
 
         return view('admin.items.expiring-soon', compact('items'));
     }
@@ -362,30 +563,61 @@ class ItemController extends Controller
      */
     public function trashed(Request $request)
     {
-        // Query trashed items with their category relationships
-        $query = Item::onlyTrashed()->with('category');
+        // Query trashed consumables with their category relationships
+        $consumablesQuery = Consumable::onlyTrashed()->with('category');
+        // Query trashed non-consumables with their category relationships
+        $nonConsumablesQuery = NonConsumable::onlyTrashed()->with('category');
 
         // Apply search filter if provided
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
+            $consumablesQuery->where(function ($q) use ($searchTerm) {
                 $q->where('name', 'like', '%' . $searchTerm . '%')
                   ->orWhere('brand', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('description', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('barcode', 'like', '%' . $searchTerm . '%');
+                  ->orWhere('description', 'like', '%' . $searchTerm . '%');
+            });
+            $nonConsumablesQuery->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('brand', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('description', 'like', '%' . $searchTerm . '%');
             });
         }
 
         // Apply category filter if provided
         if ($request->filled('category')) {
-            $query->where('category_id', $request->category);
+            $consumablesQuery->where('category_id', $request->category);
+            $nonConsumablesQuery->where('category_id', $request->category);
         }
 
-        // Order by deletion date (most recently deleted first)
-        $query->orderBy('deleted_at', 'desc');
+        // Get results and add type indicators
+        $consumables = $consumablesQuery->get()->map(function ($item) {
+            $item->item_type = 'consumable';
+            return $item;
+        });
+        $nonConsumables = $nonConsumablesQuery->get()->map(function ($item) {
+            $item->item_type = 'non_consumable';
+            return $item;
+        });
 
-        // Paginate results
-        $items = $query->paginate(15)->appends(request()->query());
+        // Combine results and sort by deletion date (most recently deleted first)
+        $allItems = $consumables->concat($nonConsumables)->sortByDesc('deleted_at');
+
+        // Manual pagination
+        $perPage = 15;
+        $page = $request->get('page', 1);
+        $offset = ($page - 1) * $perPage;
+        $paginatedItems = $allItems->slice($offset, $perPage);
+
+        // Create a LengthAwarePaginator
+        $items = new \Illuminate\Pagination\LengthAwarePaginator(
+            $paginatedItems,
+            $allItems->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => 'page']
+        );
+
+        $items->appends(request()->query());
 
         // Get categories for filter dropdown
         $categories = Category::orderBy('name')->get();
@@ -453,10 +685,17 @@ class ItemController extends Controller
     {
         Log::info('Verify barcode request', ['barcode' => $barcode]);
 
-        $item = Item::with('category')
-            ->where('barcode', $barcode)
-            ->orWhere('qr_code', $barcode)
+        // Search in consumables first
+        $item = Consumable::with('category')
+            ->where('product_code', $barcode)
             ->first();
+
+        // If not found in consumables, search in non-consumables
+        if (!$item) {
+            $item = NonConsumable::with('category')
+                ->where('product_code', $barcode)
+                ->first();
+        }
 
         Log::info('Item lookup result', ['found' => $item ? true : false, 'item_id' => $item ? $item->id : null]);
 
@@ -468,20 +707,23 @@ class ItemController extends Controller
             ], 404);
         }
 
+        // Add item type
+        $item->item_type = $item instanceof Consumable ? 'consumable' : 'non_consumable';
+
         return response()->json([
             'success' => true,
             'item' => [
                 'id' => $item->id,
                 'name' => $item->name,
-                'barcode' => $item->barcode,
+                'product_code' => $item->product_code,
                 'brand' => $item->brand,
                 'category' => $item->category ? $item->category->name : 'N/A',
-                'current_stock' => $item->current_stock,
-                'minimum_stock' => $item->minimum_stock,
-                'unit' => $item->unit,
-                'location' => $item->location,
-                'condition' => $item->condition,
+                'quantity' => $item->quantity,
+                'min_stock' => $item->min_stock,
+                'location' => $item->location ?? 'N/A',
+                'condition' => $item->condition ?? 'N/A',
                 'description' => $item->description,
+                'item_type' => $item->item_type,
             ]
         ]);
     }
@@ -489,19 +731,45 @@ class ItemController extends Controller
     /**
      * Show assignment form for an item.
      */
-    public function showAssignForm(Item $item)
+    public function showAssignForm($id)
     {
+        // Try to find the item in consumables first
+        $item = Consumable::find($id);
+
+        // If not found in consumables, try non-consumables
+        if (!$item) {
+            $item = NonConsumable::find($id);
+        }
+
+        // If still not found, return 404
+        if (!$item) {
+            abort(404, 'Item not found');
+        }
+
         $users = \App\Models\User::orderBy('name')->get();
         $offices = \App\Models\Office::orderBy('name')->get();
-        
+
         return view('admin.items.assign', compact('item', 'users', 'offices'));
     }
 
     /**
      * Assign item to a user.
      */
-    public function assign(Request $request, Item $item)
+    public function assign(Request $request, $id)
     {
+        // Try to find the item in consumables first
+        $item = Consumable::find($id);
+
+        // If not found in consumables, try non-consumables
+        if (!$item) {
+            $item = NonConsumable::find($id);
+        }
+
+        // If still not found, return 404
+        if (!$item) {
+            abort(404, 'Item not found');
+        }
+
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'location' => 'nullable|string|max:255',
@@ -509,12 +777,18 @@ class ItemController extends Controller
         ]);
 
         $user = \App\Models\User::findOrFail($request->user_id);
-        
-        $item->assignTo($user, $request->notes);
-        
-        // Update location if provided
-        if ($request->filled('location')) {
-            $item->update(['location' => $request->location]);
+
+        // For non-consumables, update the current_holder_id
+        if ($item instanceof NonConsumable) {
+            $item->update([
+                'current_holder_id' => $user->id,
+                'location' => $request->filled('location') ? $request->location : $item->location
+            ]);
+        } else {
+            // For consumables, just update location if provided
+            if ($request->filled('location')) {
+                $item->update(['location' => $request->location]);
+            }
         }
 
         return redirect()->route('items.show', $item)
@@ -524,15 +798,35 @@ class ItemController extends Controller
     /**
      * Unassign item from current holder.
      */
-    public function unassign(Item $item)
+    public function unassign($id)
     {
-        if (!$item->isAssigned()) {
-            return redirect()->back()
-                ->with('error', 'Item is not currently assigned to anyone.');
+        // Try to find the item in consumables first
+        $item = Consumable::find($id);
+
+        // If not found in consumables, try non-consumables
+        if (!$item) {
+            $item = NonConsumable::find($id);
         }
 
-        $holderName = $item->currentHolder->name;
-        $item->unassign();
+        // If still not found, return 404
+        if (!$item) {
+            abort(404, 'Item not found');
+        }
+
+        // For non-consumables, check if assigned and unassign
+        if ($item instanceof NonConsumable) {
+            if (!$item->current_holder_id) {
+                return redirect()->back()
+                    ->with('error', 'Item is not currently assigned to anyone.');
+            }
+
+            $holderName = $item->currentHolder->name;
+            $item->update(['current_holder_id' => null]);
+        } else {
+            // For consumables, just return success (they don't have holders)
+            return redirect()->route('items.show', $item)
+                ->with('error', 'Consumable items cannot be assigned to users.');
+        }
 
         return redirect()->route('items.show', $item)
             ->with('success', "Item '{$item->name}' has been returned from {$holderName}.");

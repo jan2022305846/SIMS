@@ -307,7 +307,7 @@
                                     @endif
                                 </div>
                                 <nav aria-label="Trashed items pagination">
-                                    {{ $items->links('pagination::bootstrap-4') }}
+                                    {{ $items->links('pagination::bootstrap-5') }}
                                 </nav>
                             </div>
                         </div>

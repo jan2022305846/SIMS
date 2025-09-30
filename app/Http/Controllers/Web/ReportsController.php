@@ -18,7 +18,7 @@ use Carbon\Carbon;
 class ReportsController extends Controller
 {
     /**
-     * Check if workflow_status column exists (MySQL 5.5 compatible)
+     * Check if status column exists (MySQL 5.5 compatible)
      * Cache the result to avoid repeated queries
      */
     private function hasWorkflowColumn()
@@ -28,7 +28,7 @@ class ReportsController extends Controller
         if ($hasColumn === null) {
             try {
                 // Use a simple query that works with MySQL 5.5
-                $result = DB::select("SHOW COLUMNS FROM requests LIKE 'workflow_status'");
+                $result = DB::select("SHOW COLUMNS FROM requests LIKE 'status'");
                 $hasColumn = count($result) > 0;
             } catch (\Exception $e) {
                 // If there's any error, assume column doesn't exist
@@ -46,13 +46,13 @@ class ReportsController extends Controller
     {
         switch ($status) {
             case 'pending':
-                return $query->where('workflow_status', 'pending');
+                return $query->where('status', 'pending');
             case 'fulfilled':
-                return $query->where('workflow_status', 'fulfilled');
+                return $query->where('status', 'fulfilled');
             case 'approved':
-                return $query->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed']);
+                return $query->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed']);
             case 'declined':
-                return $query->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin']);
+                return $query->where('status', 'declined');
             default:
                 return $query;
         }
@@ -63,7 +63,7 @@ class ReportsController extends Controller
         // Handle period parameter for dashboard functionality
         $period = $request->get('period', 'daily');
 
-        // Check if workflow_status column exists
+        // Check if status column exists
         if (!$this->hasWorkflowColumn()) {
             $data = [
                 'total_requests' => 0,
@@ -78,13 +78,18 @@ class ReportsController extends Controller
             $message = null;
         }
 
+        // Add unique users count to data
+        $dateRange = $this->getDateRangeFromPeriod($period);
+        $data['unique_users'] = SupplyRequest::whereBetween('created_at', [$dateRange['from'], $dateRange['to']])
+            ->distinct('user_id')
+            ->count('user_id');
+
         // Get basic stats for the stats cards
         $stats = [
-            'total_items' => Item::count(),
-            'low_stock_items' => Item::whereRaw('current_stock <= minimum_stock')->count(),
+            'total_items' => \App\Models\Consumable::count() + \App\Models\NonConsumable::count(),
+            'low_stock_items' => \App\Models\Consumable::whereRaw('quantity <= min_stock')->count() + \App\Models\NonConsumable::whereRaw('quantity <= min_stock')->count(),
             'total_requests_this_month' => SupplyRequest::whereMonth('created_at', Carbon::now()->month)->count(),
             'pending_requests' => $this->getRequestsByStatus(SupplyRequest::query(), 'pending')->count(),
-            'total_value' => Item::sum('total_value'),
             'categories_count' => Category::count(),
         ];
 
@@ -103,10 +108,14 @@ class ReportsController extends Controller
                 return $this->getDailyReportData($now);
             case 'weekly': 
                 return $this->getWeeklyReportData($now);
+            case 'monthly':
+                return $this->getMonthlyReportData($now);
+            case 'quarterly':
+                return $this->getQuarterlyReportData($now);
             case 'annually':
                 return $this->getAnnualReportData($now);
             default:
-                return $this->getDailyReportData($now);
+                return $this->getMonthlyReportData($now);
         }
     }
 
@@ -119,8 +128,7 @@ class ReportsController extends Controller
         $chartData = [];
         
         // Get all requests for the last 7 days in one query
-        $requestsQuery = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+        $requestsQuery = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, 0 as total_value')
             ->whereBetween('requests.created_at', [$date->copy()->subDays(6)->startOfDay(), $endDate])
             ->groupByRaw('DATE(requests.created_at)')
             ->orderByRaw('DATE(requests.created_at)');
@@ -148,8 +156,7 @@ class ReportsController extends Controller
             ->get();
         
         // Calculate today's summary using the same efficient query
-        $todaySummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN workflow_status IN ("pending") THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+        $todaySummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN status IN ("pending") THEN 1 ELSE 0 END) as pending_requests, 0 as total_value')
             ->whereBetween('requests.created_at', [$startDate, $endDate]);
         
         $summaryData = $todaySummary->first();
@@ -174,8 +181,7 @@ class ReportsController extends Controller
         $endDate = $date->copy()->endOfWeek();
         
         // Get all requests for the last 8 weeks in one query
-        $requestsQuery = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+        $requestsQuery = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, 0 as total_value')
             ->whereBetween('requests.created_at', [$date->copy()->subWeeks(7)->startOfWeek(), $endDate])
             ->groupByRaw('DATE(requests.created_at)')
             ->orderByRaw('DATE(requests.created_at)');
@@ -210,8 +216,7 @@ class ReportsController extends Controller
             ->get();
         
         // Calculate current week summary
-        $weekSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN workflow_status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+        $weekSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_requests, 0 as total_value')
             ->whereBetween('requests.created_at', [$startDate, $endDate]);
         
         $summaryData = $weekSummary->first();
@@ -262,12 +267,53 @@ class ReportsController extends Controller
             'summary' => [
                 'total_requests' => $monthRequests->count(),
                 'fulfilled_requests' => $monthRequests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
-                'pending_requests' => $monthRequests->where('workflow_status', 'pending')->count(),
+                'pending_requests' => $monthRequests->where('status', 'pending')->count(),
                 'total_value' => $monthRequests->sum(function($req) {
                     return $req->quantity * ($req->item->unit_price ?? 0);
                 }),
             ],
             'records' => $monthRequests->load(['user', 'item', 'item.category'])
+        ];
+    }
+
+    private function getQuarterlyReportData($date)
+    {
+        $startDate = $date->copy()->startOfQuarter();
+        $endDate = $date->copy()->endOfQuarter();
+        
+        // Get last 4 quarters for chart
+        $chartData = [];
+        for ($i = 3; $i >= 0; $i--) {
+            $quarterStart = $date->copy()->subQuarters($i)->startOfQuarter();
+            $quarterEnd = $date->copy()->subQuarters($i)->endOfQuarter();
+            
+            $chartData[] = [
+                'date' => 'Q' . $quarterStart->quarter . ' ' . $quarterStart->year,
+                'requests' => SupplyRequest::whereBetween('created_at', [$quarterStart, $quarterEnd])->count(),
+                'disbursements' => SupplyRequest::whereBetween('created_at', [$quarterStart, $quarterEnd])
+                    ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
+                'value' => SupplyRequest::whereBetween('created_at', [$quarterStart, $quarterEnd])
+                    ->with('item')->get()->sum(function($req) {
+                        return $req->quantity * ($req->item->unit_price ?? 0);
+                    })
+            ];
+        }
+        
+        $quarterRequests = SupplyRequest::whereBetween('created_at', [$startDate, $endDate])->get();
+        
+        return [
+            'period' => 'Quarterly',
+            'current_date' => 'Q' . $startDate->quarter . ' ' . $startDate->year,
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_requests' => $quarterRequests->count(),
+                'fulfilled_requests' => $quarterRequests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
+                'pending_requests' => $quarterRequests->where('status', 'pending')->count(),
+                'total_value' => $quarterRequests->sum(function($req) {
+                    return $req->quantity * ($req->item->unit_price ?? 0);
+                }),
+            ],
+            'records' => $quarterRequests->load(['user', 'item', 'item.category'])
         ];
     }
 
@@ -277,8 +323,7 @@ class ReportsController extends Controller
         $endDate = $date->copy()->endOfYear();
         
         // Get all requests for the last 5 years in one query
-        $requestsQuery = SupplyRequest::selectRaw('YEAR(requests.created_at) as year, COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+        $requestsQuery = SupplyRequest::selectRaw('YEAR(requests.created_at) as year, COUNT(*) as total_requests, SUM(CASE WHEN status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, 0 as total_value')
             ->whereBetween('requests.created_at', [$date->copy()->subYears(4)->startOfYear(), $endDate])
             ->groupByRaw('YEAR(requests.created_at)')
             ->orderByRaw('YEAR(requests.created_at)');
@@ -306,8 +351,7 @@ class ReportsController extends Controller
             ->get();
         
         // Calculate current year summary
-        $yearSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN workflow_status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN workflow_status = "pending" THEN 1 ELSE 0 END) as pending_requests, SUM(requests.quantity * COALESCE(items.unit_price, 0)) as total_value')
-            ->leftJoin('items', 'requests.item_id', '=', 'items.id')
+        $yearSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_requests, 0 as total_value')
             ->whereBetween('requests.created_at', [$startDate, $endDate]);
         
         $summaryData = $yearSummary->first();
@@ -360,9 +404,6 @@ class ReportsController extends Controller
                       ->orderBy('categories.name')
                       ->select('items.*');
                 break;
-            case 'value':
-                $query->orderByRaw('current_stock * unit_price DESC');
-                break;
             default:
                 $query->orderBy('name');
         }
@@ -377,9 +418,6 @@ class ReportsController extends Controller
         $allItems = Item::all(); // Get all items for summary stats
         $summary = [
             'total_items' => $allItems->count(),
-            'total_value' => $allItems->sum(function($item) {
-                return $item->current_stock * $item->unit_price;
-            }),
             'low_stock_items' => $allItems->where('current_stock', '<=', 'minimum_stock')->count(),
             'out_of_stock_items' => $allItems->where('current_stock', '<=', 0)->count(),
             'adequate_stock_items' => $allItems->where('current_stock', '>', 'minimum_stock')->count(),
@@ -653,10 +691,10 @@ class ReportsController extends Controller
 
         $stats = [
             'total_requests' => $transactions->count(),
-            'approved_today' => $transactions->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
-            'pending_today' => $transactions->where('workflow_status', 'pending')->count(),
+            'approved_today' => $transactions->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
+            'pending_today' => $transactions->where('status', 'pending')->count(),
             'total_value' => $transactions->sum(function($req) {
-                return $req->quantity * ($req->item->unit_price ?? 0);
+                return $req->quantity * 0; // unit_price not available in normalized tables
             }),
         ];
 
@@ -686,7 +724,7 @@ class ReportsController extends Controller
         $stats = [
             'total_disbursed' => $disbursements->count(),
             'total_value' => $disbursements->sum(function($req) {
-                return $req->quantity * ($req->item->unit_price ?? 0);
+                return $req->quantity * 0; // unit_price not available in normalized tables
             }),
             'total_quantity' => $disbursements->sum('quantity'),
             'unique_items' => $disbursements->pluck('item_id')->unique()->count(),
@@ -728,7 +766,7 @@ class ReportsController extends Controller
             'total_disbursements' => $weeklyData['disbursements']->count(),
             'new_items_added' => $weeklyData['new_items']->count(),
             'total_request_value' => $weeklyData['requests']->sum(function($req) {
-                return $req->quantity * ($req->item->unit_price ?? 0);
+                return $req->quantity * 0; // unit_price not available in normalized tables
             }),
             'daily_breakdown' => $this->getWeeklyBreakdown($startDate, $endDate),
         ];
@@ -759,7 +797,7 @@ class ReportsController extends Controller
         $analytics = [
             'total_requests' => $requests->count(),
             'by_department' => $requests->groupBy('department')->map->count(),
-            'by_status' => $requests->groupBy('workflow_status')->map->count(),
+            'by_status' => $requests->groupBy('status')->map->count(),
             'by_priority' => $requests->groupBy('priority')->map->count(),
             'most_requested' => $this->getMostRequestedItems($requests),
             'daily_trend' => $this->getDailyTrend($startDate, $endDate),
@@ -798,9 +836,9 @@ class ReportsController extends Controller
 
         $analytics = [
             'total_requests' => $monthlyData['requests']->count(),
-            'approved_requests' => $monthlyData['requests']->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
+            'approved_requests' => $monthlyData['requests']->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
             'monthly_value' => $monthlyData['requests']->sum(function($req) {
-                return $req->quantity * ($req->item->unit_price ?? 0);
+                return $req->quantity * 0; // unit_price not available in normalized tables
             }),
             'weekly_breakdown' => $this->getMonthlyWeeklyBreakdown($startDate, $endDate),
             'department_performance' => $this->getDepartmentPerformance($monthlyData['requests']),
@@ -918,10 +956,10 @@ class ReportsController extends Controller
         return $requests->groupBy('department')->map(function($deptRequests) {
             return [
                 'total' => $deptRequests->count(),
-                'approved' => $deptRequests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
-                'pending' => $deptRequests->where('workflow_status', 'pending')->count(),
+                'approved' => $deptRequests->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
+                'pending' => $deptRequests->where('status', 'pending')->count(),
                 'approval_rate' => $deptRequests->count() > 0 ? 
-                    ($deptRequests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count() / $deptRequests->count()) * 100 : 0
+                    ($deptRequests->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count() / $deptRequests->count()) * 100 : 0
             ];
         });
     }
@@ -979,11 +1017,11 @@ class ReportsController extends Controller
             
         return [
             'total_requested_value' => $requests->sum(function($req) {
-                return $req->quantity * ($req->item->unit_price ?? 0);
+                return $req->quantity * 0; // unit_price not available in normalized tables
             }),
             'total_disbursed_value' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })
                 ->sum(function($req) {
-                    return $req->quantity * ($req->item->unit_price ?? 0);
+                    return $req->quantity * 0; // unit_price not available in normalized tables
                 }),
             'current_inventory_value' => Item::sum('total_value'),
         ];
@@ -994,7 +1032,7 @@ class ReportsController extends Controller
      */
     public function dashboardData(Request $request)
     {
-        // Check if workflow_status column exists
+        // Check if status column exists
         if (!$this->hasWorkflowColumn()) {
             return response()->json([
                 'period' => 'Daily',
@@ -1173,10 +1211,14 @@ class ReportsController extends Controller
                 return $this->getQrScanDailyReportData($now);
             case 'weekly':
                 return $this->getQrScanWeeklyReportData($now);
+            case 'monthly':
+                return $this->getQrScanMonthlyReportData($now);
+            case 'quarterly':
+                return $this->getQrScanQuarterlyReportData($now);
             case 'annually':
                 return $this->getQrScanAnnualReportData($now);
             default:
-                return $this->getQrScanDailyReportData($now);
+                return $this->getQrScanMonthlyReportData($now);
         }
     }
 
@@ -1359,6 +1401,130 @@ class ReportsController extends Controller
         ];
     }
 
+    private function getQrScanMonthlyReportData($date)
+    {
+        $startDate = $date->copy()->startOfMonth();
+        $endDate = $date->copy()->endOfMonth();
+
+        // Get all scans for the last 12 months in one query
+        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(scanned_at) as date, COUNT(*) as total_scans')
+            ->whereBetween('scanned_at', [$date->copy()->subMonths(11)->startOfMonth(), $endDate])
+            ->groupByRaw('DATE(scanned_at)')
+            ->orderByRaw('DATE(scanned_at)');
+
+        $scansData = $scansQuery->get()->groupBy(function($item) {
+            $date = Carbon::parse($item->date);
+            return $date->format('Y-m');
+        });
+
+        // Build chart data for last 12 months
+        $chartData = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $monthStart = $date->copy()->subMonths($i)->startOfMonth();
+            $monthKey = $monthStart->format('Y-m');
+
+            $monthData = $scansData->get($monthKey, collect());
+            $totalScans = $monthData->sum('total_scans');
+
+            $chartData[] = [
+                'date' => $monthStart->format('M Y'),
+                'scans' => (int)$totalScans,
+            ];
+        }
+
+        // Current month scans for display
+        $monthScans = \App\Models\ItemScanLog::with(['item', 'user'])
+            ->whereBetween('scanned_at', [$startDate, $endDate])
+            ->orderBy('scanned_at', 'desc')
+            ->get();
+
+        // Get scan statistics for current month
+        $scanStats = \App\Models\ItemScanLog::getScanStats($startDate->toDateString(), $endDate->toDateString());
+
+        return [
+            'period' => 'Monthly',
+            'current_date' => $startDate->format('F Y'),
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_scans' => $scanStats['total_scans'],
+                'unique_items_scanned' => $scanStats['unique_items_scanned'],
+                'unique_users_scanning' => $scanStats['unique_users_scanning'],
+                'unscanned_items' => \App\Models\ItemScanLog::getUnscannedItems(30)->count(),
+            ],
+            'analytics' => [
+                'scans_by_scanner_type' => $scanStats['scans_by_scanner_type'],
+                'most_scanned_items' => $scanStats['most_scanned_items'],
+                'scans_by_location' => $scanStats['scans_by_location'],
+                'daily_scan_trend' => $this->getDailyScanTrend($startDate->toDateString(), $endDate->toDateString()),
+                'scan_frequency_analysis' => $this->getOverallScanFrequency(),
+                'scan_alerts' => \App\Models\ItemScanLog::getScanAlerts(),
+            ],
+            'records' => $monthScans
+        ];
+    }
+
+    private function getQrScanQuarterlyReportData($date)
+    {
+        $startDate = $date->copy()->startOfQuarter();
+        $endDate = $date->copy()->endOfQuarter();
+
+        // Get all scans for the last 4 quarters in one query
+        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(scanned_at) as date, COUNT(*) as total_scans')
+            ->whereBetween('scanned_at', [$date->copy()->subQuarters(3)->startOfQuarter(), $endDate])
+            ->groupByRaw('DATE(scanned_at)')
+            ->orderByRaw('DATE(scanned_at)');
+
+        $scansData = $scansQuery->get()->groupBy(function($item) {
+            $date = Carbon::parse($item->date);
+            return $date->format('Y') . '-Q' . $date->quarter;
+        });
+
+        // Build chart data for last 4 quarters
+        $chartData = [];
+        for ($i = 3; $i >= 0; $i--) {
+            $quarterStart = $date->copy()->subQuarters($i)->startOfQuarter();
+            $quarterKey = $quarterStart->format('Y') . '-Q' . $quarterStart->quarter;
+
+            $quarterData = $scansData->get($quarterKey, collect());
+            $totalScans = $quarterData->sum('total_scans');
+
+            $chartData[] = [
+                'date' => 'Q' . $quarterStart->quarter . ' ' . $quarterStart->year,
+                'scans' => (int)$totalScans,
+            ];
+        }
+
+        // Current quarter scans for display
+        $quarterScans = \App\Models\ItemScanLog::with(['item', 'user'])
+            ->whereBetween('scanned_at', [$startDate, $endDate])
+            ->orderBy('scanned_at', 'desc')
+            ->get();
+
+        // Get scan statistics for current quarter
+        $scanStats = \App\Models\ItemScanLog::getScanStats($startDate->toDateString(), $endDate->toDateString());
+
+        return [
+            'period' => 'Quarterly',
+            'current_date' => 'Q' . $startDate->quarter . ' ' . $startDate->year,
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_scans' => $scanStats['total_scans'],
+                'unique_items_scanned' => $scanStats['unique_items_scanned'],
+                'unique_users_scanning' => $scanStats['unique_users_scanning'],
+                'unscanned_items' => \App\Models\ItemScanLog::getUnscannedItems(30)->count(),
+            ],
+            'analytics' => [
+                'scans_by_scanner_type' => $scanStats['scans_by_scanner_type'],
+                'most_scanned_items' => $scanStats['most_scanned_items'],
+                'scans_by_location' => $scanStats['scans_by_location'],
+                'daily_scan_trend' => $this->getDailyScanTrend($startDate->toDateString(), $endDate->toDateString()),
+                'scan_frequency_analysis' => $this->getOverallScanFrequency(),
+                'scan_alerts' => \App\Models\ItemScanLog::getScanAlerts(),
+            ],
+            'records' => $quarterScans
+        ];
+    }
+
     /**
      * Get daily scan trend for QR analytics
      */
@@ -1415,6 +1581,16 @@ class ReportsController extends Controller
                     'from' => $now->copy()->startOfWeek()->toDateString(),
                     'to' => $now->copy()->endOfWeek()->toDateString()
                 ];
+            case 'monthly':
+                return [
+                    'from' => $now->copy()->startOfMonth()->toDateString(),
+                    'to' => $now->copy()->endOfMonth()->toDateString()
+                ];
+            case 'quarterly':
+                return [
+                    'from' => $now->copy()->startOfQuarter()->toDateString(),
+                    'to' => $now->copy()->endOfQuarter()->toDateString()
+                ];
             case 'annually':
                 return [
                     'from' => $now->copy()->startOfYear()->toDateString(),
@@ -1422,8 +1598,8 @@ class ReportsController extends Controller
                 ];
             default:
                 return [
-                    'from' => $now->copy()->startOfDay()->toDateString(),
-                    'to' => $now->copy()->endOfDay()->toDateString()
+                    'from' => $now->copy()->startOfMonth()->toDateString(),
+                    'to' => $now->copy()->endOfMonth()->toDateString()
                 ];
         }
     }
@@ -1440,10 +1616,14 @@ class ReportsController extends Controller
                 return $this->getRequestAnalyticsDailyReportData($now);
             case 'weekly':
                 return $this->getRequestAnalyticsWeeklyReportData($now);
+            case 'monthly':
+                return $this->getRequestAnalyticsMonthlyReportData($now);
+            case 'quarterly':
+                return $this->getRequestAnalyticsQuarterlyReportData($now);
             case 'annually':
                 return $this->getRequestAnalyticsAnnualReportData($now);
             default:
-                return $this->getRequestAnalyticsDailyReportData($now);
+                return $this->getRequestAnalyticsMonthlyReportData($now);
         }
     }
 
@@ -1485,9 +1665,9 @@ class ReportsController extends Controller
         // Analytics calculations
         $analytics = [
             'total_requests' => $requests->count(),
-            'approved_requests' => $requests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
-            'pending_requests' => $requests->where('workflow_status', 'pending')->count(),
-            'declined_requests' => $requests->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin'])->count(),
+            'approved_requests' => $requests->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
+            'pending_requests' => $requests->where('status', 'pending')->count(),
+            'declined_requests' => $requests->where('status', 'declined')->count(),
             'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
             'average_processing_time' => $this->calculateAverageProcessingTime($requests),
             'most_requested_items' => $this->getMostRequestedItems($requests),
@@ -1554,9 +1734,9 @@ class ReportsController extends Controller
         // Analytics calculations
         $analytics = [
             'total_requests' => $requests->count(),
-            'approved_requests' => $requests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
-            'pending_requests' => $requests->where('workflow_status', 'pending')->count(),
-            'declined_requests' => $requests->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin'])->count(),
+            'approved_requests' => $requests->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
+            'pending_requests' => $requests->where('status', 'pending')->count(),
+            'declined_requests' => $requests->where('status', 'declined')->count(),
             'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
             'average_processing_time' => $this->calculateAverageProcessingTime($requests),
             'most_requested_items' => $this->getMostRequestedItems($requests),
@@ -1618,9 +1798,9 @@ class ReportsController extends Controller
         // Analytics calculations
         $analytics = [
             'total_requests' => $requests->count(),
-            'approved_requests' => $requests->whereIn('workflow_status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
-            'pending_requests' => $requests->where('workflow_status', 'pending')->count(),
-            'declined_requests' => $requests->whereIn('workflow_status', ['declined_by_office_head', 'declined_by_admin'])->count(),
+            'approved_requests' => $requests->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
+            'pending_requests' => $requests->where('status', 'pending')->count(),
+            'declined_requests' => $requests->where('status', 'declined')->count(),
             'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
             'average_processing_time' => $this->calculateAverageProcessingTime($requests),
             'most_requested_items' => $this->getMostRequestedItems($requests),
@@ -1634,6 +1814,144 @@ class ReportsController extends Controller
         return [
             'period' => 'Annual',
             'current_date' => (string)$date->year,
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_requests' => $analytics['total_requests'],
+                'approved_requests' => $analytics['approved_requests'],
+                'pending_requests' => $analytics['pending_requests'],
+                'declined_requests' => $analytics['declined_requests'],
+            ],
+            'analytics' => $analytics,
+            'departments' => $departments,
+            'records' => $requests
+        ];
+    }
+
+    private function getRequestAnalyticsMonthlyReportData($date)
+    {
+        $startDate = $date->copy()->startOfMonth();
+        $endDate = $date->copy()->endOfMonth();
+
+        // Get all requests for the last 12 months in one query
+        $requestsQuery = SupplyRequest::selectRaw('DATE(created_at) as date, COUNT(*) as total_requests')
+            ->whereBetween('created_at', [$date->copy()->subMonths(11)->startOfMonth(), $endDate])
+            ->groupByRaw('DATE(created_at)')
+            ->orderByRaw('DATE(created_at)');
+
+        $requestsData = $requestsQuery->get()->groupBy(function($item) {
+            $date = Carbon::parse($item->date);
+            return $date->format('Y-m');
+        });
+
+        // Build chart data for last 12 months
+        $chartData = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $monthStart = $date->copy()->subMonths($i)->startOfMonth();
+            $monthKey = $monthStart->format('Y-m');
+
+            $monthData = $requestsData->get($monthKey, collect());
+            $totalRequests = $monthData->sum('total_requests');
+
+            $chartData[] = [
+                'date' => $monthStart->format('M Y'),
+                'requests' => (int)$totalRequests,
+            ];
+        }
+
+        // Current month requests for display
+        $requests = SupplyRequest::with(['user', 'item', 'item.category'])
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Analytics calculations
+        $analytics = [
+            'total_requests' => $requests->count(),
+            'approved_requests' => $requests->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
+            'pending_requests' => $requests->where('status', 'pending')->count(),
+            'declined_requests' => $requests->where('status', 'declined')->count(),
+            'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
+            'average_processing_time' => $this->calculateAverageProcessingTime($requests),
+            'most_requested_items' => $this->getMostRequestedItems($requests),
+            'requests_by_department' => $this->getRequestsByDepartment($requests),
+            'requests_by_priority' => $this->getRequestsByPriority($requests),
+            'monthly_trend' => $this->getMonthlyTrend($startDate->toDateString(), $endDate->toDateString()),
+        ];
+
+        $departments = SupplyRequest::distinct()->pluck('department')->filter();
+
+        return [
+            'period' => 'Monthly',
+            'current_date' => $startDate->format('F Y'),
+            'chart_data' => $chartData,
+            'summary' => [
+                'total_requests' => $analytics['total_requests'],
+                'approved_requests' => $analytics['approved_requests'],
+                'pending_requests' => $analytics['pending_requests'],
+                'declined_requests' => $analytics['declined_requests'],
+            ],
+            'analytics' => $analytics,
+            'departments' => $departments,
+            'records' => $requests
+        ];
+    }
+
+    private function getRequestAnalyticsQuarterlyReportData($date)
+    {
+        $startDate = $date->copy()->startOfQuarter();
+        $endDate = $date->copy()->endOfQuarter();
+
+        // Get all requests for the last 4 quarters in one query
+        $requestsQuery = SupplyRequest::selectRaw('DATE(created_at) as date, COUNT(*) as total_requests')
+            ->whereBetween('created_at', [$date->copy()->subQuarters(3)->startOfQuarter(), $endDate])
+            ->groupByRaw('DATE(created_at)')
+            ->orderByRaw('DATE(created_at)');
+
+        $requestsData = $requestsQuery->get()->groupBy(function($item) {
+            $date = Carbon::parse($item->date);
+            return $date->format('Y') . '-Q' . $date->quarter;
+        });
+
+        // Build chart data for last 4 quarters
+        $chartData = [];
+        for ($i = 3; $i >= 0; $i--) {
+            $quarterStart = $date->copy()->subQuarters($i)->startOfQuarter();
+            $quarterKey = $quarterStart->format('Y') . '-Q' . $quarterStart->quarter;
+
+            $quarterData = $requestsData->get($quarterKey, collect());
+            $totalRequests = $quarterData->sum('total_requests');
+
+            $chartData[] = [
+                'date' => 'Q' . $quarterStart->quarter . ' ' . $quarterStart->year,
+                'requests' => (int)$totalRequests,
+            ];
+        }
+
+        // Current quarter requests for display
+        $requests = SupplyRequest::with(['user', 'item', 'item.category'])
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Analytics calculations
+        $analytics = [
+            'total_requests' => $requests->count(),
+            'approved_requests' => $requests->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
+            'pending_requests' => $requests->where('status', 'pending')->count(),
+            'declined_requests' => $requests->where('status', 'declined')->count(),
+            'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
+            'average_processing_time' => $this->calculateAverageProcessingTime($requests),
+            'most_requested_items' => $this->getMostRequestedItems($requests),
+            'requests_by_department' => $this->getRequestsByDepartment($requests),
+            'requests_by_priority' => $this->getRequestsByPriority($requests),
+            'monthly_trend' => $this->getMonthlyTrend($startDate->toDateString(), $endDate->toDateString()),
+        ];
+
+        $departments = SupplyRequest::distinct()->pluck('department')->filter();
+
+        return [
+            'period' => 'Quarterly',
+            'current_date' => 'Q' . $startDate->quarter . ' ' . $startDate->year,
             'chart_data' => $chartData,
             'summary' => [
                 'total_requests' => $analytics['total_requests'],

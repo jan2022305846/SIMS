@@ -31,10 +31,13 @@
                                    class="form-control">
                         </div>
                         <div class="col-md-3">
-                            <select name="role" class="form-select">
-                                <option value="">All Roles</option>
-                                <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }}>Admin</option>
-                                <option value="faculty" {{ request('role') === 'faculty' ? 'selected' : '' }}>Faculty</option>
+                            <select name="office_id" class="form-select">
+                                <option value="">All Offices</option>
+                                @foreach(\App\Models\Office::orderBy('name')->get() as $office)
+                                    <option value="{{ $office->id }}" {{ request('office_id') == $office->id ? 'selected' : '' }}>
+                                        {{ $office->name }}
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="col-md-2">
@@ -43,7 +46,7 @@
                                 Search
                             </button>
                         </div>
-                        @if(request()->hasAny(['search', 'role']))
+                        @if(request()->hasAny(['search', 'office_id']))
                             <div class="col-md-1">
                                 <a href="{{ route('users.index') }}" class="btn btn-outline-secondary w-100">
                                     <i class="fas fa-times me-1"></i>
@@ -52,7 +55,7 @@
                             </div>
                         @endif
                     </form>
-                    @if(request()->hasAny(['search', 'role']))
+                    @if(request()->hasAny(['search', 'office_id']))
                         <div class="row mt-2">
                             <div class="col-12">
                                 <div class="d-flex justify-content-between align-items-center">
@@ -60,9 +63,9 @@
                                         @if(request('search'))
                                             Search: "{{ request('search') }}"
                                         @endif
-                                        @if(request('role'))
+                                        @if(request('office_id'))
                                             @if(request('search')) | @endif
-                                            Role: {{ ucfirst(request('role')) }}
+                                            Office: {{ \App\Models\Office::find(request('office_id'))?->name ?? 'Unknown' }}
                                         @endif
                                     </div>
                                     @if($users->total() > 0)
@@ -82,10 +85,9 @@
                         <thead class="table-light">
                             <tr>
                                 <th scope="col">Name</th>
-                                <th scope="col">School ID</th>
                                 <th scope="col">Email</th>
-                                <th scope="col">Role</th>
-                                <th scope="col">Department</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">Office</th>
                                 <th scope="col">Actions</th>
                             </tr>
                         </thead>
@@ -96,14 +98,13 @@
                                         <div class="fw-medium">{{ $user->name }}</div>
                                         <div class="text-muted small">{{ $user->username }}</div>
                                     </td>
-                                    <td>{{ $user->school_id }}</td>
                                     <td>{{ $user->email }}</td>
                                     <td>
-                                        <span class="badge {{ $user->role === 'admin' ? 'bg-danger' : 'bg-primary' }}">
-                                            {{ ucfirst($user->role) }}
+                                        <span class="badge {{ $user->isAdmin() ? 'bg-danger' : 'bg-primary' }}">
+                                            {{ $user->isAdmin() ? 'Admin' : 'Faculty' }}
                                         </span>
                                     </td>
-                                    <td>{{ $user->department ?: 'N/A' }}</td>
+                                    <td>{{ $user->office?->name ?: 'N/A' }}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
                                             <a href="{{ route('users.show', $user) }}" 
@@ -130,7 +131,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">
+                                    <td colspan="5" class="text-center text-muted py-4">
                                         <i class="fas fa-users fa-2x mb-2"></i>
                                         <div>No users found.</div>
                                     </td>

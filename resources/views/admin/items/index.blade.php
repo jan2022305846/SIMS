@@ -27,16 +27,6 @@
                             <i class="fas fa-exclamation-triangle me-1"></i>
                             Low Stock
                         </a>
-                        <a href="{{ route('items.expiring-soon') }}" 
-                           class="btn btn-info fw-bold">
-                            <i class="fas fa-calendar-times me-1"></i>
-                            Expiring Soon
-                        </a>
-                        <a href="{{ route('items.summary') }}" 
-                           class="btn btn-success fw-bold">
-                            <i class="fas fa-chart-bar me-1"></i>
-                            Summary
-                        </a>
                     </div>
                 </div>
 
@@ -45,7 +35,7 @@
                         <!-- Search and Filter -->
                         <form id="searchForm" method="GET" action="{{ route('items.index') }}" class="mb-4">
                             <div class="row g-3">
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <div class="input-group">
                                         <span class="input-group-text">
                                             <i class="fas fa-search"></i>
@@ -57,7 +47,7 @@
                                                value="{{ request('search') }}">
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <select class="form-select" name="category">
                                         <option value="">All Categories</option>
                                         @foreach($categories as $category)
@@ -68,22 +58,21 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-md-3">
-                                    <select class="form-select" name="stock">
-                                        <option value="">All Stock</option>
-                                        <option value="low" {{ request('stock') == 'low' ? 'selected' : '' }}>Low Stock</option>
-                                        <option value="in-stock" {{ request('stock') == 'in-stock' ? 'selected' : '' }}>In Stock</option>
-                                        <option value="out-of-stock" {{ request('stock') == 'out-of-stock' ? 'selected' : '' }}>Out of Stock</option>
+                                <div class="col-md-2">
+                                    <select class="form-select" name="type">
+                                        <option value="">All Types</option>
+                                        <option value="consumable" {{ request('type') == 'consumable' ? 'selected' : '' }}>Consumable</option>
+                                        <option value="non_consumable" {{ request('type') == 'non_consumable' ? 'selected' : '' }}>Non-Consumable</option>
                                     </select>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-5">
                                     <button type="submit" class="btn btn-primary w-100">
                                         <i class="fas fa-search me-1"></i>
                                         Filter
                                     </button>
                                 </div>
                             </div>
-                            @if(request()->hasAny(['search', 'category', 'stock']))
+                            @if(request()->hasAny(['search', 'category', 'type']))
                                 <div class="row mt-2">
                                     <div class="col-md-12">
                                         <div class="d-flex justify-content-between align-items-center">
@@ -148,10 +137,10 @@
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <span class="fw-semibold me-2">{{ $item->current_stock }}</span>
-                                            @if($item->current_stock <= 0)
+                                            <span class="fw-semibold me-2">{{ $item->quantity }}</span>
+                                            @if($item->quantity <= 0)
                                                 <span class="badge bg-danger">Out of Stock</span>
-                                            @elseif($item->current_stock <= ($item->minimum_stock ?? 10))
+                                            @elseif($item->quantity <= $item->min_stock)
                                                 <span class="badge bg-warning">Low Stock</span>
                                             @else
                                                 <span class="badge bg-success">In Stock</span>
@@ -226,7 +215,7 @@
                             Showing {{ $items->firstItem() }}-{{ $items->lastItem() }} of {{ $items->total() }} items
                         </div>
                         <nav aria-label="Items pagination">
-                            {{ $items->links('pagination::bootstrap-4') }}
+                            {{ $items->links('pagination::bootstrap-5') }}
                         </nav>
                     </div>
                 @else
@@ -253,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Auto-submit form on filter change
     const categoryFilter = document.querySelector('select[name="category"]');
-    const stockFilter = document.querySelector('select[name="stock"]');
+    const typeFilter = document.querySelector('select[name="type"]');
     const searchInput = document.querySelector('input[name="search"]');
     const form = document.getElementById('searchForm'); // Target specific form
     const loadingOverlay = document.getElementById('loading-overlay');
@@ -279,8 +268,8 @@ document.addEventListener('DOMContentLoaded', function() {
         form.submit();
     });
 
-    stockFilter.addEventListener('change', function() {
-        console.log('Stock filter changed to:', this.value);
+    typeFilter.addEventListener('change', function() {
+        console.log('Type filter changed to:', this.value);
         console.log('Form action:', form.action);
         console.log('Form method:', form.method);
         showLoading();

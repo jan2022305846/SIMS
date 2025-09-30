@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Item;
+use App\Models\Consumable;
+use App\Models\NonConsumable;
 use App\Models\ItemScanLog;
 use App\Services\QRCodeService;
 use Illuminate\Http\Request;
@@ -48,20 +50,36 @@ class QRCodeController extends Controller
     /**
      * Generate QR code for an item
      */
-    public function generate(Item $item): JsonResponse
+    public function generate($id): JsonResponse
     {
+        // Try to find the item in consumables first
+        $item = Consumable::find($id);
+
+        // If not found in consumables, try non-consumables
+        if (!$item) {
+            $item = NonConsumable::find($id);
+        }
+
+        // If still not found, return 404
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Item not found'
+            ], 404);
+        }
+
         try {
             $qrCodeDataUrl = $item->getQRCodeDataUrl();
-            
+
             // Update the item's QR code data
             $qrData = [
                 'type' => 'item',
                 'id' => $item->id,
                 'name' => $item->name,
-                'code' => $item->barcode,
+                'code' => $item->product_code,
                 'url' => route('items.show', $item->id)
             ];
-            
+
             $item->qr_code_data = json_encode($qrData);
             $item->save();
 
@@ -165,18 +183,31 @@ class QRCodeController extends Controller
     /**
      * Download QR code as image
      */
-    public function download(Item $item)
+    public function download($id)
     {
+        // Try to find the item in consumables first
+        $item = Consumable::find($id);
+
+        // If not found in consumables, try non-consumables
+        if (!$item) {
+            $item = NonConsumable::find($id);
+        }
+
+        // If still not found, return 404
+        if (!$item) {
+            return back()->with('error', 'Item not found');
+        }
+
         try {
             $qrCodeBase64 = $item->generateQRCode();
             $qrCodeSvg = base64_decode($qrCodeBase64);
-            
+
             $filename = 'qr-code-' . $item->id . '-' . Str::slug($item->name) . '.svg';
-            
+
             return response($qrCodeSvg)
                 ->header('Content-Type', 'image/svg+xml')
                 ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
-                
+
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to download QR code: ' . $e->getMessage());
         }

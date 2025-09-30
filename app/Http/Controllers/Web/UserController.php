@@ -26,15 +26,12 @@ class UserController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('username', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('school_id', 'like', "%{$search}%");
+                  ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
-        // Role filter
-        if ($request->filled('role')) {
-            $query->where('role', $request->role);
-        }
+        // No role filter needed in single admin system
+        // All users created through UI are faculty
 
         $users = $query->paginate(10)->appends($request->query());
 
@@ -57,10 +54,8 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users',
-            'school_id' => 'required|string|max:255|unique:users',
             'email' => 'required|string|email|max:255|unique:users',
-            'role' => 'required|in:admin,faculty',
-            'department' => 'nullable|string|max:255',
+            'office_id' => 'nullable|exists:offices,id',
         ]);
 
         // Generate a random password that no one knows
@@ -69,11 +64,9 @@ class UserController extends Controller
         $user = User::create([
             'name' => $request->name,
             'username' => $request->username,
-            'school_id' => $request->school_id,
             'email' => $request->email,
             'password' => Hash::make($randomPassword),
-            'role' => $request->role,
-            'department' => $request->department,
+            'office_id' => $request->office_id,
             'must_set_password' => true,
         ]);
 
@@ -109,20 +102,16 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users,username,' . $user->id,
-            'school_id' => 'required|string|max:255|unique:users,school_id,' . $user->id,
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:8|confirmed',
-            'role' => 'required|in:admin,faculty',
-            'department' => 'nullable|string|max:255',
+            'office_id' => 'nullable|exists:offices,id',
         ]);
 
         $userData = [
             'name' => $request->name,
             'username' => $request->username,
-            'school_id' => $request->school_id,
             'email' => $request->email,
-            'role' => $request->role,
-            'department' => $request->department,
+            'office_id' => $request->office_id,
         ];
 
         if ($request->filled('password')) {

@@ -29,7 +29,6 @@ class AdminUserSeeder extends Seeder
             'email' => 'admin@ustp.edu.ph',
             'password' => Hash::make('password'),
             'role' => 'admin',
-            'department' => 'Supply Office',
         ];
 
         $facultyData = [
@@ -38,7 +37,6 @@ class AdminUserSeeder extends Seeder
             'email' => 'faculty@ustp.edu.ph',
             'password' => Hash::make('password'),
             'role' => 'faculty',
-            'department' => 'Computer Science',
         ];
 
         // Check for additional columns without using Schema::hasColumn (MySQL compatibility issue)
@@ -51,13 +49,6 @@ class AdminUserSeeder extends Seeder
             
             $this->command->info('📋 Available columns: ' . implode(', ', $columnNames));
             
-            // Add school_id if the column exists
-            if (in_array('school_id', $columnNames)) {
-                $adminData['school_id'] = 'ADMIN001';
-                $facultyData['school_id'] = 'FAC001';
-                $this->command->info('✅ Added school_id to user data');
-            }
-
             // Add office_id if the column exists
             if (in_array('office_id', $columnNames)) {
                 $adminData['office_id'] = null; // Admin doesn't need to belong to specific office

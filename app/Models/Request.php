@@ -10,31 +10,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property int $user_id
  * @property int $item_id
  * @property int $quantity
- * @property int|null $quantity_approved
  * @property string $status
- * @property string $workflow_status
- * @property \Carbon\Carbon|null $request_date
- * @property \Carbon\Carbon|null $approval_date
  * @property \Carbon\Carbon|null $return_date
  * @property string|null $purpose
  * @property \Carbon\Carbon|null $needed_date
- * @property string|null $admin_notes
- * @property string|null $remarks
  * @property int|null $approved_by_admin_id
- * @property int|null $fulfilled_by_id
- * @property int|null $claimed_by_id
- * @property \Carbon\Carbon|null $admin_approval_date
- * @property \Carbon\Carbon|null $fulfilled_date
- * @property \Carbon\Carbon|null $claimed_date
- * @property \Carbon\Carbon|null $processed_at
- * @property int|null $processed_by
- * @property string|null $department
+ * @property int|null $office_id
  * @property string $priority
  * @property string|null $claim_slip_number
  * @property array|null $attachments
+ * @property string|null $notes
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
- * @property-read \App\Models\RequestAcknowledgment|null $acknowledgment
  */
 class Request extends Model
 {
@@ -43,39 +30,23 @@ class Request extends Model
     protected $fillable = [
         'user_id',
         'item_id',
+        'item_type',
         'quantity',
-        'quantity_approved',
         'status',
-        'workflow_status',
-        'request_date',
-        'approval_date',
         'return_date',
         'purpose',
         'needed_date',
-        'admin_notes',
-        'remarks',
         'approved_by_admin_id',
-        'fulfilled_by_id',
-        'claimed_by_id',
-        'admin_approval_date',
-        'fulfilled_date',
-        'claimed_date',
-        'processed_at',
-        'processed_by',
-        'department',
+        'office_id',
         'priority',
         'claim_slip_number',
         'attachments',
+        'notes',
     ];
 
     protected $casts = [
-        'request_date' => 'datetime',
-        'approval_date' => 'datetime',
         'return_date' => 'datetime',
         'needed_date' => 'datetime',
-        'admin_approval_date' => 'datetime',
-        'fulfilled_date' => 'datetime',
-        'claimed_date' => 'datetime',
         'attachments' => 'array',
     ];
 
@@ -87,7 +58,7 @@ class Request extends Model
 
     public function item()
     {
-        return $this->belongsTo(Item::class);
+        return $this->morphTo();
     }
 
     public function adminApprover()
@@ -95,53 +66,37 @@ class Request extends Model
         return $this->belongsTo(User::class, 'approved_by_admin_id');
     }
 
-    public function fulfilledBy()
+    public function office()
     {
-        return $this->belongsTo(User::class, 'fulfilled_by_id');
-    }
-
-    public function claimedBy()
-    {
-        return $this->belongsTo(User::class, 'claimed_by_id');
-    }
-
-    public function acknowledgment(): \Illuminate\Database\Eloquent\Relations\HasOne
-    {
-        return $this->hasOne(RequestAcknowledgment::class);
+        return $this->belongsTo(Office::class);
     }
 
     // Workflow Methods
     public function canBeApprovedByAdmin()
     {
-        return $this->workflow_status === 'pending';
+        return $this->status === 'pending';
     }
 
     public function canBeFulfilled()
     {
-        return $this->workflow_status === 'approved_by_admin';
+        return $this->status === 'approved_by_admin';
     }
 
     public function canGenerateClaimSlip()
     {
-        return $this->workflow_status === 'approved_by_admin';
+        return $this->status === 'approved_by_admin';
     }
 
     public function canBeClaimed()
     {
-        return in_array($this->workflow_status, ['ready_for_pickup', 'fulfilled']);
-    }
-
-    public function canBeAcknowledgedByRequester()
-    {
-        return $this->workflow_status === 'claimed' && !$this->acknowledgment;
+        return in_array($this->status, ['fulfilled']);
     }
 
     public function approveByAdmin(User $user)
     {
         $this->update([
-            'workflow_status' => 'approved_by_admin',
+            'status' => 'approved_by_admin',
             'approved_by_admin_id' => $user->id,
-            'admin_approval_date' => now(),
         ]);
     }
 
@@ -151,7 +106,7 @@ class Request extends Model
         $claimSlipNumber = 'CS-' . date('Y') . '-' . str_pad($this->id, 6, '0', STR_PAD_LEFT);
 
         $this->update([
-            'workflow_status' => 'ready_for_pickup',
+            'status' => 'fulfilled',
             'claim_slip_number' => $claimSlipNumber,
         ]);
     }
@@ -160,99 +115,95 @@ class Request extends Model
     {
         // Generate claim slip number
         $claimSlipNumber = 'CS-' . date('Y') . '-' . str_pad($this->id, 6, '0', STR_PAD_LEFT);
-        
+
         $this->update([
-            'workflow_status' => 'fulfilled',
-            'fulfilled_by_id' => $user->id,
-            'fulfilled_date' => now(),
+            'status' => 'fulfilled',
             'claim_slip_number' => $claimSlipNumber,
         ]);
 
-        // Update item stock
-        $this->item->current_stock -= $this->quantity;
-        $this->item->save();
+        // Update item stock - only for consumables
+        if ($this->item_type === 'consumable') {
+            $this->item->quantity -= $this->quantity;
+            $this->item->save();
+        }
     }
 
     public function markAsClaimed(User $user)
     {
-        // Only reduce stock for requests that haven't been fulfilled yet
-        // (fulfilled requests already had their stock reduced)
-        if ($this->workflow_status === 'ready_for_pickup') {
-            $this->item->current_stock -= $this->quantity;
+        // Reduce stock for consumables
+        if ($this->item_type === 'consumable') {
+            $this->item->quantity -= $this->quantity;
+            $this->item->save();
+        }
+
+        // For non-consumables, update the current holder
+        if ($this->item_type === 'non_consumable') {
+            $this->item->current_holder_id = $user->id;
             $this->item->save();
         }
 
         $this->update([
-            'workflow_status' => 'claimed',
-            'claimed_by_id' => $user->id,
-            'claimed_date' => now(),
+            'status' => 'claimed',
         ]);
     }
 
     public function decline(User $user, ?string $reason = null)
     {
-        $status = $user->isAdmin() ? 'declined_by_admin' : 'declined_by_admin';
-        
         $this->update([
-            'workflow_status' => $status,
-            'admin_notes' => $reason,
+            'status' => 'declined',
+            'notes' => $reason,
         ]);
     }
 
     // Status Helper Methods
     public function isPending()
     {
-        return $this->workflow_status === 'pending';
+        return $this->status === 'pending';
     }
 
     public function isApprovedByAdmin()
     {
-        return $this->workflow_status === 'approved_by_admin';
-    }
-
-    public function isReadyForPickup()
-    {
-        return $this->workflow_status === 'ready_for_pickup';
+        return $this->status === 'approved_by_admin';
     }
 
     public function isFulfilled()
     {
-        return $this->workflow_status === 'fulfilled';
+        return $this->status === 'fulfilled';
     }
 
     public function isClaimed()
     {
-        return $this->workflow_status === 'claimed';
+        return $this->status === 'claimed';
     }
 
     public function isDeclined()
     {
-        return in_array($this->workflow_status, ['declined_by_admin']);
+        return $this->status === 'declined';
     }
 
     public function getStatusColorClass()
     {
-        return match($this->workflow_status) {
+        return match($this->status) {
             'pending' => 'bg-yellow-100 text-yellow-800',
             'approved_by_admin' => 'bg-green-100 text-green-800',
-            'ready_for_pickup' => 'bg-blue-100 text-blue-800',
             'fulfilled' => 'bg-purple-100 text-purple-800',
             'claimed' => 'bg-gray-100 text-gray-800',
-            'declined_by_admin' => 'bg-red-100 text-red-800',
+            'declined' => 'bg-red-100 text-red-800',
+            'returned' => 'bg-blue-100 text-blue-800',
             default => 'bg-gray-100 text-gray-800',
         };
     }
 
     public function getStatusDisplayName()
     {
-        return match($this->workflow_status) {
+        return match($this->status) {
             'pending' => 'Pending Admin Review',
             'approved_by_admin' => 'Admin Approved',
-            'ready_for_pickup' => 'Ready for Pickup',
             'fulfilled' => 'Ready for Pickup',
             'claimed' => 'Claimed',
-            'declined_by_admin' => 'Declined by Admin',
-            default => ucfirst(str_replace('_', ' ', $this->workflow_status)),
+            'declined' => 'Declined by Admin',
+            'returned' => 'Returned',
+            default => ucfirst(str_replace('_', ' ', $this->status)),
         };
     }
 
@@ -270,17 +221,17 @@ class Request extends Model
     // Scopes
     public function scopePendingApproval($query)
     {
-        return $query->where('workflow_status', 'pending');
+        return $query->where('status', 'pending');
     }
 
     public function scopeReadyForPickup($query)
     {
-        return $query->whereIn('workflow_status', ['ready_for_pickup', 'fulfilled']);
+        return $query->where('status', 'fulfilled');
     }
 
-    public function scopeByDepartment($query, $department)
+    public function scopeByOffice($query, $officeId)
     {
-        return $query->where('department', $department);
+        return $query->where('office_id', $officeId);
     }
 
     public function scopeByPriority($query, $priority)

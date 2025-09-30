@@ -40,7 +40,7 @@ class RequestObserver
         
         // Track workflow changes
         $importantChanges = [];
-        $workflowFields = ['status', 'workflow_status', 'quantity_approved'];
+        $workflowFields = ['status', 'quantity_approved'];
         
         foreach ($workflowFields as $field) {
             if (isset($changes[$field])) {
@@ -65,8 +65,8 @@ class RequestObserver
                 case 'claimed':
                     $description = 'Request claimed by requester';
                     break;
-                case 'completed':
-                    $description = 'Request completed';
+                case 'claimed':
+                    $description = 'Request claimed by requester';
                     break;
                 case 'declined':
                     $description = 'Request declined';

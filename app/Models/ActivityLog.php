@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Auth;
 
 class ActivityLog extends Model
 {
+    protected $table = 'activity_logs';
+
     protected $fillable = [
         'log_name',
         'description',

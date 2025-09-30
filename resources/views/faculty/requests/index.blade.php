@@ -39,7 +39,7 @@
                         <div class="d-flex align-items-center">
                             <div class="flex-grow-1">
                                 <h6 class="card-title mb-1">Pending</h6>
-                                <h3 class="mb-0 fw-bold">{{ $requests->where('workflow_status', 'pending')->count() }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'pending')->count() }}</h3>
                             </div>
                             <div class="ms-3">
                                 <i class="fas fa-clock fa-2x opacity-75"></i>
@@ -54,7 +54,7 @@
                         <div class="d-flex align-items-center">
                             <div class="flex-grow-1">
                                 <h6 class="card-title mb-1">Admin Approved</h6>
-                                <h3 class="mb-0 fw-bold">{{ $requests->where('workflow_status', 'approved_by_admin')->count() }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'approved_by_admin')->count() }}</h3>
                             </div>
                             <div class="ms-3">
                                 <i class="fas fa-check-circle fa-2x opacity-75"></i>
@@ -69,7 +69,7 @@
                         <div class="d-flex align-items-center">
                             <div class="flex-grow-1">
                                 <h6 class="card-title mb-1">Ready for Pickup</h6>
-                                <h3 class="mb-0 fw-bold">{{ $requests->where('workflow_status', 'fulfilled')->count() }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'fulfilled')->count() }}</h3>
                             </div>
                             <div class="ms-3">
                                 <i class="fas fa-box-open fa-2x opacity-75"></i>
@@ -84,7 +84,7 @@
                         <div class="d-flex align-items-center">
                             <div class="flex-grow-1">
                                 <h6 class="card-title mb-1">Completed</h6>
-                                <h3 class="mb-0 fw-bold">{{ $requests->where('workflow_status', 'claimed')->count() }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'claimed')->count() }}</h3>
                             </div>
                             <div class="ms-3">
                                 <i class="fas fa-handshake fa-2x opacity-75"></i>
@@ -148,8 +148,8 @@
                                             <i class="fas fa-box text-primary fa-lg"></i>
                                         </div>
                                         <div>
-                                            <h5 class="mb-1">{{ $request->item->name }}</h5>
-                                            <p class="text-muted mb-1">Qty: {{ $request->quantity }} {{ $request->item->unit ?? 'pcs' }}</p>
+                                            <h5 class="mb-1">{{ $request->item ? $request->item->name : 'Item Not Found' }}</h5>
+                                            <p class="text-muted mb-1">Qty: {{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}</p>
                                             <small class="text-muted">{{ $request->department }}</small>
                                         </div>
                                     </div>
@@ -159,7 +159,7 @@
                                 <div class="col-md-3">
                                     <div class="mb-2">
                                         <span class="badge fs-6 px-3 py-2
-                                            @switch($request->workflow_status)
+                                            @switch($request->status)
                                                 @case('pending') bg-warning @break
                                                 @case('approved_by_admin') bg-success @break
                                                 @case('ready_for_pickup') bg-purple text-white @break
@@ -209,14 +209,6 @@
                                                target="_blank"
                                                title="Print Claim Slip">
                                                 <i class="fas fa-print"></i>
-                                            </a>
-                                        @endif
-
-                                        @if($request->canBeAcknowledgedByRequester() && !$request->isClaimed())
-                                            <a href="{{ route('faculty.requests.acknowledgment.show', $request) }}"
-                                               class="btn btn-outline-success btn-sm"
-                                               title="Acknowledge Receipt">
-                                                <i class="fas fa-signature"></i>
                                             </a>
                                         @endif
                                         
@@ -270,7 +262,7 @@
             <div class="row mt-5">
                 <div class="col-12">
                     <nav aria-label="Requests pagination" class="d-flex justify-content-center">
-                        {{ $requests->appends(request()->query())->links('pagination::bootstrap-4') }}
+                        {{ $requests->appends(request()->query())->links('pagination::bootstrap-5') }}
                     </nav>
                 </div>
             </div>

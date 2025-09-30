@@ -52,19 +52,19 @@
                     @csrf
 
                     <div class="form-group">
-                        <label for="school_id" class="form-label">
-                            <i class="fas fa-id-card me-2"></i>School ID
+                        <label for="username" class="form-label">
+                            <i class="fas fa-id-card me-2"></i>Username
                         </label>
                         <input type="text"
-                               id="school_id"
-                               name="school_id"
-                               value="{{ old('school_id') }}"
+                               id="username"
+                               name="username"
+                               value="{{ old('username') }}"
                                required
                                autofocus
-                               class="form-control @error('school_id') is-invalid @enderror"
-                               placeholder="Enter your school ID">
-                        <div id="school_id-error" class="invalid-feedback d-block" style="display: none;"></div>
-                        @error('school_id')
+                               class="form-control @error('username') is-invalid @enderror"
+                               placeholder="Enter your username">
+                        <div id="username-error" class="invalid-feedback d-block" style="display: none;"></div>
+                        @error('username')
                             <div class="invalid-feedback d-block">
                                 <i class="fas fa-exclamation-circle me-1"></i>{{ $message }}
                             </div>
@@ -129,15 +129,15 @@
                     <form id="forgot-password-form-element">
                         @csrf
                         <div class="form-group">
-                            <label for="forgot_school_id" class="form-label">
-                                <i class="fas fa-id-card me-2"></i>School ID
+                            <label for="forgot_username" class="form-label">
+                                <i class="fas fa-id-card me-2"></i>Username
                             </label>
                             <input type="text"
-                                   id="forgot_school_id"
-                                   name="school_id"
+                                   id="forgot_username"
+                                   name="username"
                                    required
                                    class="form-control"
-                                   placeholder="Enter your school ID">
+                                   placeholder="Enter your username">
                         </div>
 
                         <div class="d-grid mt-4">
@@ -262,16 +262,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginSubmit = document.getElementById('login-submit');
     const loginError = document.getElementById('login-error');
     const loginErrorMessage = document.getElementById('login-error-message');
-    const schoolIdError = document.getElementById('school_id-error');
+    const usernameError = document.getElementById('username-error');
     const passwordError = document.getElementById('password-error');
 
     loginForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const schoolId = document.getElementById('school_id').value.trim();
+        const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
 
-        if (!schoolId || !password) {
+        if (!username || !password) {
             showLoginError('Please fill in all fields.');
             return;
         }
@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Hide previous errors
         loginError.style.display = 'none';
-        schoolIdError.style.display = 'none';
+        usernameError.style.display = 'none';
         passwordError.style.display = 'none';
 
         // Prepare form data
@@ -323,9 +323,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Handle different types of errors
             if (error.errors) {
                 // Validation errors
-                if (error.errors.school_id) {
-                    schoolIdError.textContent = error.errors.school_id[0];
-                    schoolIdError.style.display = 'block';
+                if (error.errors.username) {
+                    usernameError.textContent = error.errors.username[0];
+                    usernameError.style.display = 'block';
                 }
                 if (error.errors.password) {
                     passwordError.textContent = error.errors.password[0];
@@ -362,10 +362,10 @@ document.addEventListener('DOMContentLoaded', function() {
     forgotPasswordForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const schoolId = document.getElementById('forgot_school_id').value.trim();
+        const username = document.getElementById('forgot_username').value.trim();
 
-        if (!schoolId) {
-            showForgotPasswordError('Please enter your school ID.');
+        if (!username) {
+            showForgotPasswordError('Please enter your username.');
             return;
         }
 
@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
-                school_id: schoolId
+                username: username
             })
         })
         .then(response => {
@@ -426,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
         forgotPasswordFormDiv.style.display = 'block';
         forgotPasswordSuccess.style.display = 'none';
         forgotPasswordError.style.display = 'none';
-        document.getElementById('forgot_school_id').value = '';
+        document.getElementById('forgot_username').value = '';
         forgotPasswordSubmit.disabled = false;
         forgotPasswordSubmit.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Reset Link';
 

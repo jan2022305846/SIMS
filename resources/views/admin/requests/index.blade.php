@@ -26,7 +26,7 @@
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
                                         <h6 class="card-title mb-1">Pending Review</h6>
-                                        <h3 class="mb-0 fw-bold">{{ $requests->where('workflow_status', 'pending')->count() }}</h3>
+                                        <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'pending')->count() }}</h3>
                                     </div>
                                     <div class="ms-3">
                                         <i class="fas fa-clock fa-2x opacity-75"></i>
@@ -41,7 +41,7 @@
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
                                         <h6 class="card-title mb-1">Admin Approved</h6>
-                                        <h3 class="mb-0 fw-bold">{{ $requests->where('workflow_status', 'approved_by_admin')->count() }}</h3>
+                                        <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'approved_by_admin')->count() }}</h3>
                                     </div>
                                     <div class="ms-3">
                                         <i class="fas fa-user-check fa-2x opacity-75"></i>
@@ -56,7 +56,7 @@
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
                                         <h6 class="card-title mb-1">Ready for Pickup</h6>
-                                        <h3 class="mb-0 fw-bold">{{ $requests->where('workflow_status', 'fulfilled')->count() }}</h3>
+                                        <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'fulfilled')->count() }}</h3>
                                     </div>
                                     <div class="ms-3">
                                         <i class="fas fa-box-open fa-2x opacity-75"></i>
@@ -71,7 +71,7 @@
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
                                         <h6 class="card-title mb-1">Completed</h6>
-                                        <h3 class="mb-0 fw-bold">{{ $requests->where('workflow_status', 'claimed')->count() }}</h3>
+                                        <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'claimed')->count() }}</h3>
                                     </div>
                                     <div class="ms-3">
                                         <i class="fas fa-check-circle fa-2x opacity-75"></i>
@@ -182,21 +182,21 @@
                                             </td>
                                             <td>
                                                 <div>
-                                                    <div class="fw-semibold">{{ $request->item->name }}</div>
+                                                    <div class="fw-semibold">{{ $request->item ? $request->item->name : 'Item Not Found' }}</div>
                                                     <div class="mb-1">
                                                         <span class="badge bg-info">Qty: {{ $request->quantity }}</span>
-                                                        @if($request->item->unit)
+                                                        @if($request->item && $request->item->unit)
                                                             <span class="text-muted small">{{ $request->item->unit }}</span>
                                                         @endif
                                                     </div>
                                                     <div class="text-muted small">
-                                                        Stock: {{ $request->item->current_stock }}
+                                                        Stock: {{ $request->item ? $request->item->current_stock : 'N/A' }}
                                                     </div>
                                                 </div>
                                             </td>
                                             <td>
                                                 <span class="badge 
-                                                    @switch($request->workflow_status)
+                                                    @switch($request->status)
                                                         @case('pending') bg-warning @break
                                                         @case('approved_by_admin') bg-success @break
                                                         @case('fulfilled') bg-purple text-white @break
@@ -206,7 +206,7 @@
                                                     px-2 py-1">
                                                     {{ $request->getStatusDisplayName() }}
                                                 </span>
-                                                @if($request->workflow_status === 'declined_by_admin' && $request->admin_notes)
+                                                @if($request->status === 'declined_by_admin' && $request->admin_notes)
                                                     <div class="text-muted small mt-1" title="{{ $request->admin_notes }}">
                                                         <i class="fas fa-info-circle me-1"></i>{{ Str::limit($request->admin_notes, 30) }}
                                                     </div>
@@ -244,7 +244,7 @@
                                                         <i class="fas fa-eye"></i>
                                                     </a>
                                                     
-                                                    @if(auth()->user()->role === 'admin')
+                                                    @if(auth()->user()->isAdmin())
                                                         <!-- Admin Actions -->
                                                         @if($request->canBeApprovedByAdmin())
                                                             <form method="POST" action="{{ route('requests.approve-admin', $request) }}" class="d-inline">

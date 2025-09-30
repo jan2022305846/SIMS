@@ -60,7 +60,7 @@
             @forelse($items as $item)
                 <div class="col-md-6 col-lg-4 col-xl-3">
                     <div class="card h-100 shadow-sm">
-                        <div class="card-body">
+                        <div class="card-body d-flex flex-column">
                             <div class="mb-3">
                                 <h5 class="card-title text-dark mb-2">{{ $item->name }}</h5>
                                 <p class="card-text text-muted small">{{ $item->category->name ?? 'N/A' }}</p>
@@ -87,25 +87,25 @@
                             <div class="mt-auto">
                                 @if($item->quantity > 0)
                                     <a href="{{ route('faculty.requests.create', ['item_id' => $item->id]) }}" 
-                                       class="btn btn-warning w-100 fw-bold">
+                                       class="btn btn-warning w-100 fw-bold mb-2">
                                         <i class="fas fa-plus me-1"></i>
                                         Request This Item
                                     </a>
                                 @else
-                                    <button disabled class="btn btn-secondary w-100">
+                                    <button disabled class="btn btn-secondary w-100 mb-2">
                                         <i class="fas fa-times me-1"></i>
                                         Out of Stock
                                     </button>
                                 @endif
-                            </div>
 
-                            @if($item->quantity <= ($item->minimum_stock ?? 10))
-                                <div class="mt-2">
-                                    <span class="badge bg-danger">
-                                        Low Stock
-                                    </span>
-                                </div>
-                            @endif
+                                @if($item->quantity <= ($item->minimum_stock ?? 10))
+                                    <div class="text-center">
+                                        <span class="badge bg-danger">
+                                            Low Stock
+                                        </span>
+                                    </div>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -123,17 +123,13 @@
         </div>
 
         <!-- Pagination -->
-                                </div>
-                    </div>
-                </div>
-        </div>
-
-        <!-- Pagination -->
         @if($items->hasPages())
-            <div class="row mt-5">
+            <div class="row mt-4 mb-4">
                 <div class="col-12">
-                    <nav aria-label="Items pagination" class="d-flex justify-content-center">
-                        {{ $items->appends(request()->query())->links('pagination::bootstrap-4') }}
+                    <nav aria-label="Items pagination" class="d-flex justify-content-center w-100">
+                        <div class="pagination-container">
+                            {{ $items->appends(request()->query())->links('pagination::bootstrap-5') }}
+                        </div>
                     </nav>
                 </div>
             </div>
@@ -141,6 +137,90 @@
     </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+/* Card alignment improvements */
+.card-body {
+    padding: 1.25rem;
+}
+
+.card-title {
+    font-size: 1.1rem;
+    line-height: 1.3;
+    margin-bottom: 0.5rem;
+}
+
+/* Pagination improvements */
+nav[aria-label="Items pagination"] {
+    width: 100%;
+}
+
+nav[aria-label="Items pagination"] .pagination-container {
+    max-width: 600px;
+    width: 100%;
+}
+
+nav[aria-label="Items pagination"] .pagination {
+    margin-bottom: 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 0.375rem;
+    overflow: hidden;
+    width: 100%;
+    justify-content: space-between;
+    padding: 0.25rem;
+}
+
+nav[aria-label="Items pagination"] .page-link {
+    color: #495057;
+    border-color: #dee2e6;
+    padding: 0.5rem 0.75rem;
+    font-weight: 500;
+    margin: 0 0.125rem;
+    border-radius: 0.25rem !important;
+}
+
+nav[aria-label="Items pagination"] .page-link:hover {
+    color: #0d6efd;
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+nav[aria-label="Items pagination"] .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.25);
+}
+
+nav[aria-label="Items pagination"] .page-item.disabled .page-link {
+    color: #6c757d;
+    background-color: #ffffff;
+    border-color: #dee2e6;
+}
+
+/* Responsive pagination */
+@media (max-width: 576px) {
+    nav[aria-label="Items pagination"] {
+        max-width: 100%;
+    }
+    
+    nav[aria-label="Items pagination"] .pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.25rem;
+    }
+    
+    nav[aria-label="Items pagination"] .page-link {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.875rem;
+        margin: 0;
+    }
+}
+</style>
+@endpush
 
 @push('scripts')
 <script>

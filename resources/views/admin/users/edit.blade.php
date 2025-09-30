@@ -110,20 +110,6 @@
                                             @enderror
                                         </div>
 
-                                        <!-- School ID -->
-                                        <div class="col-md-6">
-                                            <label for="school_id" class="form-label">School ID <span class="text-danger">*</span></label>
-                                            <input type="text"
-                                                   class="form-control @error('school_id') is-invalid @enderror"
-                                                   id="school_id"
-                                                   name="school_id"
-                                                   value="{{ old('school_id', $user->school_id) }}"
-                                                   required>
-                                            @error('school_id')
-                                                <div class="invalid-feedback">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-
                                         <!-- Email -->
                                         <div class="col-md-6">
                                             <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
@@ -138,55 +124,20 @@
                                             @enderror
                                         </div>
 
-                                        <!-- Role -->
+                                        <!-- Office -->
                                         <div class="col-md-6">
-                                            <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
-                                            <select class="form-select @error('role') is-invalid @enderror"
-                                                    id="role"
-                                                    name="role"
-                                                    required>
-                                                <option value="">Select Role</option>
-                                                <option value="admin" {{ old('role', $user->role) === 'admin' ? 'selected' : '' }}>Admin</option>
-                                                <option value="faculty" {{ old('role', $user->role) === 'faculty' ? 'selected' : '' }}>Faculty</option>
+                                            <label for="office_id" class="form-label">Office</label>
+                                            <select name="office_id"
+                                                    id="office_id"
+                                                    class="form-select @error('office_id') is-invalid @enderror">
+                                                <option value="">Select Office...</option>
+                                                @foreach(\App\Models\Office::orderBy('name')->get() as $office)
+                                                    <option value="{{ $office->id }}" {{ old('office_id', $user->office_id) == $office->id ? 'selected' : '' }}>
+                                                        {{ $office->name }}
+                                                    </option>
+                                                @endforeach
                                             </select>
-                                            @error('role')
-                                                <div class="invalid-feedback">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-
-                                        <!-- Department -->
-                                        <div class="col-md-6">
-                                            <label for="department" class="form-label">Department</label>
-                                            <select name="department"
-                                                    id="department"
-                                                    class="form-select @error('department') is-invalid @enderror">
-                                                <option value="">Select Department...</option>
-                                                <option value="Campus Director" {{ old('department', $user->department) === 'Campus Director' ? 'selected' : '' }}>Campus Director</option>
-                                                <option value="Admin Head Office" {{ old('department', $user->department) === 'Admin Head Office' ? 'selected' : '' }}>Admin Head Office</option>
-                                                <option value="Office of the Academic Head" {{ old('department', $user->department) === 'Office of the Academic Head' ? 'selected' : '' }}>Office of the Academic Head</option>
-                                                <option value="Student Affairs Office" {{ old('department', $user->department) === 'Student Affairs Office' ? 'selected' : '' }}>Student Affairs Office</option>
-                                                <option value="HRMO" {{ old('department', $user->department) === 'HRMO' ? 'selected' : '' }}>HRMO</option>
-                                                <option value="CiTL" {{ old('department', $user->department) === 'CiTL' ? 'selected' : '' }}>CiTL</option>
-                                                <option value="Arts and Culture Office" {{ old('department', $user->department) === 'Arts and Culture Office' ? 'selected' : '' }}>Arts and Culture Office</option>
-                                                <option value="Sports Office" {{ old('department', $user->department) === 'Sports Office' ? 'selected' : '' }}>Sports Office</option>
-                                                <option value="CET Office" {{ old('department', $user->department) === 'CET Office' ? 'selected' : '' }}>CET Office</option>
-                                                <option value="Admission Office" {{ old('department', $user->department) === 'Admission Office' ? 'selected' : '' }}>Admission Office</option>
-                                                <option value="Budget Office" {{ old('department', $user->department) === 'Budget Office' ? 'selected' : '' }}>Budget Office</option>
-                                                <option value="Accounting Office" {{ old('department', $user->department) === 'Accounting Office' ? 'selected' : '' }}>Accounting Office</option>
-                                                <option value="Registrars Office" {{ old('department', $user->department) === 'Registrars Office' ? 'selected' : '' }}>Registrars Office</option>
-                                                <option value="Quaa Office" {{ old('department', $user->department) === 'Quaa Office' ? 'selected' : '' }}>Quaa Office</option>
-                                                <option value="Assessment Office" {{ old('department', $user->department) === 'Assessment Office' ? 'selected' : '' }}>Assessment Office</option>
-                                                <option value="Research and Extension Office" {{ old('department', $user->department) === 'Research and Extension Office' ? 'selected' : '' }}>Research and Extension Office</option>
-                                                <option value="NSTP Office" {{ old('department', $user->department) === 'NSTP Office' ? 'selected' : '' }}>NSTP Office</option>
-                                                <option value="School Library" {{ old('department', $user->department) === 'School Library' ? 'selected' : '' }}>School Library</option>
-                                                <option value="ICT Library" {{ old('department', $user->department) === 'ICT Library' ? 'selected' : '' }}>ICT Library</option>
-                                                <option value="Clinic" {{ old('department', $user->department) === 'Clinic' ? 'selected' : '' }}>Clinic</option>
-                                                <option value="IT Department Head" {{ old('department', $user->department) === 'IT Department Head' ? 'selected' : '' }}>IT Department Head</option>
-                                                <option value="Education Department Head" {{ old('department', $user->department) === 'Education Department Head' ? 'selected' : '' }}>Education Department Head</option>
-                                                <option value="MB Department Head" {{ old('department', $user->department) === 'MB Department Head' ? 'selected' : '' }}>MB Department Head</option>
-                                                <option value="Faculty Office" {{ old('department', $user->department) === 'Faculty Office' ? 'selected' : '' }}>Faculty Office</option>
-                                            </select>
-                                            @error('department')
+                                            @error('office_id')
                                                 <div class="invalid-feedback">{{ $message }}</div>
                                             @enderror
                                         </div>

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Request as SupplyRequest;
 use App\Models\Item;
+use App\Models\Consumable;
+use App\Models\NonConsumable;
 use App\Models\Log as ActivityLog;
 use App\Models\ActivityLog as RequestActivityLog;
 use App\Models\User;
@@ -30,7 +32,7 @@ class RequestController extends Controller
         // Filter based on user role
         /** @var User $user */
         $user = Auth::user();
-        if ($user->role === 'faculty') {
+        if (!$user->isAdmin()) {
             // Faculty can only see their own requests
             $query->where('user_id', $user->id);
         }
@@ -55,18 +57,14 @@ class RequestController extends Controller
         // Apply status filter with support for declined status
         if ($request->has('status') && $request->status) {
             if ($request->status === 'declined') {
-                $query->where('workflow_status', 'declined_by_admin');
+                $query->where('status', 'declined');
             } else {
-                $query->where('workflow_status', $request->status);
+                $query->where('status', $request->status);
             }
         }
 
         if ($request->has('priority') && $request->priority) {
             $query->where('priority', $request->priority);
-        }
-
-        if ($request->has('department') && $request->department) {
-            $query->where('department', $request->department);
         }
 
         $requests = $query->paginate(15);
@@ -76,7 +74,9 @@ class RequestController extends Controller
 
     public function create()
     {
-        $items = Item::where('current_stock', '>', 0)->get();
+        $consumables = Consumable::where('quantity', '>', 0)->get();
+        $nonConsumables = NonConsumable::where('quantity', '>', 0)->get();
+        $items = $consumables->concat($nonConsumables);
 
         return view('faculty.requests.create', compact('items'));
     }
@@ -86,7 +86,7 @@ class RequestController extends Controller
         // Debug logging
         Log::info('Faculty request submission attempt', [
             'user_id' => Auth::id(),
-            'user_role' => Auth::user()->role ?? 'unknown',
+            'user_is_admin' => Auth::user()->isAdmin(),
             'method' => $request->method(),
             'all_data' => $request->all(),
             'has_csrf' => $request->has('_token'),
@@ -99,7 +99,7 @@ class RequestController extends Controller
             'quantity' => 'required|integer|min:1',
             'purpose' => 'required|string|max:500',
             'needed_date' => 'required|date|after_or_equal:today',
-            'department' => 'nullable|string|max:100', // Made nullable since it's auto-populated for faculty
+            'office_id' => 'nullable|exists:offices,id', // Made nullable since it's auto-populated for faculty
             'priority' => 'required|in:low,normal,high,urgent',
             'attachments.*' => 'file|max:5120|mimes:pdf,jpg,jpeg,png,doc,docx', // 5MB max per file
         ]);
@@ -108,13 +108,13 @@ class RequestController extends Controller
 
         // Check stock availability
         $item = Item::findOrFail($validatedData['item_id']);
-        if ($item->current_stock < $validatedData['quantity']) {
+        if ($item->quantity < $validatedData['quantity']) {
             Log::warning('Stock validation failed', [
                 'item_id' => $item->id,
                 'requested' => $validatedData['quantity'],
-                'available' => $item->current_stock
+                'available' => $item->quantity
             ]);
-            return back()->withErrors(['quantity' => 'Requested quantity exceeds available stock (' . $item->current_stock . ' available)']);
+            return back()->withErrors(['quantity' => 'Requested quantity exceeds available stock (' . $item->quantity . ' available)']);
         }
 
         DB::beginTransaction();
@@ -146,14 +146,13 @@ class RequestController extends Controller
             $supplyRequest = SupplyRequest::create([
                 'user_id' => Auth::id(),
                 'item_id' => $validatedData['item_id'],
+                'item_type' => $item instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable',
                 'quantity' => $validatedData['quantity'],
                 'purpose' => $validatedData['purpose'],
                 'needed_date' => $validatedData['needed_date'],
-                'department' => $validatedData['department'] ?? Auth::user()->department ?? 'Faculty Office',
+                'office_id' => $validatedData['office_id'] ?? Auth::user()->office_id,
                 'priority' => $validatedData['priority'],
-                'workflow_status' => 'pending',
-                'status' => 'pending', // Keep for backwards compatibility
-                'request_date' => now(),
+                'status' => 'pending',
                 'attachments' => $attachments,
             ]);
             Log::info('Supply request created successfully', ['request_id' => $supplyRequest->id]);
@@ -210,17 +209,17 @@ class RequestController extends Controller
 
     public function show(SupplyRequest $request)
     {
-        $request->load(['user', 'item', 'adminApprover', 'fulfilledBy', 'claimedBy']);
+        $request->load(['user', 'item', 'adminApprover', 'office']);
 
         // Check permissions
         /** @var User $user */
         $user = Auth::user();
-        if ($user->role === 'faculty' && $request->user_id !== $user->id) {
+        if (!$user->isAdmin() && $request->user_id !== $user->id) {
             abort(403, 'Unauthorized access to this request.');
         }
 
         // Return appropriate view based on user role
-        if ($user->role === 'faculty') {
+        if (!$user->isAdmin()) {
             return view('faculty.requests.show', compact('request'));
         }
 
@@ -232,39 +231,16 @@ class RequestController extends Controller
         // Only allow editing if request is still pending and user is the requester or admin
         /** @var User $user */
         $user = Auth::user();
-        if (!$request->isPending() || ($user->role !== 'admin' && $request->user_id !== $user->id)) {
+        if (!$request->isPending() || (!$user->isAdmin() && $request->user_id !== $user->id)) {
             abort(403, 'This request cannot be edited.');
         }
 
-        $items = Item::where('current_stock', '>', 0)->get();
-        $departments = [
-            'Campus Director',
-            'Admin Head Office',
-            'Office of the Academic Head',
-            'Student Affairs Office',
-            'HRMO',
-            'CiTL',
-            'Arts and Culture Office',
-            'Sports Office',
-            'CET Office',
-            'Admission Office',
-            'Budget Office',
-            'Accounting Office',
-            'Registrars Office',
-            'Quaa Office',
-            'Assessment Office',
-            'Research and Extension Office',
-            'NSTP Office',
-            'School Library',
-            'ICT Library',
-            'Clinic',
-            'IT Department Head',
-            'Education Department Head',
-            'MB Department Head',
-            'Faculty Office'
-        ];
+        $consumables = Consumable::where('quantity', '>', 0)->get();
+        $nonConsumables = NonConsumable::where('quantity', '>', 0)->get();
+        $items = $consumables->concat($nonConsumables);
+        $offices = \App\Models\Office::all();
 
-        return view('admin.requests.edit', compact('request', 'items', 'departments'));
+        return view('admin.requests.edit', compact('request', 'items', 'offices'));
     }
 
     public function update(Request $updateRequest, SupplyRequest $request)
@@ -272,7 +248,7 @@ class RequestController extends Controller
         // Check permissions
         /** @var User $user */
         $user = Auth::user();
-        if (!$request->isPending() || ($user->role !== 'admin' && $request->user_id !== $user->id)) {
+        if (!$request->isPending() || (!$user->isAdmin() && $request->user_id !== $user->id)) {
             abort(403, 'This request cannot be updated.');
         }
 
@@ -281,14 +257,14 @@ class RequestController extends Controller
             'quantity' => 'required|integer|min:1',
             'purpose' => 'required|string|max:500',
             'needed_date' => 'required|date|after_or_equal:today',
-            'department' => 'required|string|max:100',
+            'office_id' => 'required|exists:offices,id',
             'priority' => 'required|in:low,normal,high,urgent',
         ]);
 
         // Check stock availability
         $item = Item::findOrFail($validatedData['item_id']);
-        if ($item->current_stock < $validatedData['quantity']) {
-            return back()->withErrors(['quantity' => 'Requested quantity exceeds available stock (' . $item->current_stock . ' available)']);
+        if ($item->quantity < $validatedData['quantity']) {
+            return back()->withErrors(['quantity' => 'Requested quantity exceeds available stock (' . $item->quantity . ' available)']);
         }
 
         $request->update($validatedData);
@@ -316,7 +292,7 @@ class RequestController extends Controller
 
         /** @var User $user */
         $user = Auth::user();
-        if ($user->role !== 'admin') {
+        if (!$user->isAdmin()) {
             abort(403, 'Only administrators can approve requests.');
         }
 
@@ -347,7 +323,7 @@ class RequestController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
-        if ($user->role !== 'admin') {
+        if (!$user->isAdmin()) {
             abort(403, 'Only administrators can fulfill requests.');
         }
 
@@ -361,7 +337,7 @@ class RequestController extends Controller
         }
 
         // Check stock availability one more time with null check
-        if (!$supplyRequest->item || $supplyRequest->item->current_stock < $supplyRequest->quantity) {
+        if (!$supplyRequest->item || $supplyRequest->item->quantity < $supplyRequest->quantity) {
             return back()->withErrors(['error' => 'Insufficient stock to fulfill this request or item not found.']);
         }
 
@@ -433,7 +409,7 @@ class RequestController extends Controller
 
         /** @var User $user */
         $user = Auth::user();
-        if ($user->role !== 'admin') {
+        if (!$user->isAdmin()) {
             abort(403, 'Only administrators can mark requests as claimed.');
         }
 
@@ -446,9 +422,9 @@ class RequestController extends Controller
             $supplyRequest->load('item');
         }
 
-        // Check stock availability one more time (only for requests that haven't been fulfilled yet)
-        if ($supplyRequest->workflow_status === 'ready_for_pickup') {
-            if (!$supplyRequest->item || $supplyRequest->item->current_stock < $supplyRequest->quantity) {
+        // Check stock availability one more time (only for consumables)
+        if ($supplyRequest->item_type === 'consumable') {
+            if (!$supplyRequest->item || $supplyRequest->item->quantity < $supplyRequest->quantity) {
                 return back()->withErrors(['error' => 'Insufficient stock to fulfill this request.']);
             }
         }
@@ -497,7 +473,7 @@ class RequestController extends Controller
 
             DB::commit();
 
-            $stockMessage = $supplyRequest->workflow_status === 'ready_for_pickup' ? ' Stock has been updated.' : '';
+            $stockMessage = $supplyRequest->item_type === 'consumable' ? ' Stock has been updated.' : '';
             return back()->with('success', 'Request marked as claimed successfully!' . $stockMessage);
 
         } catch (\Exception $e) {
@@ -510,11 +486,11 @@ class RequestController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
-        if ($user->role !== 'admin') {
+        if (!$user->isAdmin()) {
             abort(403, 'Only administrators can complete requests.');
         }
 
-        if ($supplyRequest->workflow_status !== 'approved_by_admin') {
+        if ($supplyRequest->status !== 'approved_by_admin') {
             return back()->withErrors(['error' => 'This request cannot be completed at this stage.']);
         }
 
@@ -553,17 +529,15 @@ class RequestController extends Controller
 
             // Complete the request in one step: fulfill and claim
             $supplyRequest->update([
-                'workflow_status' => 'claimed',
-                'fulfilled_by_id' => $user->id,
-                'fulfilled_date' => now(),
-                'claimed_by_id' => $user->id,
-                'claimed_date' => now(),
+                'status' => 'claimed',
                 'claim_slip_number' => $claimSlipNumber,
             ]);
 
             // Update item stock (reduce stock when completing the request)
-            $supplyRequest->item->current_stock -= $supplyRequest->quantity;
-            $supplyRequest->item->save();
+            if ($supplyRequest->item_type === 'consumable') {
+                $supplyRequest->item->quantity -= $supplyRequest->quantity;
+                $supplyRequest->item->save();
+            }
 
             // Create log entry with null check
             $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
@@ -600,7 +574,7 @@ class RequestController extends Controller
         /** @var User $user */
         $user = Auth::user();
         
-        if ($user->role !== 'admin') {
+        if (!$user->isAdmin()) {
             abort(403, 'Only administrators can decline requests.');
         }
 
@@ -641,7 +615,7 @@ class RequestController extends Controller
         $user = Auth::user();
         
         // Only allow deletion if request is pending and user is the requester or admin
-        if (!$request->isPending() || ($user->role !== 'admin' && $request->user_id !== $user->id)) {
+        if (!$request->isPending() || (!$user->isAdmin() && $request->user_id !== $user->id)) {
             abort(403, 'This request cannot be deleted.');
         }
 
@@ -662,7 +636,7 @@ class RequestController extends Controller
         $request->delete();
 
         // Redirect based on user role
-        if ($user->role === 'admin') {
+        if ($user->isAdmin()) {
             return redirect()->route('requests.manage')
                 ->with('success', 'Request deleted successfully!');
         } else {
@@ -677,8 +651,8 @@ class RequestController extends Controller
         $user = Auth::user();
 
         // Only faculty and admin can view claim slips
-        if (($user->role !== 'faculty' && $user->role !== 'admin') || 
-            ($user->role === 'faculty' && $request->user_id !== $user->id)) {
+        if (($user->isAdmin() && $user->isAdmin()) || 
+            (!$user->isAdmin() && $request->user_id !== $user->id)) {
             abort(403, 'You are not authorized to view claim slips for this request.');
         }
 
@@ -723,9 +697,9 @@ class RequestController extends Controller
         // Apply status filter
         if ($request->has('status') && $request->status) {
             if ($request->status === 'declined') {
-                $query->where('workflow_status', 'declined_by_admin');
+                $query->where('status', 'declined');
             } else {
-                $query->where('workflow_status', $request->status);
+                $query->where('status', $request->status);
             }
         }
 
@@ -740,7 +714,7 @@ class RequestController extends Controller
         $user = Auth::user();
         
         // Only faculty can generate claim slips for their own approved requests
-        if ($user->role !== 'faculty' || $request->user_id !== $user->id) {
+        if ($user->isAdmin() || $request->user_id !== $user->id) {
             abort(403, 'You are not authorized to generate claim slips for this request.');
         }
 
@@ -768,8 +742,8 @@ class RequestController extends Controller
         $user = Auth::user();
 
         // Only faculty and admin can download claim slips for fulfilled/claimed requests
-        if (($user->role !== 'faculty' && $user->role !== 'admin') || 
-            ($user->role === 'faculty' && $request->user_id !== $user->id)) {
+        if (($user->isAdmin() && $user->isAdmin()) || 
+            (!$user->isAdmin() && $request->user_id !== $user->id)) {
             abort(403, 'You are not authorized to download claim slips for this request.');
         }
 
