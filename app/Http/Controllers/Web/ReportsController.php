@@ -62,7 +62,7 @@ class ReportsController extends Controller
     public function index(Request $request)
     {
         // Handle period parameter for dashboard functionality
-        $period = $request->get('period', 'daily');
+        $period = $request->get('period', 'monthly');
 
         // Check if status column exists
         if (!$this->hasWorkflowColumn()) {
@@ -85,14 +85,12 @@ class ReportsController extends Controller
             ->distinct('user_id')
             ->count('user_id');
 
-        // Get basic stats for the stats cards
-        $stats = [
-            'total_items' => \App\Models\Consumable::count() + \App\Models\NonConsumable::count(),
-            'low_stock_items' => \App\Models\Consumable::whereRaw('quantity <= min_stock')->count() + \App\Models\NonConsumable::whereRaw('quantity <= min_stock')->count(),
-            'total_requests_this_month' => SupplyRequest::whereMonth('created_at', Carbon::now()->month)->count(),
-            'pending_requests' => $this->getRequestsByStatus(SupplyRequest::query(), 'pending')->count(),
-            'categories_count' => Category::count(),
-        ];
+        if ($request->input('format') === 'pdf') {
+            $pdf = Pdf::loadView('admin.reports.pdf.index', compact('data', 'period'))
+                ->setPaper('a4', 'landscape');
+
+            return $pdf->download('reports-dashboard-' . $period . '-' . date('Y-m-d') . '.pdf');
+        }
 
         return view('admin.reports.index', compact('stats', 'data', 'period', 'message'));
     }
@@ -105,10 +103,6 @@ class ReportsController extends Controller
         $now = Carbon::now();
         
         switch ($period) {
-            case 'daily':
-                return $this->getDailyReportData($now);
-            case 'weekly': 
-                return $this->getWeeklyReportData($now);
             case 'monthly':
                 return $this->getMonthlyReportData($now);
             case 'quarterly':
@@ -118,122 +112,6 @@ class ReportsController extends Controller
             default:
                 return $this->getMonthlyReportData($now);
         }
-    }
-
-    private function getDailyReportData($date)
-    {
-        $startDate = $date->copy()->startOfDay();
-        $endDate = $date->copy()->endOfDay();
-        
-        // Get last 7 days for chart - use single query with date grouping
-        $chartData = [];
-        
-        // Get all requests for the last 7 days in one query
-        $requestsQuery = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, 0 as total_value')
-            ->whereBetween('requests.created_at', [$date->copy()->subDays(6)->startOfDay(), $endDate])
-            ->groupByRaw('DATE(requests.created_at)')
-            ->orderByRaw('DATE(requests.created_at)');
-        
-        $requestsData = $requestsQuery->get()->keyBy('date');
-        
-        // Build chart data for last 7 days
-        for ($i = 6; $i >= 0; $i--) {
-            $checkDate = $date->copy()->subDays($i);
-            $dateKey = $checkDate->format('Y-m-d');
-            
-            $data = $requestsData->get($dateKey);
-            
-            $chartData[] = [
-                'date' => $checkDate->format('M j'),
-                'requests' => $data ? (int)$data->total_requests : 0,
-                'disbursements' => $data ? (int)$data->fulfilled_requests : 0,
-                'value' => $data ? (float)$data->total_value : 0
-            ];
-        }
-        
-        // Today's data - get all records for display
-        $todayRequests = SupplyRequest::with(['user', 'item', 'item.category'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->get();
-        
-        // Calculate today's summary using the same efficient query
-        $todaySummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN status IN ("pending") THEN 1 ELSE 0 END) as pending_requests, 0 as total_value')
-            ->whereBetween('requests.created_at', [$startDate, $endDate]);
-        
-        $summaryData = $todaySummary->first();
-        
-        return [
-            'period' => 'Daily',
-            'current_date' => $date->format('F j, Y'),
-            'chart_data' => $chartData,
-            'summary' => [
-                'total_requests' => (int)($summaryData->total_requests ?? 0),
-                'fulfilled_requests' => (int)($summaryData->fulfilled_requests ?? 0),
-                'pending_requests' => (int)($summaryData->pending_requests ?? 0),
-                'total_value' => (float)($summaryData->total_value ?? 0),
-            ],
-            'records' => $todayRequests
-        ];
-    }
-
-    private function getWeeklyReportData($date)
-    {
-        $startDate = $date->copy()->startOfWeek();
-        $endDate = $date->copy()->endOfWeek();
-        
-        // Get all requests for the last 8 weeks in one query
-        $requestsQuery = SupplyRequest::selectRaw('DATE(requests.created_at) as date, COUNT(*) as total_requests, SUM(CASE WHEN status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, 0 as total_value')
-            ->whereBetween('requests.created_at', [$date->copy()->subWeeks(7)->startOfWeek(), $endDate])
-            ->groupByRaw('DATE(requests.created_at)')
-            ->orderByRaw('DATE(requests.created_at)');
-        
-        $requestsData = $requestsQuery->get()->groupBy(function($item) {
-            $date = Carbon::parse($item->date);
-            return $date->format('Y-W') . sprintf('%02d', $date->weekOfYear);
-        });
-        
-        // Build chart data for last 8 weeks
-        $chartData = [];
-        for ($i = 7; $i >= 0; $i--) {
-            $weekStart = $date->copy()->subWeeks($i)->startOfWeek();
-            $weekKey = $weekStart->format('Y-W') . sprintf('%02d', $weekStart->weekOfYear);
-            
-            $weekData = $requestsData->get($weekKey, collect());
-            $totalRequests = $weekData->sum('total_requests');
-            $fulfilledRequests = $weekData->sum('fulfilled_requests');
-            $totalValue = $weekData->sum('total_value');
-            
-            $chartData[] = [
-                'date' => $weekStart->format('M j') . ' - ' . $weekStart->copy()->endOfWeek()->format('M j'),
-                'requests' => (int)$totalRequests,
-                'disbursements' => (int)$fulfilledRequests,
-                'value' => (float)$totalValue
-            ];
-        }
-        
-        // Current week requests for display
-        $weekRequests = SupplyRequest::with(['user', 'item', 'item.category'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->get();
-        
-        // Calculate current week summary
-        $weekSummary = SupplyRequest::selectRaw('COUNT(*) as total_requests, SUM(CASE WHEN status IN ("approved_by_admin", "fulfilled", "claimed") THEN 1 ELSE 0 END) as fulfilled_requests, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_requests, 0 as total_value')
-            ->whereBetween('requests.created_at', [$startDate, $endDate]);
-        
-        $summaryData = $weekSummary->first();
-        
-        return [
-            'period' => 'Weekly',
-            'current_date' => $startDate->format('M j') . ' - ' . $endDate->format('M j, Y'),
-            'chart_data' => $chartData,
-            'summary' => [
-                'total_requests' => (int)($summaryData->total_requests ?? 0),
-                'fulfilled_requests' => (int)($summaryData->fulfilled_requests ?? 0),
-                'pending_requests' => (int)($summaryData->pending_requests ?? 0),
-                'total_value' => (float)($summaryData->total_value ?? 0),
-            ],
-            'records' => $weekRequests
-        ];
     }
 
     private function getMonthlyReportData($date)
@@ -475,7 +353,7 @@ class ReportsController extends Controller
     public function requestAnalytics(Request $request)
     {
         // Handle period parameter for consistent filtering with main reports
-        $period = $request->get('period', 'daily');
+        $period = $request->get('period', 'monthly');
 
         // Get report data based on period
         $data = $this->getRequestAnalyticsReportData($period);
@@ -493,7 +371,7 @@ class ReportsController extends Controller
     public function userActivityReport(Request $request)
     {
         // Handle period parameter for consistent filtering with main reports
-        $period = $request->get('period', 'daily');
+        $period = $request->get('period', 'monthly');
 
         // Get date range based on period
         $dateRange = $this->getDateRangeFromPeriod($period);
@@ -535,7 +413,7 @@ class ReportsController extends Controller
     public function qrScanAnalytics(Request $request)
     {
         // Handle period parameter for consistent filtering with main reports
-        $period = $request->get('period', 'daily');
+        $period = $request->get('period', 'monthly');
 
         // Get report data based on period
         $data = $this->getQrScanReportData($period);
@@ -563,7 +441,7 @@ class ReportsController extends Controller
         }
 
         // Handle period parameter for consistent filtering with main reports
-        $period = $request->get('period', 'daily');
+        $period = $request->get('period', 'monthly');
 
         // Get date range based on period
         $dateRange = $this->getDateRangeFromPeriod($period);
@@ -689,143 +567,6 @@ class ReportsController extends Controller
         }
 
         return $trend;
-    }
-
-    /**
-     * Daily transactions report
-     */
-    public function dailyTransactions(Request $request)
-    {
-        $date = $request->date ?? Carbon::today()->toDateString();
-        
-        $transactions = SupplyRequest::with(['user', 'item', 'item.category'])
-            ->whereDate('created_at', $date)
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $stats = [
-            'total_requests' => $transactions->count(),
-            'approved_today' => $transactions->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
-            'pending_today' => $transactions->where('status', 'pending')->count(),
-            'total_value' => $transactions->sum(function($req) {
-                return $req->quantity * 0; // unit_price not available in normalized tables
-            }),
-        ];
-
-        if ($request->input('format') === 'pdf') {
-            $pdf = Pdf::loadView('admin.reports.pdf.daily-transactions', compact('transactions', 'stats', 'date'))
-                ->setPaper('a4', 'landscape');
-            
-            return $pdf->download('daily-transactions-' . $date . '.pdf');
-        }
-
-        return view('admin.reports.daily-transactions', compact('transactions', 'stats', 'date'));
-    }
-
-    /**
-     * Daily disbursement report
-     */
-    public function dailyDisbursement(Request $request)
-    {
-        $date = $request->date ?? Carbon::today()->toDateString();
-        
-        $disbursements = SupplyRequest::with(['user', 'item', 'item.category'])
-            ->whereDate('updated_at', $date)
-            ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })
-            ->orderBy('updated_at', 'desc')
-            ->get();
-
-        $stats = [
-            'total_disbursed' => $disbursements->count(),
-            'total_value' => $disbursements->sum(function($req) {
-                return $req->quantity * 0; // unit_price not available in normalized tables
-            }),
-            'total_quantity' => $disbursements->sum('quantity'),
-            'unique_items' => $disbursements->pluck('item_id')->unique()->count(),
-        ];
-
-        if ($request->input('format') === 'pdf') {
-            $pdf = Pdf::loadView('admin.reports.pdf.daily-disbursement', compact('disbursements', 'stats', 'date'))
-                ->setPaper('a4', 'landscape');
-            
-            return $pdf->download('daily-disbursement-' . $date . '.pdf');
-        }
-
-        return view('admin.reports.daily-disbursement', compact('disbursements', 'stats', 'date'));
-    }
-
-    /**
-     * Weekly summary report
-     */
-    public function weeklySummary(Request $request)
-    {
-        $startDate = $request->start_date ?? Carbon::now()->startOfWeek()->toDateString();
-        $endDate = $request->end_date ?? Carbon::now()->endOfWeek()->toDateString();
-        
-        $weeklyData = [
-            'requests' => SupplyRequest::with(['user', 'item', 'item.category'])
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->get(),
-            'disbursements' => SupplyRequest::with(['user', 'item', 'item.category'])
-                ->whereBetween('updated_at', [$startDate, $endDate])
-                ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })
-                ->get(),
-            'new_items' => collect([
-                ...Consumable::with('category')->whereBetween('created_at', [$startDate, $endDate])->get(),
-                ...NonConsumable::with('category')->whereBetween('created_at', [$startDate, $endDate])->get(),
-            ]),
-        ];
-
-        $stats = [
-            'total_requests' => $weeklyData['requests']->count(),
-            'total_disbursements' => $weeklyData['disbursements']->count(),
-            'new_items_added' => $weeklyData['new_items']->count(),
-            'total_request_value' => $weeklyData['requests']->sum(function($req) {
-                return $req->quantity * 0; // unit_price not available in normalized tables
-            }),
-            'daily_breakdown' => $this->getWeeklyBreakdown($startDate, $endDate),
-        ];
-
-        if ($request->input('format') === 'pdf') {
-            $pdf = Pdf::loadView('admin.reports.pdf.weekly-summary', compact('weeklyData', 'stats', 'startDate', 'endDate'))
-                ->setPaper('a4', 'landscape');
-            
-            return $pdf->download('weekly-summary-' . $startDate . '-to-' . $endDate . '.pdf');
-        }
-
-        return view('admin.reports.weekly-summary', compact('weeklyData', 'stats', 'startDate', 'endDate'));
-    }
-
-    /**
-     * Weekly requests report
-     */
-    public function weeklyRequests(Request $request)
-    {
-        $startDate = $request->start_date ?? Carbon::now()->startOfWeek()->toDateString();
-        $endDate = $request->end_date ?? Carbon::now()->endOfWeek()->toDateString();
-        
-        $requests = SupplyRequest::with(['user', 'item', 'item.category'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $analytics = [
-            'total_requests' => $requests->count(),
-            'by_department' => $requests->groupBy('department')->map->count(),
-            'by_status' => $requests->groupBy('status')->map->count(),
-            'by_priority' => $requests->groupBy('priority')->map->count(),
-            'most_requested' => $this->getMostRequestedItems($requests),
-            'daily_trend' => $this->getDailyTrend($startDate, $endDate),
-        ];
-
-        if ($request->input('format') === 'pdf') {
-            $pdf = Pdf::loadView('admin.reports.pdf.weekly-requests', compact('requests', 'analytics', 'startDate', 'endDate'))
-                ->setPaper('a4', 'landscape');
-            
-            return $pdf->download('weekly-requests-' . $startDate . '-to-' . $endDate . '.pdf');
-        }
-
-        return view('admin.reports.weekly-requests', compact('requests', 'analytics', 'startDate', 'endDate'));
     }
 
     /**
@@ -1149,7 +890,7 @@ class ReportsController extends Controller
             ]);
         }
 
-        $period = $request->get('period', 'daily');
+        $period = $request->get('period', 'monthly');
         $data = $this->getReportData($period);
         
         // Add QR scan statistics to dashboard data
@@ -1165,141 +906,6 @@ class ReportsController extends Controller
     }
 
     /**
-     * Export daily report as CSV
-     */
-    public function dailyCsv(Request $request)
-    {
-        $date = $request->get('date', Carbon::today()->toDateString());
-        $data = $this->getDailyReportData(Carbon::parse($date));
-
-        $filename = 'daily-report-' . $date . '.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ];
-
-        $callback = function() use ($data) {
-            $file = fopen('php://output', 'w');
-
-            // CSV headers
-            fputcsv($file, ['Date', 'Requests', 'Fulfilled', 'Pending', 'Total Value']);
-
-            // Chart data
-            foreach ($data['chart_data'] as $row) {
-                fputcsv($file, [
-                    $row['date'],
-                    $row['requests'],
-                    $row['disbursements'],
-                    $data['summary']['pending_requests'] ?? 0,
-                    number_format($row['value'], 2)
-                ]);
-            }
-
-            // Summary row
-            fputcsv($file, []);
-            fputcsv($file, ['Summary', '', '', '', '']);
-            fputcsv($file, ['Total Requests', $data['summary']['total_requests'], '', '', '']);
-            fputcsv($file, ['Fulfilled Requests', $data['summary']['fulfilled_requests'], '', '', '']);
-            fputcsv($file, ['Pending Requests', $data['summary']['pending_requests'], '', '', '']);
-            fputcsv($file, ['Total Value', '', '', '', number_format($data['summary']['total_value'], 2)]);
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-
-    /**
-     * Export weekly report as CSV
-     */
-    public function weeklyCsv(Request $request)
-    {
-        $date = $request->get('date', Carbon::now()->toDateString());
-        $data = $this->getWeeklyReportData(Carbon::parse($date));
-
-        $filename = 'weekly-report-' . Carbon::parse($date)->startOfWeek()->format('Y-m-d') . '-to-' . Carbon::parse($date)->endOfWeek()->format('Y-m-d') . '.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ];
-
-        $callback = function() use ($data) {
-            $file = fopen('php://output', 'w');
-
-            // CSV headers
-            fputcsv($file, ['Week', 'Requests', 'Fulfilled', 'Pending', 'Total Value']);
-
-            // Chart data
-            foreach ($data['chart_data'] as $row) {
-                fputcsv($file, [
-                    $row['date'],
-                    $row['requests'],
-                    $row['disbursements'],
-                    $data['summary']['pending_requests'] ?? 0,
-                    number_format($row['value'], 2)
-                ]);
-            }
-
-            // Summary row
-            fputcsv($file, []);
-            fputcsv($file, ['Summary', '', '', '', '']);
-            fputcsv($file, ['Total Requests', $data['summary']['total_requests'], '', '', '']);
-            fputcsv($file, ['Fulfilled Requests', $data['summary']['fulfilled_requests'], '', '', '']);
-            fputcsv($file, ['Pending Requests', $data['summary']['pending_requests'], '', '', '']);
-            fputcsv($file, ['Total Value', '', '', '', number_format($data['summary']['total_value'], 2)]);
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-
-    /**
-     * Export annual report as CSV
-     */
-    public function annualCsv(Request $request)
-    {
-        $year = $request->get('year', Carbon::now()->year);
-        $data = $this->getAnnualReportData(Carbon::createFromDate($year, 1, 1));
-
-        $filename = 'annual-report-' . $year . '.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ];
-
-        $callback = function() use ($data, $year) {
-            $file = fopen('php://output', 'w');
-
-            // CSV headers
-            fputcsv($file, ['Year', 'Requests', 'Fulfilled', 'Pending', 'Total Value']);
-
-            // Chart data
-            foreach ($data['chart_data'] as $row) {
-                fputcsv($file, [
-                    $row['date'],
-                    $row['requests'],
-                    $row['disbursements'],
-                    $data['summary']['pending_requests'] ?? 0,
-                    number_format($row['value'], 2)
-                ]);
-            }
-
-            // Summary row
-            fputcsv($file, []);
-            fputcsv($file, ['Summary', '', '', '', '']);
-            fputcsv($file, ['Total Requests', $data['summary']['total_requests'], '', '', '']);
-            fputcsv($file, ['Fulfilled Requests', $data['summary']['fulfilled_requests'], '', '', '']);
-            fputcsv($file, ['Pending Requests', $data['summary']['pending_requests'], '', '', '']);
-            fputcsv($file, ['Total Value', '', '', '', number_format($data['summary']['total_value'], 2)]);
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-
-    /**
      * Get QR scan report data based on period
      */
     private function getQrScanReportData($period)
@@ -1307,10 +913,6 @@ class ReportsController extends Controller
         $now = Carbon::now();
 
         switch ($period) {
-            case 'daily':
-                return $this->getQrScanDailyReportData($now);
-            case 'weekly':
-                return $this->getQrScanWeeklyReportData($now);
             case 'monthly':
                 return $this->getQrScanMonthlyReportData($now);
             case 'quarterly':
@@ -1320,128 +922,6 @@ class ReportsController extends Controller
             default:
                 return $this->getQrScanMonthlyReportData($now);
         }
-    }
-
-    private function getQrScanDailyReportData($date)
-    {
-        $startDate = $date->copy()->startOfDay();
-        $endDate = $date->copy()->endOfDay();
-
-        // Get last 7 days for chart - use single query with date grouping
-        $chartData = [];
-
-        // Get all scans for the last 7 days in one query
-        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(created_at) as date, COUNT(*) as total_scans')
-            ->whereBetween('created_at', [$date->copy()->subDays(6)->startOfDay(), $endDate])
-            ->groupByRaw('DATE(created_at)')
-            ->orderByRaw('DATE(created_at)');
-
-        $scansData = $scansQuery->get()->keyBy('date');
-
-        // Build chart data for last 7 days
-        for ($i = 6; $i >= 0; $i--) {
-            $checkDate = $date->copy()->subDays($i);
-            $dateKey = $checkDate->format('Y-m-d');
-
-            $data = $scansData->get($dateKey);
-
-            $chartData[] = [
-                'date' => $checkDate->format('M j'),
-                'scans' => $data ? (int)$data->total_scans : 0,
-            ];
-        }
-
-        // Today's data - get all records for display
-        $todayScans = \App\Models\ItemScanLog::with(['item', 'user'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Get scan statistics for today
-        $scanStats = \App\Models\ItemScanLog::getScanStats($startDate->toDateString(), $endDate->toDateString());
-
-        return [
-            'period' => 'Daily',
-            'current_date' => $date->format('F j, Y'),
-            'chart_data' => $chartData,
-            'summary' => [
-                'total_scans' => $scanStats['total_scans'],
-                'unique_items_scanned' => $scanStats['unique_items_scanned'],
-                'unique_users_scanning' => $scanStats['unique_users_scanning'],
-                'unscanned_items' => \App\Models\ItemScanLog::getUnscannedItems(30)->count(),
-            ],
-            'analytics' => [
-                'scans_by_scanner_type' => $scanStats['scans_by_scanner_type'],
-                'most_scanned_items' => $scanStats['most_scanned_items'],
-                'scans_by_location' => $scanStats['scans_by_location'],
-                'daily_scan_trend' => $this->getDailyScanTrend($startDate->toDateString(), $endDate->toDateString()),
-                'scan_frequency_analysis' => $this->getOverallScanFrequency(),
-                'scan_alerts' => \App\Models\ItemScanLog::getScanAlerts(),
-            ],
-            'records' => $todayScans
-        ];
-    }
-
-    private function getQrScanWeeklyReportData($date)
-    {
-        $startDate = $date->copy()->startOfWeek();
-        $endDate = $date->copy()->endOfWeek();
-
-        // Get all scans for the last 8 weeks in one query
-        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(created_at) as date, COUNT(*) as total_scans')
-            ->whereBetween('created_at', [$date->copy()->subWeeks(7)->startOfWeek(), $endDate])
-            ->groupByRaw('DATE(created_at)')
-            ->orderByRaw('DATE(created_at)');
-
-        $scansData = $scansQuery->get()->groupBy(function($item) {
-            $date = Carbon::parse($item->date);
-            return $date->format('Y-W') . sprintf('%02d', $date->weekOfYear);
-        });
-
-        // Build chart data for last 8 weeks
-        $chartData = [];
-        for ($i = 7; $i >= 0; $i--) {
-            $weekStart = $date->copy()->subWeeks($i)->startOfWeek();
-            $weekKey = $weekStart->format('Y-W') . sprintf('%02d', $weekStart->weekOfYear);
-
-            $weekData = $scansData->get($weekKey, collect());
-            $totalScans = $weekData->sum('total_scans');
-
-            $chartData[] = [
-                'date' => $weekStart->format('M j') . ' - ' . $weekStart->copy()->endOfWeek()->format('M j'),
-                'scans' => (int)$totalScans,
-            ];
-        }
-
-        // Current week scans for display
-        $weekScans = \App\Models\ItemScanLog::with(['item', 'user'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Get scan statistics for current week
-        $scanStats = \App\Models\ItemScanLog::getScanStats($startDate->toDateString(), $endDate->toDateString());
-
-        return [
-            'period' => 'Weekly',
-            'current_date' => $startDate->format('M j') . ' - ' . $endDate->format('M j, Y'),
-            'chart_data' => $chartData,
-            'summary' => [
-                'total_scans' => $scanStats['total_scans'],
-                'unique_items_scanned' => $scanStats['unique_items_scanned'],
-                'unique_users_scanning' => $scanStats['unique_users_scanning'],
-                'unscanned_items' => \App\Models\ItemScanLog::getUnscannedItems(30)->count(),
-            ],
-            'analytics' => [
-                'scans_by_scanner_type' => $scanStats['scans_by_scanner_type'],
-                'most_scanned_items' => $scanStats['most_scanned_items'],
-                'scans_by_location' => $scanStats['scans_by_location'],
-                'daily_scan_trend' => $this->getDailyScanTrend($startDate->toDateString(), $endDate->toDateString()),
-                'scan_frequency_analysis' => $this->getOverallScanFrequency(),
-                'scan_alerts' => \App\Models\ItemScanLog::getScanAlerts(),
-            ],
-            'records' => $weekScans
-        ];
     }
 
     private function getQrScanAnnualReportData($date)
@@ -1674,16 +1154,6 @@ class ReportsController extends Controller
         $now = Carbon::now();
 
         switch ($period) {
-            case 'daily':
-                return [
-                    'from' => $now->copy()->startOfDay()->toDateString(),
-                    'to' => $now->copy()->endOfDay()->toDateString()
-                ];
-            case 'weekly':
-                return [
-                    'from' => $now->copy()->startOfWeek()->toDateString(),
-                    'to' => $now->copy()->endOfWeek()->toDateString()
-                ];
             case 'monthly':
                 return [
                     'from' => $now->copy()->startOfMonth()->toDateString(),
@@ -1715,10 +1185,6 @@ class ReportsController extends Controller
         $now = Carbon::now();
 
         switch ($period) {
-            case 'daily':
-                return $this->getRequestAnalyticsDailyReportData($now);
-            case 'weekly':
-                return $this->getRequestAnalyticsWeeklyReportData($now);
             case 'monthly':
                 return $this->getRequestAnalyticsMonthlyReportData($now);
             case 'quarterly':
@@ -1728,142 +1194,6 @@ class ReportsController extends Controller
             default:
                 return $this->getRequestAnalyticsMonthlyReportData($now);
         }
-    }
-
-    private function getRequestAnalyticsDailyReportData($date)
-    {
-        $startDate = $date->copy()->startOfDay();
-        $endDate = $date->copy()->endOfDay();
-
-        // Get last 7 days for chart - use single query with date grouping
-        $chartData = [];
-
-        // Get all requests for the last 7 days in one query
-        $requestsQuery = SupplyRequest::selectRaw('DATE(created_at) as date, COUNT(*) as total_requests')
-            ->whereBetween('created_at', [$date->copy()->subDays(6)->startOfDay(), $endDate])
-            ->groupByRaw('DATE(created_at)')
-            ->orderByRaw('DATE(created_at)');
-
-        $requestsData = $requestsQuery->get()->keyBy('date');
-
-        // Build chart data for last 7 days
-        for ($i = 6; $i >= 0; $i--) {
-            $checkDate = $date->copy()->subDays($i);
-            $dateKey = $checkDate->format('Y-m-d');
-
-            $data = $requestsData->get($dateKey);
-
-            $chartData[] = [
-                'date' => $checkDate->format('M j'),
-                'requests' => $data ? (int)$data->total_requests : 0,
-            ];
-        }
-
-        // Today's data - get all records for display
-        $requests = SupplyRequest::with(['user', 'item', 'item.category'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Analytics calculations
-        $analytics = [
-            'total_requests' => $requests->count(),
-            'approved_requests' => $requests->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
-            'pending_requests' => $requests->where('status', 'pending')->count(),
-            'declined_requests' => $requests->where('status', 'declined')->count(),
-            'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
-            'average_processing_time' => $this->calculateAverageProcessingTime($requests),
-            'most_requested_items' => $this->getMostRequestedItems($requests),
-            'requests_by_department' => $this->getRequestsByDepartment($requests),
-            'requests_by_priority' => $this->getRequestsByPriority($requests),
-            'monthly_trend' => $this->getMonthlyTrend($startDate->toDateString(), $endDate->toDateString()),
-        ];
-
-        $departments = SupplyRequest::distinct()->pluck('department')->filter();
-
-        return [
-            'period' => 'Daily',
-            'current_date' => $date->format('F j, Y'),
-            'chart_data' => $chartData,
-            'summary' => [
-                'total_requests' => $analytics['total_requests'],
-                'approved_requests' => $analytics['approved_requests'],
-                'pending_requests' => $analytics['pending_requests'],
-                'declined_requests' => $analytics['declined_requests'],
-            ],
-            'analytics' => $analytics,
-            'departments' => $departments,
-            'records' => $requests
-        ];
-    }
-
-    private function getRequestAnalyticsWeeklyReportData($date)
-    {
-        $startDate = $date->copy()->startOfWeek();
-        $endDate = $date->copy()->endOfWeek();
-
-        // Get all requests for the last 8 weeks in one query
-        $requestsQuery = SupplyRequest::selectRaw('DATE(created_at) as date, COUNT(*) as total_requests')
-            ->whereBetween('created_at', [$date->copy()->subWeeks(7)->startOfWeek(), $endDate])
-            ->groupByRaw('DATE(created_at)')
-            ->orderByRaw('DATE(created_at)');
-
-        $requestsData = $requestsQuery->get()->groupBy(function($item) {
-            $date = Carbon::parse($item->date);
-            return $date->format('Y-W') . sprintf('%02d', $date->weekOfYear);
-        });
-
-        // Build chart data for last 8 weeks
-        $chartData = [];
-        for ($i = 7; $i >= 0; $i--) {
-            $weekStart = $date->copy()->subWeeks($i)->startOfWeek();
-            $weekKey = $weekStart->format('Y-W') . sprintf('%02d', $weekStart->weekOfYear);
-
-            $weekData = $requestsData->get($weekKey, collect());
-            $totalRequests = $weekData->sum('total_requests');
-
-            $chartData[] = [
-                'date' => $weekStart->format('M j') . ' - ' . $weekStart->copy()->endOfWeek()->format('M j'),
-                'requests' => (int)$totalRequests,
-            ];
-        }
-
-        // Current week requests for display
-        $requests = SupplyRequest::with(['user', 'item', 'item.category'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Analytics calculations
-        $analytics = [
-            'total_requests' => $requests->count(),
-            'approved_requests' => $requests->whereIn('status', ['approved_by_admin', 'fulfilled', 'claimed'])->count(),
-            'pending_requests' => $requests->where('status', 'pending')->count(),
-            'declined_requests' => $requests->where('status', 'declined')->count(),
-            'fulfilled_requests' => $requests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count(),
-            'average_processing_time' => $this->calculateAverageProcessingTime($requests),
-            'most_requested_items' => $this->getMostRequestedItems($requests),
-            'requests_by_department' => $this->getRequestsByDepartment($requests),
-            'requests_by_priority' => $this->getRequestsByPriority($requests),
-            'monthly_trend' => $this->getMonthlyTrend($startDate->toDateString(), $endDate->toDateString()),
-        ];
-
-        $departments = SupplyRequest::distinct()->pluck('department')->filter();
-
-        return [
-            'period' => 'Weekly',
-            'current_date' => $startDate->format('M j') . ' - ' . $endDate->format('M j, Y'),
-            'chart_data' => $chartData,
-            'summary' => [
-                'total_requests' => $analytics['total_requests'],
-                'approved_requests' => $analytics['approved_requests'],
-                'pending_requests' => $analytics['pending_requests'],
-                'declined_requests' => $analytics['declined_requests'],
-            ],
-            'analytics' => $analytics,
-            'departments' => $departments,
-            'records' => $requests
-        ];
     }
 
     private function getRequestAnalyticsAnnualReportData($date)

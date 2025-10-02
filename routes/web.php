@@ -106,15 +106,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
         Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
         Route::get('reports/user-activity-report', [ReportsController::class, 'userActivityReport'])->name('reports.user-activity-report');
-        Route::get('reports/daily-csv', [ReportsController::class, 'dailyCsv'])->name('reports.daily-csv');
-        Route::get('reports/weekly-csv', [ReportsController::class, 'weeklyCsv'])->name('reports.weekly-csv');
-        Route::get('reports/annual-csv', [ReportsController::class, 'annualCsv'])->name('reports.annual-csv');
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
         Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
-        Route::get('reports/daily-transactions', [ReportsController::class, 'dailyTransactions'])->name('reports.daily-transactions');
-        Route::get('reports/daily-disbursement', [ReportsController::class, 'dailyDisbursement'])->name('reports.daily-disbursement');
-        Route::get('reports/weekly-summary', [ReportsController::class, 'weeklySummary'])->name('reports.weekly-summary');
-        Route::get('reports/weekly-requests', [ReportsController::class, 'weeklyRequests'])->name('reports.weekly-requests');
         Route::get('reports/monthly-summary', [ReportsController::class, 'monthlySummary'])->name('reports.monthly-summary');
         Route::get('reports/quarterly-summary', [ReportsController::class, 'quarterlySummary'])->name('reports.quarterly-summary');
         Route::get('reports/annual-summary', [ReportsController::class, 'annualSummary'])->name('reports.annual-summary');
