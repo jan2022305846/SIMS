@@ -92,7 +92,7 @@ class ReportsController extends Controller
             return $pdf->download('reports-dashboard-' . $period . '-' . date('Y-m-d') . '.pdf');
         }
 
-        return view('admin.reports.index', compact('stats', 'data', 'period', 'message'));
+        return view('admin.reports.index', compact('data', 'period', 'message'));
     }
 
     /**

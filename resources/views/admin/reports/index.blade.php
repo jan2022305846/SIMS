@@ -313,16 +313,16 @@ function downloadReport() {
     
     switch(currentPeriod) {
         case 'monthly':
-            url = '{{ route("reports.weekly-csv") }}?date=' + now.toISOString().split('T')[0];
+            url = '{{ route("reports.monthly-summary") }}?format=pdf&month=' + now.toISOString().split('T')[0].substring(0, 7);
             break;
         case 'quarterly':
-            url = '{{ route("reports.weekly-csv") }}?date=' + now.toISOString().split('T')[0];
+            url = '{{ route("reports.quarterly-summary") }}?format=pdf&quarter=' + now.getFullYear() + '-Q' + Math.ceil((now.getMonth() + 1) / 3);
             break;
         case 'annually':
-            url = '{{ route("reports.annual-csv") }}?year=' + now.getFullYear();
+            url = '{{ route("reports.annual-summary") }}?format=pdf&year=' + now.getFullYear();
             break;
         default:
-            url = '{{ route("reports.weekly-csv") }}?date=' + now.toISOString().split('T')[0];
+            url = '{{ route("reports.monthly-summary") }}?format=pdf&month=' + now.toISOString().split('T')[0].substring(0, 7);
     }
     
     window.open(url, '_blank');
