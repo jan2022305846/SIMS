@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Item;
+use App\Models\Consumable;
+use App\Models\NonConsumable;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Schema;
@@ -27,39 +28,26 @@ class ItemController extends Controller
         try {
             $item = null;
 
-            // Try to find item by barcode field first (for physical barcodes/QR codes)
-            $item = Item::with(['category'])
-                ->where('barcode', $code)
+            // Search for item by product_code in both consumables and non_consumables
+            $item = Consumable::with(['category'])
+                ->where('product_code', $code)
                 ->first();
 
-            Log::info('Barcode search result', [
+            Log::info('Consumable search result', [
                 'code' => $code,
-                'found_by_barcode' => $item ? true : false,
+                'found_consumable' => $item ? true : false,
                 'item_name' => $item ? $item->name : null
             ]);
 
-            // If not found by barcode, try qr_code field (for system-generated codes)
-            if (!$item && Schema::hasColumn('items', 'qr_code')) {
-                $item = Item::with(['category'])
-                    ->where('qr_code', $code)
+            // If not found in consumables, try non_consumables
+            if (!$item) {
+                $item = NonConsumable::with(['category'])
+                    ->where('product_code', $code)
                     ->first();
 
-                Log::info('QR code search result', [
+                Log::info('Non-consumable search result', [
                     'code' => $code,
-                    'found_by_qr_code' => $item ? true : false,
-                    'item_name' => $item ? $item->name : null
-                ]);
-            }
-
-            // If still not found, try item_code field for backward compatibility
-            if (!$item && Schema::hasColumn('items', 'item_code')) {
-                $item = Item::with(['category'])
-                    ->where('item_code', $code)
-                    ->first();
-
-                Log::info('Item code search result', [
-                    'code' => $code,
-                    'found_by_item_code' => $item ? true : false,
+                    'found_non_consumable' => $item ? true : false,
                     'item_name' => $item ? $item->name : null
                 ]);
             }
@@ -71,35 +59,37 @@ class ItemController extends Controller
                     'item_name' => $item->name
                 ]);
 
+                // Determine item type
+                $itemType = $item instanceof Consumable ? 'consumable' : 'non_consumable';
+
                 return response()->json([
                     'success' => true,
                     'item' => [
                         'id' => $item->id,
                         'name' => $item->name,
-                        'item_code' => $item->qr_code, // Return qr_code as item_code for consistency
-                        'barcode' => $item->barcode,
+                        'item_code' => $item->product_code,
+                        'product_code' => $item->product_code,
                         'description' => $item->description,
                         'quantity' => $item->quantity,
-                        'current_stock' => $item->current_stock,
-                        'unit' => $item->unit,
-                        'location' => $item->location,
-                        'condition' => $item->condition,
+                        'current_stock' => $item->quantity, // Use quantity as current_stock for consistency
+                        'unit' => 'pieces', // Default unit
                         'brand' => $item->brand,
-                        'supplier' => $item->supplier,
-                        'warranty_date' => $item->warranty_date?->format('Y-m-d'),
-                        'expiry_date' => $item->expiry_date?->format('Y-m-d'),
+                        'min_stock' => $item->min_stock,
+                        'max_stock' => $item->max_stock,
                         'category' => $item->category,
-                        'current_holder' => $item->currentHolder ? [
+                        'item_type' => $itemType,
+                        // Non-consumable specific fields
+                        'location' => $item instanceof NonConsumable ? $item->location : null,
+                        'condition' => $item instanceof NonConsumable ? $item->condition : null,
+                        'current_holder' => $item instanceof NonConsumable && $item->currentHolder ? [
                             'id' => $item->currentHolder->id,
                             'name' => $item->currentHolder->name,
                             'email' => $item->currentHolder->email,
                         ] : null,
-                        'assigned_at' => $item->assigned_at?->format('Y-m-d H:i:s'),
-                        'assignment_notes' => $item->assignment_notes,
-                        'is_assigned' => $item->isAssigned(),
-                        'stock_status' => $item->getStockStatus(),
-                        'stock_percentage' => $item->getStockPercentage(),
-                        'status' => $item->status
+                        'is_assigned' => $item instanceof NonConsumable ? ($item->current_holder_id !== null) : false,
+                        'stock_status' => $item->quantity <= $item->min_stock ? 'low' : 'normal',
+                        'stock_percentage' => $item->min_stock > 0 ? min(100, ($item->quantity / $item->min_stock) * 100) : 100,
+                        'status' => 'active'
                     ]
                 ]);
             }
@@ -138,46 +128,44 @@ class ItemController extends Controller
         try {
             $item = null;
 
-            // Try to find item by barcode field first
-            $item = Item::with(['category'])
-                ->where('barcode', $barcode)
+            // Search for item by product_code in both consumables and non_consumables
+            $item = Consumable::with(['category'])
+                ->where('product_code', $barcode)
                 ->first();
 
-            // If not found by barcode, try qr_code field
-            if (!$item && Schema::hasColumn('items', 'qr_code')) {
-                $item = Item::with(['category'])
-                    ->where('qr_code', $barcode)
-                    ->first();
-            }
-
-            // If still not found, try item_code field
-            if (!$item && Schema::hasColumn('items', 'item_code')) {
-                $item = Item::with(['category'])
-                    ->where('item_code', $barcode)
+            // If not found in consumables, try non_consumables
+            if (!$item) {
+                $item = NonConsumable::with(['category'])
+                    ->where('product_code', $barcode)
                     ->first();
             }
 
             if ($item) {
+                // Determine item type
+                $itemType = $item instanceof Consumable ? 'consumable' : 'non_consumable';
+
                 return response()->json([
                     'success' => true,
                     'item' => [
                         'id' => $item->id,
                         'name' => $item->name,
-                        'barcode' => $item->barcode,
-                        'qr_code' => $item->qr_code ?? null,
-                        'item_code' => $item->item_code ?? null,
+                        'product_code' => $item->product_code,
                         'description' => $item->description,
-                        'current_stock' => $item->current_stock,
-                        'unit' => $item->unit,
-                        'location' => $item->location,
-                        'condition' => $item->condition,
+                        'current_stock' => $item->quantity,
+                        'quantity' => $item->quantity,
+                        'unit' => 'pieces', // Default unit
                         'brand' => $item->brand,
+                        'min_stock' => $item->min_stock,
+                        'max_stock' => $item->max_stock,
                         'category' => $item->category ? [
                             'id' => $item->category->id,
                             'name' => $item->category->name,
                         ] : null,
-                        'minimum_stock' => $item->minimum_stock,
-                        'stock_status' => $item->getStockStatus(),
+                        'item_type' => $itemType,
+                        // Non-consumable specific fields
+                        'location' => $item instanceof NonConsumable ? $item->location : null,
+                        'condition' => $item instanceof NonConsumable ? $item->condition : null,
+                        'stock_status' => $item->quantity <= $item->min_stock ? 'low' : 'normal',
                     ]
                 ]);
             }

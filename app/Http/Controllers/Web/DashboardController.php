@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
-use App\Models\Item;
+use App\Models\Consumable;
+use App\Models\NonConsumable;
 use App\Models\ItemScanLog;
 use App\Models\Request;
 use App\Models\User;
@@ -172,7 +173,7 @@ class DashboardController extends Controller
             }
 
             // Find the item by ID from parsed data
-            $item = Item::find($parsedData['id']);
+            $item = Consumable::find($parsedData['id']) ?? NonConsumable::find($parsedData['id']);
 
             if (!$item) {
                 return response()->json([
@@ -218,7 +219,7 @@ class DashboardController extends Controller
     public function reports()
     {
         // Get data for reports
-        $totalItems = Item::count();
+        $totalItems = Consumable::count() + NonConsumable::count();
         $totalUsers = User::count();
         $totalRequests = Request::count();
         $approvedRequests = Request::where('status', 'approved_by_admin')->count();
@@ -232,12 +233,19 @@ class DashboardController extends Controller
             ->pluck('count', 'month');
 
         // Low stock items
-        $lowStockItems = Item::where('quantity', '<=', 10)->get();
+        $lowStockItems = Consumable::where('quantity', '<=', 10)->get()->merge(
+            NonConsumable::where('quantity', '<=', 10)->get()
+        );
 
         // Expiring items
-        $expiringItems = Item::whereNotNull('expiry_date')
+        $expiringItems = Consumable::whereNotNull('expiry_date')
             ->whereDate('expiry_date', '<=', now()->addDays(30))
-            ->get();
+            ->get()
+            ->merge(
+                NonConsumable::whereNotNull('expiry_date')
+                    ->whereDate('expiry_date', '<=', now()->addDays(30))
+                    ->get()
+            );
 
         return view('admin.reports.index', compact(
             'totalItems', 'totalUsers', 'totalRequests', 'approvedRequests', 

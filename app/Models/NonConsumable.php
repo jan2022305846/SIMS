@@ -17,6 +17,7 @@ class NonConsumable extends Model
         'description',
         'product_code',
         'quantity',
+        'unit',
         'brand',
         'min_stock',
         'max_stock',
@@ -45,6 +46,11 @@ class NonConsumable extends Model
     public function requests(): HasMany
     {
         return $this->hasMany(Request::class, 'item_id')->where('item_type', 'non_consumable');
+    }
+
+    public function scanLogs(): HasMany
+    {
+        return $this->hasMany(ItemScanLog::class, 'item_id')->where('item_type', 'non_consumable');
     }
 
     /**

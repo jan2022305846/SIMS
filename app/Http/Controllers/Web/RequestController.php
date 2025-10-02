@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Request as SupplyRequest;
-use App\Models\Item;
 use App\Models\Consumable;
 use App\Models\NonConsumable;
 use App\Models\Log as ActivityLog;
@@ -95,7 +94,8 @@ class RequestController extends Controller
         ]);
 
         $validatedData = $request->validate([
-            'item_id' => 'required|exists:items,id',
+            'item_id' => 'required|integer',
+            'item_type' => 'required|in:consumable,non_consumable',
             'quantity' => 'required|integer|min:1',
             'purpose' => 'required|string|max:500',
             'needed_date' => 'required|date|after_or_equal:today',
@@ -107,8 +107,19 @@ class RequestController extends Controller
         Log::info('Validation passed', ['validated_data' => $validatedData]);
 
         // Check stock availability
-        $item = Item::findOrFail($validatedData['item_id']);
-        if ($item->quantity < $validatedData['quantity']) {
+        $item = null;
+        if ($validatedData['item_type'] === 'consumable') {
+            $item = Consumable::findOrFail($validatedData['item_id']);
+        } elseif ($validatedData['item_type'] === 'non_consumable') {
+            $item = NonConsumable::findOrFail($validatedData['item_id']);
+        }
+
+        if (!$item) {
+            return back()->withErrors(['item_id' => 'Selected item not found.']);
+        }
+
+        // Check stock availability (only for consumables)
+        if ($validatedData['item_type'] === 'consumable' && $item->quantity < $validatedData['quantity']) {
             Log::warning('Stock validation failed', [
                 'item_id' => $item->id,
                 'requested' => $validatedData['quantity'],
@@ -253,7 +264,8 @@ class RequestController extends Controller
         }
 
         $validatedData = $updateRequest->validate([
-            'item_id' => 'required|exists:items,id',
+            'item_id' => 'required|integer',
+            'item_type' => 'required|in:consumable,non_consumable',
             'quantity' => 'required|integer|min:1',
             'purpose' => 'required|string|max:500',
             'needed_date' => 'required|date|after_or_equal:today',
@@ -262,8 +274,19 @@ class RequestController extends Controller
         ]);
 
         // Check stock availability
-        $item = Item::findOrFail($validatedData['item_id']);
-        if ($item->quantity < $validatedData['quantity']) {
+        $item = null;
+        if ($validatedData['item_type'] === 'consumable') {
+            $item = Consumable::findOrFail($validatedData['item_id']);
+        } elseif ($validatedData['item_type'] === 'non_consumable') {
+            $item = NonConsumable::findOrFail($validatedData['item_id']);
+        }
+
+        if (!$item) {
+            return back()->withErrors(['item_id' => 'Selected item not found.']);
+        }
+
+        // Check stock availability (only for consumables)
+        if ($validatedData['item_type'] === 'consumable' && $item->quantity < $validatedData['quantity']) {
             return back()->withErrors(['quantity' => 'Requested quantity exceeds available stock (' . $item->quantity . ' available)']);
         }
 
@@ -346,9 +369,8 @@ class RequestController extends Controller
             $scannedBarcode = $httpRequest->scanned_barcode;
             
             // Check if the scanned barcode matches the requested item
-            $scannedItem = Item::where('barcode', $scannedBarcode)
-                ->orWhere('qr_code', $scannedBarcode)
-                ->first();
+            $scannedItem = Consumable::where('product_code', $scannedBarcode)->first() 
+                ?? NonConsumable::where('product_code', $scannedBarcode)->first();
 
             if (!$scannedItem) {
                 return back()->withErrors(['error' => 'Scanned barcode does not match any item in the system.']);
@@ -434,9 +456,8 @@ class RequestController extends Controller
             $scannedBarcode = $httpRequest->scanned_barcode;
             
             // Check if the scanned barcode matches the requested item
-            $scannedItem = Item::where('barcode', $scannedBarcode)
-                ->orWhere('qr_code', $scannedBarcode)
-                ->first();
+            $scannedItem = Consumable::where('product_code', $scannedBarcode)->first() 
+                ?? NonConsumable::where('product_code', $scannedBarcode)->first();
 
             if (!$scannedItem) {
                 return back()->withErrors(['error' => 'Scanned barcode does not match any item in the system.']);
@@ -509,9 +530,8 @@ class RequestController extends Controller
             $scannedBarcode = $httpRequest->scanned_barcode;
 
             // Check if the scanned barcode matches the requested item
-            $scannedItem = Item::where('barcode', $scannedBarcode)
-                ->orWhere('qr_code', $scannedBarcode)
-                ->first();
+            $scannedItem = Consumable::where('product_code', $scannedBarcode)->first() 
+                ?? NonConsumable::where('product_code', $scannedBarcode)->first();
 
             if (!$scannedItem) {
                 return back()->withErrors(['error' => 'Scanned barcode does not match any item in the system.']);

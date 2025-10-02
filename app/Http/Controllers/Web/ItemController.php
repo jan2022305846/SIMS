@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
-use App\Models\Item;
 use App\Models\Consumable;
 use App\Models\NonConsumable;
 use App\Models\Category;
@@ -637,8 +636,19 @@ class ItemController extends Controller
     public function restore($id)
     {
         try {
-            // Find the trashed item
-            $item = Item::onlyTrashed()->findOrFail($id);
+            // Try to find the trashed item in consumables first
+            $item = Consumable::onlyTrashed()->find($id);
+
+            // If not found in consumables, try non-consumables
+            if (!$item) {
+                $item = NonConsumable::onlyTrashed()->find($id);
+            }
+
+            // If still not found, return error
+            if (!$item) {
+                return redirect()->route('items.trashed')
+                    ->with('error', 'The item you are trying to restore was not found in the trash.');
+            }
 
             // Store item name for success message
             $itemName = $item->name;
@@ -650,21 +660,13 @@ class ItemController extends Controller
             Log::info('Item restored from trash', [
                 'item_id' => $item->id,
                 'item_name' => $itemName,
+                'item_type' => $item instanceof Consumable ? 'consumable' : 'non_consumable',
                 'restored_by' => Auth::id(),
                 'restored_at' => now()
             ]);
 
             return redirect()->route('items.trashed')
                 ->with('success', "Item '{$itemName}' has been successfully restored and is now active.");
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            Log::warning('Attempted to restore non-existent trashed item', [
-                'item_id' => $id,
-                'user_id' => Auth::id()
-            ]);
-
-            return redirect()->route('items.trashed')
-                ->with('error', 'The item you are trying to restore was not found in the trash.');
 
         } catch (\Exception $e) {
             Log::error('Failed to restore item from trash', [
@@ -845,14 +847,16 @@ class ItemController extends Controller
     {
         $request->validate([
             'item_ids' => 'required|array|min:1',
-            'item_ids.*' => 'required|integer|exists:items,id'
+            'item_ids.*' => 'required|integer'
         ]);
 
         try {
             $itemIds = $request->item_ids;
 
-            // Find trashed items only
-            $trashedItems = Item::onlyTrashed()->whereIn('id', $itemIds)->get();
+            // Find trashed items in both models
+            $trashedConsumables = Consumable::onlyTrashed()->whereIn('id', $itemIds)->get();
+            $trashedNonConsumables = NonConsumable::onlyTrashed()->whereIn('id', $itemIds)->get();
+            $trashedItems = $trashedConsumables->merge($trashedNonConsumables);
 
             if ($trashedItems->isEmpty()) {
                 return redirect()->route('items.trashed')
@@ -911,16 +915,29 @@ class ItemController extends Controller
     public function forceDelete($id)
     {
         try {
-            // Find the trashed item
-            $item = Item::onlyTrashed()->findOrFail($id);
+            // Try to find the trashed item in consumables first
+            $item = Consumable::onlyTrashed()->find($id);
+
+            // If not found in consumables, try non-consumables
+            if (!$item) {
+                $item = NonConsumable::onlyTrashed()->find($id);
+            }
+
+            // If still not found, return error
+            if (!$item) {
+                return redirect()->route('items.trashed')
+                    ->with('error', 'The item you are trying to delete was not found in the trash.');
+            }
 
             // Store item name for logging and messages
             $itemName = $item->name;
+            $itemType = $item instanceof Consumable ? 'consumable' : 'non_consumable';
 
             // Log the permanent deletion (before actually deleting)
             Log::warning('Item permanently deleted from trash', [
                 'item_id' => $item->id,
                 'item_name' => $itemName,
+                'item_type' => $itemType,
                 'deleted_by' => Auth::id(),
                 'deleted_at' => now(),
                 'warning' => 'This action cannot be undone'
@@ -931,15 +948,6 @@ class ItemController extends Controller
 
             return redirect()->route('items.trashed')
                 ->with('success', "Item '{$itemName}' has been permanently deleted and cannot be recovered.");
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            Log::warning('Attempted to permanently delete non-existent trashed item', [
-                'item_id' => $id,
-                'user_id' => Auth::id()
-            ]);
-
-            return redirect()->route('items.trashed')
-                ->with('error', 'The item you are trying to delete was not found in the trash.');
 
         } catch (\Exception $e) {
             Log::error('Failed to permanently delete item from trash', [
@@ -966,14 +974,16 @@ class ItemController extends Controller
     {
         $request->validate([
             'item_ids' => 'required|array|min:1',
-            'item_ids.*' => 'required|integer|exists:items,id'
+            'item_ids.*' => 'required|integer'
         ]);
 
         try {
             $itemIds = $request->item_ids;
 
-            // Find trashed items only
-            $trashedItems = Item::onlyTrashed()->whereIn('id', $itemIds)->get();
+            // Find trashed items in both models
+            $trashedConsumables = Consumable::onlyTrashed()->whereIn('id', $itemIds)->get();
+            $trashedNonConsumables = NonConsumable::onlyTrashed()->whereIn('id', $itemIds)->get();
+            $trashedItems = $trashedConsumables->merge($trashedNonConsumables);
 
             if ($trashedItems->isEmpty()) {
                 return redirect()->route('items.trashed')
@@ -987,11 +997,13 @@ class ItemController extends Controller
             // Permanently delete each valid trashed item
             foreach ($trashedItems as $item) {
                 $deletedNames[] = $item->name;
+                $itemType = $item instanceof Consumable ? 'consumable' : 'non_consumable';
 
                 // Log each deletion
                 Log::warning('Item permanently deleted from trash (bulk operation)', [
                     'item_id' => $item->id,
                     'item_name' => $item->name,
+                    'item_type' => $itemType,
                     'deleted_by' => Auth::id(),
                     'deleted_at' => now(),
                     'warning' => 'This action cannot be undone'

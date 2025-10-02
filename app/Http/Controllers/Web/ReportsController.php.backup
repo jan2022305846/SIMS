@@ -373,7 +373,7 @@ class ReportsController extends Controller
 
     public function inventorySummary(Request $request)
     {
-        $query = Consumable::with('category');
+        $query = Item::with('category');
 
         // Apply filters
         if ($request->category_id) {
@@ -383,13 +383,13 @@ class ReportsController extends Controller
         if ($request->stock_status) {
             switch ($request->stock_status) {
                 case 'low_stock':
-                    $query->whereRaw('quantity <= min_stock');
+                    $query->whereRaw('current_stock <= minimum_stock');
                     break;
                 case 'out_of_stock':
-                    $query->where('quantity', '<=', 0);
+                    $query->where('current_stock', '<=', 0);
                     break;
                 case 'adequate':
-                    $query->where('quantity', '>', 'min_stock');
+                    $query->where('current_stock', '>', 'minimum_stock');
                     break;
             }
         }
@@ -398,12 +398,12 @@ class ReportsController extends Controller
         $sortBy = $request->get('sort_by', 'name');
         switch ($sortBy) {
             case 'quantity':
-                $query->orderBy('quantity', 'desc');
+                $query->orderBy('current_stock', 'desc');
                 break;
             case 'category':
-                $query->join('categories', 'consumables.category_id', '=', 'categories.id')
+                $query->join('categories', 'items.category_id', '=', 'categories.id')
                       ->orderBy('categories.name')
-                      ->select('consumables.*');
+                      ->select('items.*');
                 break;
             default:
                 $query->orderBy('name');
@@ -416,20 +416,19 @@ class ReportsController extends Controller
         $categories = Category::all();
 
         // Calculate summary statistics
-        $allConsumables = Consumable::all(); // Get all consumables for summary stats
-        $allNonConsumables = NonConsumable::all(); // Get all non-consumables for summary stats
+        $allItems = Item::all(); // Get all items for summary stats
         $summary = [
-            'total_items' => $allConsumables->count() + $allNonConsumables->count(),
-            'low_stock_items' => $allConsumables->whereRaw('quantity <= min_stock')->count() + $allNonConsumables->whereRaw('quantity <= min_stock')->count(),
-            'out_of_stock_items' => $allConsumables->where('quantity', '<=', 0)->count() + $allNonConsumables->where('quantity', '<=', 0)->count(),
-            'adequate_stock_items' => $allConsumables->whereRaw('quantity > min_stock')->count() + $allNonConsumables->whereRaw('quantity > min_stock')->count(),
+            'total_items' => $allItems->count(),
+            'low_stock_items' => $allItems->where('current_stock', '<=', 'minimum_stock')->count(),
+            'out_of_stock_items' => $allItems->where('current_stock', '<=', 0)->count(),
+            'adequate_stock_items' => $allItems->where('current_stock', '>', 'minimum_stock')->count(),
         ];
 
         // Category statistics for chart
-        $categoryStats = Category::with(['consumables', 'nonConsumables'])->get()->map(function($category) {
+        $categoryStats = Category::with('items')->get()->map(function($category) {
             return [
                 'name' => $category->name,
-                'items_count' => $category->consumables->count() + $category->nonConsumables->count(),
+                'items_count' => $category->items->count(),
             ];
         })->filter(function($category) {
             return $category['items_count'] > 0;
@@ -447,21 +446,14 @@ class ReportsController extends Controller
 
     public function lowStockAlert(Request $request)
     {
-        $consumablesQuery = Consumable::with('category')
-            ->whereRaw('quantity <= min_stock OR quantity <= 5');
-
-        $nonConsumablesQuery = NonConsumable::with('category')
-            ->whereRaw('quantity <= min_stock OR quantity <= 5');
+        $query = Item::with('category')
+            ->whereRaw('current_stock <= minimum_stock OR current_stock <= 5');
 
         if ($request->category_id) {
-            $consumablesQuery->where('category_id', $request->category_id);
-            $nonConsumablesQuery->where('category_id', $request->category_id);
+            $query->where('category_id', $request->category_id);
         }
 
-        $lowStockConsumables = $consumablesQuery->orderBy('quantity', 'asc')->get();
-        $lowStockNonConsumables = $nonConsumablesQuery->orderBy('quantity', 'asc')->get();
-
-        $lowStockItems = collect([...$lowStockConsumables, ...$lowStockNonConsumables])->sortBy('quantity');
+        $lowStockItems = $query->orderBy('current_stock', 'asc')->get();
         $categories = Category::all();
 
         if ($request->input('format') === 'pdf') {
@@ -555,12 +547,7 @@ class ReportsController extends Controller
      */
     public function itemScanHistory(Request $request, $itemId)
     {
-        // Try to find the item in both Consumable and NonConsumable models
-        $item = Consumable::find($itemId) ?? NonConsumable::find($itemId);
-
-        if (!$item) {
-            abort(404, 'Item not found');
-        }
+        $item = Item::findOrFail($itemId);
 
         // Handle period parameter for consistent filtering with main reports
         $period = $request->get('period', 'daily');
@@ -572,16 +559,16 @@ class ReportsController extends Controller
 
         $scanLogs = \App\Models\ItemScanLog::with('user')
             ->where('item_id', $itemId)
-            ->whereBetween('created_at', [$dateFrom, $dateTo])
-            ->orderBy('created_at', 'desc')
+            ->whereBetween('scanned_at', [$dateFrom, $dateTo])
+            ->orderBy('scanned_at', 'desc')
             ->get();
 
         $frequencyAnalysis = \App\Models\ItemScanLog::getScanFrequencyAnalysis($itemId);
 
         $analytics = [
             'total_scans' => $scanLogs->count(),
-            'first_scan' => $scanLogs->isNotEmpty() ? $scanLogs->last()->created_at : null,
-            'last_scan' => $scanLogs->isNotEmpty() ? $scanLogs->first()->created_at : null,
+            'first_scan' => $scanLogs->isNotEmpty() ? $scanLogs->last()->scanned_at : null,
+            'last_scan' => $scanLogs->isNotEmpty() ? $scanLogs->first()->scanned_at : null,
             'unique_users' => $scanLogs->pluck('user_id')->unique()->filter()->count(),
             'scans_by_location' => $scanLogs->whereNotNull('location')
                 ->groupBy('location')
@@ -770,10 +757,9 @@ class ReportsController extends Controller
                 ->whereBetween('updated_at', [$startDate, $endDate])
                 ->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })
                 ->get(),
-            'new_items' => collect([
-                ...Consumable::with('category')->whereBetween('created_at', [$startDate, $endDate])->get(),
-                ...NonConsumable::with('category')->whereBetween('created_at', [$startDate, $endDate])->get(),
-            ]),
+            'new_items' => Item::with('category')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->get(),
         ];
 
         $stats = [
@@ -910,9 +896,6 @@ class ReportsController extends Controller
             
             return $pdf->download('quarterly-summary-' . $quarter . '.pdf');
         }
-
-        return view('admin.reports.quarterly-summary', compact('quarterlyData', 'analytics', 'quarter', 'startDate', 'endDate'));
-    }
 
     /**
      * Annual summary report
@@ -1100,8 +1083,8 @@ class ReportsController extends Controller
         $endDate = Carbon::createFromDate($year, 12, 31)->endOfYear();
         
         return [
-            'items_added' => Consumable::whereBetween('created_at', [$startDate, $endDate])->count() + NonConsumable::whereBetween('created_at', [$startDate, $endDate])->count(),
-            'value_added' => Consumable::whereBetween('created_at', [$startDate, $endDate])->sum('total_value') + NonConsumable::whereBetween('created_at', [$startDate, $endDate])->sum('total_value'),
+            'items_added' => Item::whereBetween('created_at', [$startDate, $endDate])->count(),
+            'value_added' => Item::whereBetween('created_at', [$startDate, $endDate])->sum('total_value'),
             'categories_added' => Category::whereBetween('created_at', [$startDate, $endDate])->count(),
         ];
     }
@@ -1123,7 +1106,7 @@ class ReportsController extends Controller
                 ->sum(function($req) {
                     return $req->quantity * 0; // unit_price not available in normalized tables
                 }),
-            'current_inventory_value' => Consumable::sum('total_value') + NonConsumable::sum('total_value'),
+            'current_inventory_value' => Item::sum('total_value'),
         ];
     }
 
@@ -1155,7 +1138,7 @@ class ReportsController extends Controller
         // Add QR scan statistics to dashboard data
         $scanStats = \App\Models\ItemScanLog::getScanStats();
         $data['qr_scan_stats'] = [
-            'total_scans_today' => \App\Models\ItemScanLog::whereDate('created_at', Carbon::today())->count(),
+            'total_scans_today' => \App\Models\ItemScanLog::whereDate('scanned_at', Carbon::today())->count(),
             'total_scans' => $scanStats['total_scans'],
             'unique_items_scanned' => $scanStats['unique_items_scanned'],
             'unscanned_items_30_days' => \App\Models\ItemScanLog::getUnscannedItems(30)->count(),
@@ -1331,10 +1314,10 @@ class ReportsController extends Controller
         $chartData = [];
 
         // Get all scans for the last 7 days in one query
-        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(created_at) as date, COUNT(*) as total_scans')
-            ->whereBetween('created_at', [$date->copy()->subDays(6)->startOfDay(), $endDate])
-            ->groupByRaw('DATE(created_at)')
-            ->orderByRaw('DATE(created_at)');
+        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(scanned_at) as date, COUNT(*) as total_scans')
+            ->whereBetween('scanned_at', [$date->copy()->subDays(6)->startOfDay(), $endDate])
+            ->groupByRaw('DATE(scanned_at)')
+            ->orderByRaw('DATE(scanned_at)');
 
         $scansData = $scansQuery->get()->keyBy('date');
 
@@ -1353,8 +1336,8 @@ class ReportsController extends Controller
 
         // Today's data - get all records for display
         $todayScans = \App\Models\ItemScanLog::with(['item', 'user'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'desc')
+            ->whereBetween('scanned_at', [$startDate, $endDate])
+            ->orderBy('scanned_at', 'desc')
             ->get();
 
         // Get scan statistics for today
@@ -1388,10 +1371,10 @@ class ReportsController extends Controller
         $endDate = $date->copy()->endOfWeek();
 
         // Get all scans for the last 8 weeks in one query
-        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(created_at) as date, COUNT(*) as total_scans')
-            ->whereBetween('created_at', [$date->copy()->subWeeks(7)->startOfWeek(), $endDate])
-            ->groupByRaw('DATE(created_at)')
-            ->orderByRaw('DATE(created_at)');
+        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(scanned_at) as date, COUNT(*) as total_scans')
+            ->whereBetween('scanned_at', [$date->copy()->subWeeks(7)->startOfWeek(), $endDate])
+            ->groupByRaw('DATE(scanned_at)')
+            ->orderByRaw('DATE(scanned_at)');
 
         $scansData = $scansQuery->get()->groupBy(function($item) {
             $date = Carbon::parse($item->date);
@@ -1415,8 +1398,8 @@ class ReportsController extends Controller
 
         // Current week scans for display
         $weekScans = \App\Models\ItemScanLog::with(['item', 'user'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'desc')
+            ->whereBetween('scanned_at', [$startDate, $endDate])
+            ->orderBy('scanned_at', 'desc')
             ->get();
 
         // Get scan statistics for current week
@@ -1450,10 +1433,10 @@ class ReportsController extends Controller
         $endDate = $date->copy()->endOfYear();
 
         // Get all scans for the last 5 years in one query
-        $scansQuery = \App\Models\ItemScanLog::selectRaw('YEAR(created_at) as year, COUNT(*) as total_scans')
-            ->whereBetween('created_at', [$date->copy()->subYears(4)->startOfYear(), $endDate])
-            ->groupByRaw('YEAR(created_at)')
-            ->orderByRaw('YEAR(created_at)');
+        $scansQuery = \App\Models\ItemScanLog::selectRaw('YEAR(scanned_at) as year, COUNT(*) as total_scans')
+            ->whereBetween('scanned_at', [$date->copy()->subYears(4)->startOfYear(), $endDate])
+            ->groupByRaw('YEAR(scanned_at)')
+            ->orderByRaw('YEAR(scanned_at)');
 
         $scansData = $scansQuery->get()->keyBy('year');
 
@@ -1472,8 +1455,8 @@ class ReportsController extends Controller
 
         // Current year scans for display
         $yearScans = \App\Models\ItemScanLog::with(['item', 'user'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'desc')
+            ->whereBetween('scanned_at', [$startDate, $endDate])
+            ->orderBy('scanned_at', 'desc')
             ->get();
 
         // Get scan statistics for current year
@@ -1507,10 +1490,10 @@ class ReportsController extends Controller
         $endDate = $date->copy()->endOfMonth();
 
         // Get all scans for the last 12 months in one query
-        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(created_at) as date, COUNT(*) as total_scans')
-            ->whereBetween('created_at', [$date->copy()->subMonths(11)->startOfMonth(), $endDate])
-            ->groupByRaw('DATE(created_at)')
-            ->orderByRaw('DATE(created_at)');
+        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(scanned_at) as date, COUNT(*) as total_scans')
+            ->whereBetween('scanned_at', [$date->copy()->subMonths(11)->startOfMonth(), $endDate])
+            ->groupByRaw('DATE(scanned_at)')
+            ->orderByRaw('DATE(scanned_at)');
 
         $scansData = $scansQuery->get()->groupBy(function($item) {
             $date = Carbon::parse($item->date);
@@ -1534,8 +1517,8 @@ class ReportsController extends Controller
 
         // Current month scans for display
         $monthScans = \App\Models\ItemScanLog::with(['item', 'user'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'desc')
+            ->whereBetween('scanned_at', [$startDate, $endDate])
+            ->orderBy('scanned_at', 'desc')
             ->get();
 
         // Get scan statistics for current month
@@ -1569,10 +1552,10 @@ class ReportsController extends Controller
         $endDate = $date->copy()->endOfQuarter();
 
         // Get all scans for the last 4 quarters in one query
-        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(created_at) as date, COUNT(*) as total_scans')
-            ->whereBetween('created_at', [$date->copy()->subQuarters(3)->startOfQuarter(), $endDate])
-            ->groupByRaw('DATE(created_at)')
-            ->orderByRaw('DATE(created_at)');
+        $scansQuery = \App\Models\ItemScanLog::selectRaw('DATE(scanned_at) as date, COUNT(*) as total_scans')
+            ->whereBetween('scanned_at', [$date->copy()->subQuarters(3)->startOfQuarter(), $endDate])
+            ->groupByRaw('DATE(scanned_at)')
+            ->orderByRaw('DATE(scanned_at)');
 
         $scansData = $scansQuery->get()->groupBy(function($item) {
             $date = Carbon::parse($item->date);
@@ -1596,8 +1579,8 @@ class ReportsController extends Controller
 
         // Current quarter scans for display
         $quarterScans = \App\Models\ItemScanLog::with(['item', 'user'])
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->orderBy('created_at', 'desc')
+            ->whereBetween('scanned_at', [$startDate, $endDate])
+            ->orderBy('scanned_at', 'desc')
             ->get();
 
         // Get scan statistics for current quarter
@@ -1630,8 +1613,8 @@ class ReportsController extends Controller
      */
     private function getDailyScanTrend($dateFrom, $dateTo)
     {
-        return \App\Models\ItemScanLog::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->selectRaw('DATE(created_at) as date, COUNT(*) as scan_count')
+        return \App\Models\ItemScanLog::whereBetween('scanned_at', [$dateFrom, $dateTo])
+            ->selectRaw('DATE(scanned_at) as date, COUNT(*) as scan_count')
             ->groupBy('date')
             ->orderBy('date')
             ->pluck('scan_count', 'date');
@@ -1642,10 +1625,7 @@ class ReportsController extends Controller
      */
     private function getOverallScanFrequency()
     {
-        $allItems = collect([
-            ...Consumable::all(),
-            ...NonConsumable::all(),
-        ]);
+        $allItems = Item::all();
         $frequencyData = [];
 
         foreach ($allItems as $item) {
@@ -2066,23 +2046,5 @@ class ReportsController extends Controller
             'departments' => $departments,
             'records' => $requests
         ];
-    }
-
-    private function getDepartmentPerformance($requests)
-    {
-        return $requests->groupBy('department')
-            ->map(function($deptRequests) {
-                $total = $deptRequests->count();
-                $fulfilled = $deptRequests->where(function($q) { return $this->getRequestsByStatus($q, 'fulfilled'); })->count();
-                $pending = $deptRequests->where('status', 'pending')->count();
-                
-                return [
-                    'total_requests' => $total,
-                    'fulfilled_requests' => $fulfilled,
-                    'pending_requests' => $pending,
-                    'fulfillment_rate' => $total > 0 ? round(($fulfilled / $total) * 100, 2) : 0
-                ];
-            })
-            ->sortByDesc('total_requests');
     }
 }

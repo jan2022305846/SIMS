@@ -65,15 +65,16 @@ class User extends Authenticatable
 
     public function custodiedItems()
     {
-        return $this->hasMany(Item::class, 'custodian_id');
+        // Deprecated - no custodian field in new database structure
+        return collect();
     }
 
     /**
-     * Get items currently held by this user
+     * Get items currently held by this user (non-consumables only)
      */
     public function heldItems()
     {
-        return $this->hasMany(Item::class, 'current_holder_id');
+        return $this->hasMany(NonConsumable::class, 'current_holder_id');
     }
 
     /**

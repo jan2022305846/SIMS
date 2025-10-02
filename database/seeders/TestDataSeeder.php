@@ -5,7 +5,8 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Category;
-use App\Models\Item;
+use App\Models\Consumable;
+use App\Models\NonConsumable;
 use App\Models\Request;
 use App\Models\User;
 
@@ -28,83 +29,79 @@ class TestDataSeeder extends Seeder
             Category::firstOrCreate(['name' => $category['name']], $category);
         }
 
-        // Create Items
-        $items = [
+        // Create Consumable Items
+        $consumables = [
             [
                 'name' => 'Ballpoint Pen (Blue)',
                 'description' => 'Standard blue ink ballpoint pen',
                 'category_id' => 1,
+                'product_code' => 'PEN-001',
                 'quantity' => 50,
                 'unit' => 'pieces',
-                'price' => 15.00,
-                'location' => 'Storage Room A',
-                'condition' => 'Good',
-                'qr_code' => 'PEN-001',
                 'brand' => 'Pilot',
-                'supplier' => 'Office Depot',
-                'minimum_stock' => 10,
+                'min_stock' => 10,
+                'max_stock' => 100,
             ],
             [
                 'name' => 'A4 Bond Paper',
                 'description' => '500 sheets white bond paper',
                 'category_id' => 1,
+                'product_code' => 'PAPER-001',
                 'quantity' => 25,
                 'unit' => 'reams',
-                'price' => 250.00,
-                'location' => 'Storage Room A',
-                'condition' => 'Good',
-                'qr_code' => 'PAPER-001',
                 'brand' => 'Paperline',
-                'supplier' => 'National Bookstore',
-                'minimum_stock' => 5,
-            ],
-            [
-                'name' => 'Wireless Mouse',
-                'description' => 'Wireless optical mouse',
-                'category_id' => 2,
-                'quantity' => 8,
-                'unit' => 'pieces',
-                'price' => 850.00,
-                'location' => 'IT Storage',
-                'condition' => 'Good',
-                'qr_code' => 'MOUSE-001',
-                'brand' => 'Logitech',
-                'supplier' => 'PC Express',
-                'minimum_stock' => 3,
-            ],
-            [
-                'name' => 'Office Chair',
-                'description' => 'Ergonomic office chair with back support',
-                'category_id' => 3,
-                'quantity' => 2,
-                'unit' => 'pieces',
-                'price' => 5500.00,
-                'location' => 'Furniture Storage',
-                'condition' => 'Good',
-                'qr_code' => 'CHAIR-001',
-                'brand' => 'Ergoflex',
-                'supplier' => 'Furniture Plus',
-                'minimum_stock' => 1,
+                'min_stock' => 5,
+                'max_stock' => 50,
             ],
             [
                 'name' => 'Hand Sanitizer',
                 'description' => '500ml alcohol-based hand sanitizer',
                 'category_id' => 4,
+                'product_code' => 'SANITIZER-001',
                 'quantity' => 5,
                 'unit' => 'bottles',
-                'price' => 120.00,
-                'location' => 'Medical Storage',
-                'condition' => 'Good',
-                'qr_code' => 'SANITIZER-001',
                 'brand' => 'SafeGuard',
-                'supplier' => 'Mercury Drug',
-                'minimum_stock' => 10,
-                'expiry_date' => now()->addMonths(18),
+                'min_stock' => 10,
+                'max_stock' => 20,
             ],
         ];
 
-        foreach ($items as $item) {
-            Item::firstOrCreate(['name' => $item['name']], $item);
+        foreach ($consumables as $item) {
+            Consumable::firstOrCreate(['name' => $item['name']], $item);
+        }
+
+        // Create Non-Consumable Items
+        $nonConsumables = [
+            [
+                'name' => 'Wireless Mouse',
+                'description' => 'Wireless optical mouse',
+                'category_id' => 2,
+                'product_code' => 'MOUSE-001',
+                'quantity' => 8,
+                'unit' => 'pieces',
+                'brand' => 'Logitech',
+                'min_stock' => 3,
+                'max_stock' => 15,
+                'location' => 'IT Storage',
+                'condition' => 'Good',
+            ],
+            [
+                'name' => 'Office Chair',
+                'description' => 'Ergonomic office chair with back support',
+                'category_id' => 3,
+                'product_code' => 'CHAIR-001',
+                'quantity' => 2,
+                'unit' => 'pieces',
+                'brand' => 'Ergoflex',
+                'min_stock' => 1,
+                'max_stock' => 5,
+                'location' => 'Furniture Storage',
+                'condition' => 'Good',
+            ],
+        ];
+
+        foreach ($nonConsumables as $item) {
+            NonConsumable::firstOrCreate(['name' => $item['name']], $item);
         }
 
         // Create some sample requests

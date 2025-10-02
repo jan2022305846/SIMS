@@ -30,13 +30,14 @@
                             <!-- Pre-selected Item (if coming from browse page) -->
                             @if(request('item_id'))
                                 @php
-                                    $preselectedItem = \App\Models\Item::find(request('item_id'));
+                                    $preselectedItem = \App\Models\Consumable::find(request('item_id')) ?? \App\Models\NonConsumable::find(request('item_id'));
                                 @endphp
                                 @if($preselectedItem)
                                     <div class="alert alert-info">
                                         <i class="fas fa-info-circle me-2"></i>
                                         <strong>Pre-selected Item:</strong> {{ $preselectedItem->name }}
                                         <input type="hidden" name="item_id" value="{{ $preselectedItem->id }}">
+                                        <input type="hidden" name="item_type" value="{{ $preselectedItem instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}">
                                     </div>
                                 @endif
                             @endif
@@ -51,10 +52,10 @@
                                         <option value="">Choose an item...</option>
                                         @foreach($items as $item)
                                             <option value="{{ $item->id }}"
-                                                    data-stock="{{ $item->current_stock }}"
-                                                    data-unit="{{ $item->unit ?? 'pcs' }}"
+                                                    data-stock="{{ $item->quantity }}"
+                                                    data-unit="{{ $item->unit ?? 'pieces' }}"
                                                     {{ request('item_id') == $item->id ? 'selected' : '' }}>
-                                                {{ $item->name }} ({{ $item->current_stock }} {{ $item->unit ?? 'pcs' }} available)
+                                                {{ $item->name }} ({{ $item->quantity }} {{ $item->unit ?? 'pieces' }} available)
                                             </option>
                                         @endforeach
                                     </select>
@@ -78,7 +79,7 @@
                                        required>
                                 <div class="form-text" id="stock-info">
                                     @if(request('item_id') && $preselectedItem ?? null)
-                                        Available: {{ $preselectedItem->current_stock }} {{ $preselectedItem->unit ?? 'pcs' }}
+                                        Available: {{ $preselectedItem->quantity }} {{ $preselectedItem->unit ?? 'pieces' }}
                                     @else
                                         Select an item to see available stock
                                     @endif

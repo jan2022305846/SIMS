@@ -17,6 +17,7 @@ class Consumable extends Model
         'description',
         'product_code',
         'quantity',
+        'unit',
         'brand',
         'min_stock',
         'max_stock',
@@ -36,6 +37,11 @@ class Consumable extends Model
     public function requests(): HasMany
     {
         return $this->hasMany(Request::class, 'item_id')->where('item_type', 'consumable');
+    }
+
+    public function scanLogs(): HasMany
+    {
+        return $this->hasMany(ItemScanLog::class, 'item_id')->where('item_type', 'consumable');
     }
 
     /**

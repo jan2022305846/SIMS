@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Item;
 use App\Models\Consumable;
 use App\Models\NonConsumable;
 use App\Models\ItemScanLog;
@@ -34,8 +33,10 @@ class QRCodeController extends Controller
      */
     public function test(): View
     {
-        // Get some sample items for testing
-        $items = Item::with('category')->take(5)->get();
+        // Get some sample items for testing from both consumables and non-consumables
+        $consumables = Consumable::with('category')->take(3)->get();
+        $nonConsumables = NonConsumable::with('category')->take(2)->get();
+        $items = $consumables->merge($nonConsumables);
         return view('qr.test', compact('items'));
     }
 
@@ -113,7 +114,16 @@ class QRCodeController extends Controller
                 ], 400);
             }
 
-            $item = Item::find($parsedData['id']);
+            // Try to find the item in consumables first
+            $item = Consumable::find($parsedData['id']);
+
+            // If not found in consumables, try non-consumables
+            if (!$item) {
+                $item = NonConsumable::find($parsedData['id']);
+                $itemType = 'non_consumable';
+            } else {
+                $itemType = 'consumable';
+            }
             
             if (!$item) {
                 return response()->json([
@@ -123,14 +133,16 @@ class QRCodeController extends Controller
             }
 
             // Log the scan in item_scan_logs table (as per ERD requirement)
-            ItemScanLog::logScan($item, [
+            ItemScanLog::logScan($item->id, $itemType, 'inventory_check', [
                 'location' => $request->input('location'), // Optional scan location
-                'scanner_type' => 'admin', // As per ERD, only admin can scan
-                'scan_data' => [
-                    'raw_qr_data' => $qrData,
-                    'parsed_data' => $parsedData,
-                    'scan_method' => $request->input('scan_method', 'camera'), // camera or manual
-                ]
+                'notes' => json_encode([
+                    'scanner_type' => 'admin', // As per ERD, only admin can scan
+                    'scan_data' => [
+                        'raw_qr_data' => $qrData,
+                        'parsed_data' => $parsedData,
+                        'scan_method' => $request->input('scan_method', 'camera'), // camera or manual
+                    ]
+                ])
             ]);
 
             // Prepare enhanced item data with holder and assignment information
@@ -139,28 +151,22 @@ class QRCodeController extends Controller
                 'id' => $itemData->id,
                 'name' => $itemData->name,
                 'description' => $itemData->description,
-                'barcode' => $itemData->barcode,
+                'product_code' => $itemData->product_code,
                 'category' => $itemData->category?->name,
                 'category_type' => $itemData->category?->type,
-                'current_stock' => $itemData->current_stock,
-                'unit' => $itemData->unit,
-                'location' => $itemData->location,
-                'condition' => $itemData->condition,
-                'is_non_consumable' => $itemData->category?->type === 'non-consumable',
-                'holder' => $itemData->currentHolder ? [
+                'quantity' => $itemData->quantity,
+                'brand' => $itemData->brand,
+                'location' => $itemData->location ?? 'Supply Office',
+                'condition' => $itemData->condition ?? 'Good',
+                'is_non_consumable' => $item instanceof NonConsumable,
+                'holder' => ($item instanceof NonConsumable && $itemData->currentHolder) ? [
                     'id' => $itemData->currentHolder->id,
                     'name' => $itemData->currentHolder->name,
                     'email' => $itemData->currentHolder->email,
                     'office' => $itemData->currentHolder->office?->name ?? 'Not assigned',
-                    'role' => $itemData->currentHolder->role,
-                ] : null,
-                'assignment' => $itemData->isAssigned() ? [
-                    'assigned_at' => $itemData->assigned_at?->format('M d, Y H:i'),
-                    'assigned_at_human' => $itemData->assigned_at?->diffForHumans(),
-                    'notes' => $itemData->assignment_notes,
                 ] : null,
                 'status' => $this->getItemStatus($itemData),
-                'last_scan' => $itemData->scanLogs()->latest()->first()?->scanned_at?->diffForHumans(),
+                'last_scan' => $itemData->scanLogs()->latest()->first()?->created_at?->diffForHumans(),
                 'total_scans' => $itemData->scanLogs()->count(),
             ];
 
@@ -216,33 +222,52 @@ class QRCodeController extends Controller
     /**
      * Get comprehensive item status
      */
-    private function getItemStatus(Item $item): array
+    private function getItemStatus($item): array
     {
         $status = [];
 
-        // Stock status
-        if ($item->isOutOfStock()) {
-            $status['stock'] = 'Out of Stock';
-            $status['stock_class'] = 'danger';
-        } elseif ($item->isLowStock()) {
-            $status['stock'] = 'Low Stock';
-            $status['stock_class'] = 'warning';
+        // Stock status - different logic for consumables vs non-consumables
+        if (method_exists($item, 'isOutOfStock')) {
+            if ($item->isOutOfStock()) {
+                $status['stock'] = 'Out of Stock';
+                $status['stock_class'] = 'danger';
+            } elseif (method_exists($item, 'isLowStock') && $item->isLowStock()) {
+                $status['stock'] = 'Low Stock';
+                $status['stock_class'] = 'warning';
+            } else {
+                $status['stock'] = 'In Stock';
+                $status['stock_class'] = 'success';
+            }
         } else {
-            $status['stock'] = 'In Stock';
-            $status['stock_class'] = 'success';
+            // For non-consumables, check quantity
+            if ($item->quantity <= 0) {
+                $status['stock'] = 'Out of Stock';
+                $status['stock_class'] = 'danger';
+            } elseif ($item->quantity <= $item->min_stock) {
+                $status['stock'] = 'Low Stock';
+                $status['stock_class'] = 'warning';
+            } else {
+                $status['stock'] = 'In Stock';
+                $status['stock_class'] = 'success';
+            }
         }
 
-        // Assignment status
-        if ($item->isAssigned()) {
-            $status['assignment'] = 'Assigned';
-            $status['assignment_class'] = 'info';
+        // Assignment status - only for non-consumables
+        if ($item instanceof NonConsumable) {
+            if ($item->current_holder_id) {
+                $status['assignment'] = 'Assigned';
+                $status['assignment_class'] = 'info';
+            } else {
+                $status['assignment'] = 'Available';
+                $status['assignment_class'] = 'success';
+            }
         } else {
-            $status['assignment'] = 'Available';
-            $status['assignment_class'] = 'success';
+            $status['assignment'] = 'N/A';
+            $status['assignment_class'] = 'secondary';
         }
 
         // Condition status
-        switch ($item->condition) {
+        switch ($item->condition ?? 'Good') {
             case 'New':
                 $status['condition'] = 'New';
                 $status['condition_class'] = 'success';
@@ -260,20 +285,20 @@ class QRCodeController extends Controller
                 $status['condition_class'] = 'danger';
                 break;
             default:
-                $status['condition'] = $item->condition;
+                $status['condition'] = $item->condition ?? 'Good';
                 $status['condition_class'] = 'secondary';
         }
 
         // Overall status
-        if ($item->isOutOfStock()) {
-            $status['overall'] = 'Unavailable';
-            $status['overall_class'] = 'danger';
-        } elseif ($item->isAssigned()) {
+        if ($item instanceof NonConsumable && !$item->current_holder_id) {
+            $status['overall'] = 'Available';
+            $status['overall_class'] = 'success';
+        } elseif ($item instanceof NonConsumable && $item->current_holder_id) {
             $status['overall'] = 'In Use';
             $status['overall_class'] = 'info';
         } else {
-            $status['overall'] = 'Available';
-            $status['overall_class'] = 'success';
+            $status['overall'] = 'Consumable';
+            $status['overall_class'] = 'primary';
         }
 
         return $status;
@@ -282,16 +307,16 @@ class QRCodeController extends Controller
     /**
      * Get scan result message
      */
-    private function getScanMessage(Item $item): string
+    private function getScanMessage($item): string
     {
-        if ($item->category?->type === 'non-consumable') {
-            if ($item->isAssigned()) {
-                return "Non-consumable item scanned. Currently assigned to {$item->currentHolder->name} at {$item->location}.";
+        if ($item instanceof NonConsumable) {
+            if ($item->current_holder_id) {
+                return "Non-consumable item scanned. Currently assigned at {$item->location}.";
             } else {
                 return "Non-consumable item scanned. Available for assignment at {$item->location}.";
             }
         } else {
-            return "Item scanned successfully. {$item->current_stock} {$item->unit} remaining in stock.";
+            return "Consumable item scanned. {$item->quantity} remaining in stock.";
         }
     }
 }

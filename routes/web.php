@@ -116,6 +116,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports/weekly-summary', [ReportsController::class, 'weeklySummary'])->name('reports.weekly-summary');
         Route::get('reports/weekly-requests', [ReportsController::class, 'weeklyRequests'])->name('reports.weekly-requests');
         Route::get('reports/monthly-summary', [ReportsController::class, 'monthlySummary'])->name('reports.monthly-summary');
+        Route::get('reports/quarterly-summary', [ReportsController::class, 'quarterlySummary'])->name('reports.quarterly-summary');
         Route::get('reports/annual-summary', [ReportsController::class, 'annualSummary'])->name('reports.annual-summary');
         
         // QR Scan Reports

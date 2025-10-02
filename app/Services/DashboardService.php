@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Consumable;
 use App\Models\NonConsumable;
-use App\Models\Item;
 use App\Models\Request as SupplyRequest;
 use App\Models\ActivityLog;
 use App\Models\User;
@@ -123,12 +122,12 @@ class DashboardService
         ];
     }
 
-        /**
+    /**
      * Get items that are low on stock.
      * 
      * @param int|null $limit Optional limit on results
      * @param User|null $user Optional user context for URL generation
-     * @return Collection<Item> Items with added properties: stock_percentage, stock_status, url
+     * @return Collection Items with added properties: stock_percentage, stock_status, url
      */
     public function getLowStockItems($limit = null, $user = null): Collection
     {

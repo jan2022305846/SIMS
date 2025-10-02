@@ -22,6 +22,7 @@ class ItemScanLog extends Model
 
     protected $fillable = [
         'item_id',
+        'item_type',
         'user_id',
         'action',
         'location_id',
@@ -33,11 +34,16 @@ class ItemScanLog extends Model
     ];
 
     /**
-     * Get the item that was scanned
+     * Get the item that was scanned (polymorphic relationship)
      */
     public function item()
     {
-        return $this->belongsTo(Item::class);
+        if ($this->item_type === 'consumable') {
+            return $this->belongsTo(\App\Models\Consumable::class, 'item_id');
+        } elseif ($this->item_type === 'non_consumable') {
+            return $this->belongsTo(\App\Models\NonConsumable::class, 'item_id');
+        }
+        return null;
     }
 
     /**
@@ -59,7 +65,7 @@ class ItemScanLog extends Model
     /**
      * Create a scan log entry
      */
-    public static function logScan(Item $item, string $action = 'inventory_check', array $data = []): self
+    public static function logScan($itemId, string $itemType, string $action = 'inventory_check', array $data = []): self
     {
         $locationId = null;
         if (isset($data['location_id'])) {
@@ -71,7 +77,8 @@ class ItemScanLog extends Model
         }
 
         return self::create([
-            'item_id' => $item->id,
+            'item_id' => $itemId,
+            'item_type' => $itemType,
             'user_id' => Auth::check() ? Auth::user()->id : null,
             'action' => $action,
             'location_id' => $locationId,
@@ -82,9 +89,9 @@ class ItemScanLog extends Model
     /**
      * Get scan logs for a specific item
      */
-    public static function forItem(Item $item)
+    public static function forItem($itemId)
     {
-        return self::where('item_id', $item->id)
+        return self::where('item_id', $itemId)
                    ->orderBy('created_at', 'desc');
     }
 
@@ -93,8 +100,7 @@ class ItemScanLog extends Model
      */
     public static function recent($limit = 20)
     {
-        return self::with('item')
-                   ->orderBy('created_at', 'desc')
+        return self::orderBy('created_at', 'desc')
                    ->limit($limit);
     }
 
@@ -103,8 +109,7 @@ class ItemScanLog extends Model
      */
     public static function betweenDates($startDate, $endDate)
     {
-        return self::with('item')
-                   ->whereBetween('created_at', [$startDate, $endDate])
+        return self::whereBetween('created_at', [$startDate, $endDate])
                    ->orderBy('created_at', 'desc');
     }
 
@@ -127,35 +132,45 @@ class ItemScanLog extends Model
             $query->whereBetween('created_at', [$startDate, $endDate]);
         }
 
+        $totalScans = $query->count();
+        $uniqueItemsScanned = $query->distinct('item_id')->count();
+        $uniqueUsersScanning = $query->distinct('user_id')->count();
+
+        // Get most scanned items (without item relationship for now)
+        $mostScannedItems = $query->selectRaw('item_id, COUNT(*) as scan_count')
+            ->groupBy('item_id')
+            ->orderBy('scan_count', 'desc')
+            ->take(10)
+            ->get()
+            ->map(function($scan) {
+                return [
+                    'item_id' => $scan->item_id,
+                    'scan_count' => $scan->scan_count
+                ];
+            });
+
+        // Get scans by location
+        $scansByLocation = $query->whereNotNull('location_id')
+            ->with('office')
+            ->get()
+            ->groupBy('location_id')
+            ->map(function($scans, $locationId) {
+                $office = $scans->first()->office;
+                return [
+                    'office_name' => $office ? $office->name : 'Unknown Office',
+                    'count' => $scans->count()
+                ];
+            })
+            ->sortByDesc('count')
+            ->pluck('count', 'office_name');
+
         return [
-            'total_scans' => $query->count(),
-            'unique_items_scanned' => $query->distinct('item_id')->count(),
-            'unique_users_scanning' => $query->distinct('user_id')->count(),
-            'most_scanned_items' => $query->selectRaw('item_id, COUNT(*) as scan_count')
-                ->with('item')
-                ->groupBy('item_id')
-                ->orderBy('scan_count', 'desc')
-                ->take(10)
-                ->get()
-                ->map(function($scan) {
-                    return [
-                        'item' => $scan->item,
-                        'scan_count' => $scan->scan_count
-                    ];
-                }),
-            'scans_by_location' => $query->whereNotNull('location_id')
-                ->with('office')
-                ->get()
-                ->groupBy('location_id')
-                ->map(function($scans, $locationId) {
-                    $office = $scans->first()->office;
-                    return [
-                        'office_name' => $office ? $office->name : 'Unknown Office',
-                        'count' => $scans->count()
-                    ];
-                })
-                ->sortByDesc('count')
-                ->pluck('count', 'office_name'),
+            'total_scans' => $totalScans,
+            'unique_items_scanned' => $uniqueItemsScanned,
+            'unique_users_scanning' => $uniqueUsersScanning,
+            'most_scanned_items' => $mostScannedItems,
+            'scans_by_location' => $scansByLocation,
+            'scans_by_scanner_type' => [], // Placeholder for now
         ];
     }
 
@@ -180,50 +195,74 @@ class ItemScanLog extends Model
     {
         $thresholdDate = now()->subDays($daysThreshold);
 
-        return \App\Models\Item::whereDoesntHave('scanLogs', function($query) use ($thresholdDate) {
+        // Get unscanned consumables
+        $unscannedConsumables = \App\Models\Consumable::whereDoesntHave('scanLogs', function($query) use ($thresholdDate) {
             $query->where('created_at', '>=', $thresholdDate);
         })->get();
+
+        // Get unscanned non-consumables
+        $unscannedNonConsumables = \App\Models\NonConsumable::whereDoesntHave('scanLogs', function($query) use ($thresholdDate) {
+            $query->where('created_at', '>=', $thresholdDate);
+        })->get();
+
+        // Combine results
+        return $unscannedConsumables->merge($unscannedNonConsumables);
     }
 
     /**
-     * Get scan frequency analysis
+     * Get scan frequency analysis for a specific item
      */
-    public static function getScanFrequencyAnalysis($itemId = null)
+    public static function getScanFrequencyAnalysis($itemId)
     {
-        $query = self::query();
-
-        if ($itemId) {
-            $query->where('item_id', $itemId);
-        }
-
-        $scans = $query->orderBy('created_at')->get();
+        $scans = self::where('item_id', $itemId)
+            ->orderBy('created_at')
+            ->get();
 
         if ($scans->isEmpty()) {
-            return [];
+            return [
+                'total_scans' => 0,
+                'first_scan' => null,
+                'last_scan' => null,
+                'average_days_between_scans' => null,
+                'scan_frequency' => 'never_scanned'
+            ];
         }
 
-        $frequency = [];
-        $previousScan = null;
+        $totalScans = $scans->count();
+        $firstScan = $scans->first()->created_at;
+        $lastScan = $scans->last()->created_at;
 
-        foreach ($scans as $scan) {
-            if ($previousScan) {
-                $daysDiff = $scan->created_at->diffInDays($previousScan->created_at);
-                $frequency[] = $daysDiff;
-            }
-            $previousScan = $scan;
+        // Calculate average days between scans
+        $averageDaysBetweenScans = null;
+        if ($totalScans > 1) {
+            $totalDays = $firstScan->diffInDays($lastScan);
+            $averageDaysBetweenScans = $totalDays / ($totalScans - 1);
+        }
+
+        // Determine scan frequency category
+        $scanFrequency = 'unknown';
+        if ($averageDaysBetweenScans === null) {
+            $scanFrequency = 'single_scan';
+        } elseif ($averageDaysBetweenScans <= 1) {
+            $scanFrequency = 'daily';
+        } elseif ($averageDaysBetweenScans <= 7) {
+            $scanFrequency = 'weekly';
+        } elseif ($averageDaysBetweenScans <= 30) {
+            $scanFrequency = 'monthly';
+        } elseif ($averageDaysBetweenScans <= 90) {
+            $scanFrequency = 'quarterly';
+        } else {
+            $scanFrequency = 'rarely';
         }
 
         return [
-            'average_days_between_scans' => !empty($frequency) ? round(array_sum($frequency) / count($frequency), 1) : 0,
-            'min_days_between_scans' => !empty($frequency) ? min($frequency) : 0,
-            'max_days_between_scans' => !empty($frequency) ? max($frequency) : 0,
-            'total_scans' => $scans->count(),
-            'first_scan' => $scans->first()->created_at,
-            'last_scan' => $scans->last()->created_at,
+            'total_scans' => $totalScans,
+            'first_scan' => $firstScan,
+            'last_scan' => $lastScan,
+            'average_days_between_scans' => $averageDaysBetweenScans,
+            'scan_frequency' => $scanFrequency
         ];
-    }
-
-    /**
+    }    /**
      * Get scan alerts for items that need attention
      */
     public static function getScanAlerts()
@@ -240,7 +279,6 @@ class ItemScanLog extends Model
         $unusualScans = self::selectRaw('item_id, DATE(created_at) as scan_date, COUNT(*) as daily_scans')
             ->groupBy('item_id', 'scan_date')
             ->having('daily_scans', '>', 10)
-            ->with('item')
             ->get();
 
         if ($unusualScans->count() > 0) {
