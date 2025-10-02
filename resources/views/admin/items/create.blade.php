@@ -61,33 +61,6 @@
                                 @enderror
                             </div>
 
-                            <div class="col-md-6">
-                                <label for="category_id" class="form-label fw-medium">Category *</label>
-                                <select name="category_id" id="category_id" 
-                                        class="form-select @error('category_id') is-invalid @enderror" required>
-                                    <option value="">Select Category</option>
-                                    @foreach($categories as $category)
-                                        <option value="{{ $category->id }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>
-                                            {{ $category->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('category_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <!-- Location field for non-consumables -->
-                            <div id="location-field" class="col-md-6 d-none">
-                                <label for="location" class="form-label fw-medium">Location *</label>
-                                <input type="text" name="location" id="location" 
-                                       class="form-control @error('location') is-invalid @enderror"
-                                       value="{{ old('location') }}" required>
-                                @error('location')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
                             <div class="col-12">
                                 <label for="description" class="form-label fw-medium">Description</label>
                                 <textarea name="description" id="description" rows="3"
@@ -103,6 +76,32 @@
                         <div id="product-details-section" class="d-none">
                             <h5 class="mb-3">Product Details</h5>
                             <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="category_id" class="form-label fw-medium">Category *</label>
+                                    <select name="category_id" id="category_id" 
+                                            class="form-select @error('category_id') is-invalid @enderror" required>
+                                        <option value="">Select Category</option>
+                                        @foreach($categories as $category)
+                                            <option value="{{ $category->id }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>
+                                                {{ $category->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('category_id')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="unit" class="form-label fw-medium">Unit *</label>
+                                    <input type="text" name="unit" id="unit" 
+                                           class="form-control @error('unit') is-invalid @enderror"
+                                           value="{{ old('unit', 'pcs') }}" placeholder="e.g., pcs, kg, liters" required>
+                                    @error('unit')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
                                 <div class="col-md-6">
                                     <label for="product_code" class="form-label fw-medium">Product Code/Barcode</label>
                                     <div class="input-group">
@@ -181,7 +180,7 @@
                                         <label for="quantity" class="form-label fw-medium">Current Stock *</label>
                                         <input type="number" name="quantity" id="quantity" min="0"
                                                class="form-control @error('quantity') is-invalid @enderror"
-                                               value="{{ old('quantity', 0) }}" required>
+                                               value="{{ old('quantity') }}" required>
                                         @error('quantity')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -191,7 +190,7 @@
                                         <label for="min_stock" class="form-label fw-medium">Minimum Stock *</label>
                                         <input type="number" name="min_stock" id="min_stock" min="0"
                                                class="form-control @error('min_stock') is-invalid @enderror"
-                                               value="{{ old('min_stock', 1) }}" required>
+                                               value="{{ old('min_stock') }}" required>
                                         @error('min_stock')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -201,28 +200,25 @@
                                         <label for="max_stock" class="form-label fw-medium">Maximum Stock</label>
                                         <input type="number" name="max_stock" id="max_stock" min="0"
                                                class="form-control @error('max_stock') is-invalid @enderror"
-                                               value="{{ old('max_stock', 100) }}">
+                                               value="{{ old('max_stock') }}">
                                         @error('max_stock')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
                                     </div>
                                 </div>
                             </div>
+                        </div>                        <!-- Submit button inside form -->
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <a href="{{ route('items.index') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i>
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>
+                                Create Item
+                            </button>
                         </div>
                     </form>
-                </div>
-
-                <div class="card-footer bg-white">
-                    <div class="d-flex justify-content-end gap-2">
-                        <a href="{{ route('items.index') }}" class="btn btn-secondary">
-                            <i class="fas fa-times me-1"></i>
-                            Cancel
-                        </a>
-                        <button type="submit" form="item-form" class="btn btn-primary">
-                            <i class="fas fa-save me-1"></i>
-                            Create Item
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>

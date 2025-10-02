@@ -1,34 +1,33 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid h-100 d-flex align-items-center">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-12">
-                <!-- Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4 mt-5">
-                    <h2 class="h3 fw-semibold text-dark mb-0">
-                        <i class="fas fa-box me-2 text-warning"></i>
-                        Item Management
-                    </h2>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <a href="{{ route('items.create') }}" 
-                           class="btn btn-warning fw-bold">
-                            <i class="fas fa-plus me-1"></i>
-                            Add New Item
-                        </a>
-                        <a href="{{ route('items.trashed') }}" 
-                           class="btn btn-secondary fw-bold">
-                            <i class="fas fa-trash me-1"></i>
-                            Trash
-                        </a>
-                        <a href="{{ route('items.low-stock') }}" 
-                           class="btn btn-danger fw-bold">
-                            <i class="fas fa-exclamation-triangle me-1"></i>
-                            Low Stock
-                        </a>
-                    </div>
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="h3 fw-semibold text-dark mb-0">
+                    <i class="fas fa-box me-2 text-warning"></i>
+                    Item Management
+                </h2>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{{ route('items.create') }}" 
+                       class="btn btn-warning fw-bold">
+                        <i class="fas fa-plus me-1"></i>
+                        Add New Item
+                    </a>
+                    <a href="{{ route('items.trashed') }}" 
+                       class="btn btn-secondary fw-bold">
+                        <i class="fas fa-trash me-1"></i>
+                        Trash
+                    </a>
+                    <a href="{{ route('items.low-stock') }}" 
+                       class="btn btn-danger fw-bold">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Low Stock
+                    </a>
                 </div>
+            </div>
 
                 <div class="card shadow-sm">
                     <div class="card-body">
@@ -92,7 +91,7 @@
                         </form>
 
                         <!-- Items Table -->
-                                        <div class="table-responsive position-relative">
+                        <div class="table-responsive position-relative">
                             <table class="table table-striped table-hover align-middle">
                                 <thead class="table-dark">
                                     <tr>
@@ -113,7 +112,7 @@
                                         </th>
                                     </tr>
                                 </thead>
-                        <tbody>
+                                <tbody>
                             @forelse($items as $item)
                                 <tr>
                                     <td>
@@ -225,12 +224,71 @@
                         </div>
                     @endif
                 @endif
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 </div>
+
+@if(session('success'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toast = document.createElement('div');
+            toast.className = 'toast align-items-center text-white bg-success border-0';
+            toast.setAttribute('role', 'alert');
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+
+            const toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.appendChild(toast);
+            document.body.appendChild(toastContainer);
+
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+
+            setTimeout(() => {
+                document.body.removeChild(toastContainer);
+            }, 5000);
+        });
+    </script>
+@endif
+
+@if(session('error') || $errors->any())
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toast = document.createElement('div');
+            toast.className = 'toast align-items-center text-white bg-danger border-0';
+            toast.setAttribute('role', 'alert');
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {{ session('error') ?? $errors->first() }}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+
+            const toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.appendChild(toast);
+            document.body.appendChild(toastContainer);
+
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+
+            setTimeout(() => {
+                document.body.removeChild(toastContainer);
+            }, 5000);
+        });
+    </script>
+@endif
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -240,60 +298,78 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // Auto-submit form on filter change
-    const categoryFilter = document.querySelector('select[name="category"]');
-    const typeFilter = document.querySelector('select[name="type"]');
-    const searchInput = document.querySelector('input[name="search"]');
-    const form = document.getElementById('searchForm'); // Target specific form
-    const loadingOverlay = document.getElementById('loading-overlay');
+    // Auto-submit form on select change - with protection against conflicts
+    const categoryFilter = document.getElementById('category');
+    const typeFilter = document.getElementById('type');
+    const stockFilter = document.getElementById('stock');
+    const searchInput = document.getElementById('search');
+    const form = document.getElementById('searchForm');
 
-    function showLoading() {
-        if (loadingOverlay) {
-            loadingOverlay.classList.remove('d-none');
-        }
+    // Add event listeners with null checks and event prevention
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', function(e) {
+            e.stopPropagation();
+            // Small delay to prevent conflicts with other form submissions
+            setTimeout(() => form.submit(), 50);
+        });
     }
 
-    // Check if form exists
-    if (!form) {
-        console.error('Search form not found!');
-        return;
+    if (typeFilter) {
+        typeFilter.addEventListener('change', function(e) {
+            e.stopPropagation();
+            setTimeout(() => form.submit(), 50);
+        });
     }
 
-    // Auto-submit on select change
-    categoryFilter.addEventListener('change', function() {
-        console.log('Category filter changed to:', this.value);
-        console.log('Form action:', form.action);
-        console.log('Form method:', form.method);
-        showLoading();
-        form.submit();
-    });
-
-    typeFilter.addEventListener('change', function() {
-        console.log('Type filter changed to:', this.value);
-        console.log('Form action:', form.action);
-        console.log('Form method:', form.method);
-        showLoading();
-        form.submit();
-    });
+    if (stockFilter) {
+        stockFilter.addEventListener('change', function(e) {
+            e.stopPropagation();
+            setTimeout(() => form.submit(), 50);
+        });
+    }
 
     // Auto-submit on search with debounce
     let searchTimeout;
-    searchInput.addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            showLoading();
-            form.submit();
-        }, 1000); // 1 second delay
-    });
-
-    // Submit on Enter key
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
             clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                form.submit();
+            }, 1000); // 1 second delay
+        });
+
+        // Submit on Enter key
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent default form submission
+                clearTimeout(searchTimeout);
+                form.submit();
+            }
+        });
+    }
+
+    // Show loading spinner function
+    function showLoading() {
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center';
+        loadingOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        loadingOverlay.style.zIndex = '9999';
+        loadingOverlay.innerHTML = `
+            <div class="spinner-border text-light" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        `;
+        document.body.appendChild(loadingOverlay);
+    }
+
+    // Add loading to filter form submission
+    if (form) {
+        form.addEventListener('submit', function(e) {
             showLoading();
             form.submit();
         }
     });
 });
 </script>
+@endsection
 @endsection

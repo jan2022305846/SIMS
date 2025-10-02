@@ -144,13 +144,8 @@ class ItemController extends Controller
             'item_type' => 'required|in:consumable,non_consumable',
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
-            'product_code' => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::unique('consumables')->whereNull('deleted_at'),
-                Rule::unique('non_consumables')->whereNull('deleted_at')
-            ],
+            'unit' => 'required|string|max:50',
+            'product_code' => 'nullable|string|max:255',
             'quantity' => 'required|integer|min:0',
             'min_stock' => 'required|integer|min:0',
             'max_stock' => 'nullable|integer|min:0',
@@ -169,6 +164,31 @@ class ItemController extends Controller
         
         // Generate unique QR code
         $data['qr_code'] = Str::uuid();
+
+        // Handle product_code: auto-generate if empty or duplicate
+        if (empty($data['product_code'])) {
+            // Generate a unique product code if none provided
+            do {
+                $data['product_code'] = 'PC-' . strtoupper(Str::random(8));
+            } while (
+                Consumable::where('product_code', $data['product_code'])->exists() ||
+                NonConsumable::where('product_code', $data['product_code'])->exists()
+            );
+        } else {
+            // Check if the provided product_code already exists
+            $existsInConsumables = Consumable::where('product_code', $data['product_code'])->exists();
+            $existsInNonConsumables = NonConsumable::where('product_code', $data['product_code'])->exists();
+            
+            if ($existsInConsumables || $existsInNonConsumables) {
+                // Auto-generate a new unique product code
+                do {
+                    $data['product_code'] = 'PC-' . strtoupper(Str::random(8));
+                } while (
+                    Consumable::where('product_code', $data['product_code'])->exists() ||
+                    NonConsumable::where('product_code', $data['product_code'])->exists()
+                );
+            }
+        }
 
         // Create item in the appropriate table based on item_type
         if ($request->item_type === 'consumable') {
@@ -252,6 +272,7 @@ class ItemController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
+            'unit' => 'required|string|max:50',
             'product_code' => [
                 'nullable',
                 'string',

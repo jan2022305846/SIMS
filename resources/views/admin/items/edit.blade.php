@@ -60,19 +60,11 @@
                             </div>
 
                             <div class="col-md-6">
-                                <label for="category_id" class="form-label fw-medium">Category *</label>
-                                <select name="category_id" id="category_id" 
-                                        class="form-select @error('category_id') is-invalid @enderror" required>
-                                    <option value="">Select Category</option>
-                                    @foreach($categories as $category)
-                                        <option value="{{ $category->id }}" {{ old('category_id', $item->category_id) == $category->id ? 'selected' : '' }}>
-                                            {{ $category->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('category_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
+                                <label class="form-label fw-medium">Item Type</label>
+                                <input type="text" class="form-control" value="{{ $item->item_type == 'consumable' ? 'Consumable' : 'Non-Consumable' }}" readonly>
+                                <div class="form-text">
+                                    <small class="text-muted">Item type cannot be changed after creation</small>
+                                </div>
                             </div>
 
                             <div class="col-12">
@@ -90,11 +82,37 @@
                         <h5 class="mb-3">Product Details</h5>
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label for="barcode" class="form-label fw-medium">Barcode/SKU</label>
-                                <input type="text" name="barcode" id="barcode" 
-                                       class="form-control @error('barcode') is-invalid @enderror"
-                                       value="{{ old('barcode', $item->barcode) }}">
-                                @error('barcode')
+                                <label for="category_id" class="form-label fw-medium">Category *</label>
+                                <select name="category_id" id="category_id" 
+                                        class="form-select @error('category_id') is-invalid @enderror" required>
+                                    <option value="">Select Category</option>
+                                    @foreach($categories as $category)
+                                        <option value="{{ $category->id }}" {{ old('category_id', $item->category_id) == $category->id ? 'selected' : '' }}>
+                                            {{ $category->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('category_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="unit" class="form-label fw-medium">Unit *</label>
+                                <input type="text" name="unit" id="unit" 
+                                       class="form-control @error('unit') is-invalid @enderror"
+                                       value="{{ old('unit', $item->unit) }}" placeholder="e.g., pcs, kg, liters" required>
+                                @error('unit')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="product_code" class="form-label fw-medium">Product Code/Barcode</label>
+                                <input type="text" name="product_code" id="product_code" 
+                                       class="form-control @error('product_code') is-invalid @enderror"
+                                       value="{{ old('product_code', $item->product_code) }}">
+                                @error('product_code')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
@@ -109,16 +127,7 @@
                                 @enderror
                             </div>
 
-                            <div class="col-md-6">
-                                <label for="supplier" class="form-label fw-medium">Supplier</label>
-                                <input type="text" name="supplier" id="supplier" 
-                                       class="form-control @error('supplier') is-invalid @enderror"
-                                       value="{{ old('supplier', $item->supplier) }}">
-                                @error('supplier')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
+                            @if($item->item_type == 'non_consumable')
                             <div class="col-md-6">
                                 <label for="location" class="form-label fw-medium">Location *</label>
                                 <input type="text" name="location" id="location" 
@@ -128,6 +137,21 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
+
+                            <div class="col-md-6">
+                                <label for="condition" class="form-label fw-medium">Condition *</label>
+                                <select name="condition" id="condition" 
+                                        class="form-select @error('condition') is-invalid @enderror" required>
+                                    <option value="New" {{ old('condition', $item->condition) == 'New' ? 'selected' : '' }}>New</option>
+                                    <option value="Good" {{ old('condition', $item->condition) == 'Good' ? 'selected' : '' }}>Good</option>
+                                    <option value="Fair" {{ old('condition', $item->condition) == 'Fair' ? 'selected' : '' }}>Fair</option>
+                                    <option value="Needs Repair" {{ old('condition', $item->condition) == 'Needs Repair' ? 'selected' : '' }}>Needs Repair</option>
+                                </select>
+                                @error('condition')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            @endif
                         </div>
 
                         <!-- Stock Management -->
@@ -142,63 +166,31 @@
                             <div class="card-body">
                                 <div class="row g-3">
                                     <div class="col-md-4">
-                                        <label for="current_stock" class="form-label fw-medium">Current Stock *</label>
-                                        <input type="number" name="current_stock" id="current_stock" min="0"
-                                               class="form-control @error('current_stock') is-invalid @enderror"
-                                               value="{{ old('current_stock', $item->current_stock ?? $item->quantity) }}" required>
-                                        @error('current_stock')
+                                        <label for="quantity" class="form-label fw-medium">Current Stock *</label>
+                                        <input type="number" name="quantity" id="quantity" min="0"
+                                               class="form-control @error('quantity') is-invalid @enderror"
+                                               value="{{ old('quantity', $item->quantity) }}" required>
+                                        @error('quantity')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
                                     </div>
 
                                     <div class="col-md-4">
-                                        <label for="minimum_stock" class="form-label fw-medium">Minimum Stock *</label>
-                                        <input type="number" name="minimum_stock" id="minimum_stock" min="0"
-                                               class="form-control @error('minimum_stock') is-invalid @enderror"
-                                               value="{{ old('minimum_stock', $item->minimum_stock) }}" required>
-                                        @error('minimum_stock')
+                                        <label for="min_stock" class="form-label fw-medium">Minimum Stock *</label>
+                                        <input type="number" name="min_stock" id="min_stock" min="0"
+                                               class="form-control @error('min_stock') is-invalid @enderror"
+                                               value="{{ old('min_stock', $item->min_stock) }}" required>
+                                        @error('min_stock')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
                                     </div>
 
                                     <div class="col-md-4">
-                                        <label for="maximum_stock" class="form-label fw-medium">Maximum Stock</label>
-                                        <input type="number" name="maximum_stock" id="maximum_stock" min="0"
-                                               class="form-control @error('maximum_stock') is-invalid @enderror"
-                                               value="{{ old('maximum_stock', $item->maximum_stock) }}">
-                                        @error('maximum_stock')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label for="unit" class="form-label fw-medium">Unit of Measurement</label>
-                                        <select name="unit" id="unit" 
-                                                class="form-select @error('unit') is-invalid @enderror">
-                                            <option value="">Select Unit</option>
-                                            <option value="pieces" {{ old('unit', $item->unit) == 'pieces' ? 'selected' : '' }}>Pieces</option>
-                                            <option value="boxes" {{ old('unit', $item->unit) == 'boxes' ? 'selected' : '' }}>Boxes</option>
-                                            <option value="reams" {{ old('unit', $item->unit) == 'reams' ? 'selected' : '' }}>Reams</option>
-                                            <option value="bottles" {{ old('unit', $item->unit) == 'bottles' ? 'selected' : '' }}>Bottles</option>
-                                            <option value="packs" {{ old('unit', $item->unit) == 'packs' ? 'selected' : '' }}>Packs</option>
-                                            <option value="liters" {{ old('unit', $item->unit) == 'liters' ? 'selected' : '' }}>Liters</option>
-                                            <option value="kg" {{ old('unit', $item->unit) == 'kg' ? 'selected' : '' }}>Kilograms</option>
-                                        </select>
-                                        @error('unit')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label for="condition" class="form-label fw-medium">Condition *</label>
-                                        <select name="condition" id="condition" 
-                                                class="form-select @error('condition') is-invalid @enderror" required>
-                                            <option value="New" {{ old('condition', $item->condition) == 'New' ? 'selected' : '' }}>New</option>
-                                            <option value="Good" {{ old('condition', $item->condition) == 'Good' ? 'selected' : '' }}>Good</option>
-                                            <option value="Fair" {{ old('condition', $item->condition) == 'Fair' ? 'selected' : '' }}>Fair</option>
-                                            <option value="Needs Repair" {{ old('condition', $item->condition) == 'Needs Repair' ? 'selected' : '' }}>Needs Repair</option>
-                                        </select>
-                                        @error('condition')
+                                        <label for="max_stock" class="form-label fw-medium">Maximum Stock</label>
+                                        <input type="number" name="max_stock" id="max_stock" min="0"
+                                               class="form-control @error('max_stock') is-invalid @enderror"
+                                               value="{{ old('max_stock', $item->max_stock) }}">
+                                        @error('max_stock')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
                                     </div>

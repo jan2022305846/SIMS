@@ -270,14 +270,29 @@ function processScannedData(data, source) {
         } else {
             // Item not found
             resultDiv.innerHTML = `
-                <div class="alert alert-warning d-flex align-items-center mt-3">
+                <div class="alert alert-warning d-flex align-items-center mt-3 position-relative">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <div>
                         <strong class="small">Item Not Found</strong>
                         <div class="small">No item found with code: ${data}</div>
                     </div>
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Close" id="closeNotFoundAlert"></button>
                 </div>
             `;
+            resultDiv.style.display = 'block';
+            // Auto-close after 5 seconds
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 5000);
+            // Manual close button
+            setTimeout(() => {
+                const closeBtn = document.getElementById('closeNotFoundAlert');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function() {
+                        resultDiv.style.display = 'none';
+                    });
+                }
+            }, 100);
         }
     })
     .catch(error => {
