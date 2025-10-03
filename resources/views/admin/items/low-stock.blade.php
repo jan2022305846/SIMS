@@ -142,13 +142,13 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
-                                                    <a href="{{ route('items.show', $item) }}"
+                                                    <a href="{{ route('items.show', $item->id) }}?type={{ $item->item_type }}"
                                                        class="btn btn-outline-info"
                                                        data-bs-toggle="tooltip"
                                                        title="View Details">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
-                                                    <a href="{{ route('items.edit', $item) }}"
+                                                    <a href="{{ route('items.edit', $item->id) }}?type={{ $item->item_type }}"
                                                        class="btn btn-outline-warning"
                                                        data-bs-toggle="tooltip"
                                                        title="Edit Item">

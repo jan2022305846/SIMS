@@ -12,10 +12,6 @@
                             Edit Item: {{ $item->name }}
                         </h1>
                         <div class="d-flex gap-2 mt-2 mt-md-0">
-                            <a href="{{ route('qr.download', $item) }}" class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-qrcode me-1"></i>
-                                Download QR
-                            </a>
                             <a href="{{ route('items.show', $item) }}" class="btn btn-success btn-sm">
                                 <i class="fas fa-eye me-1"></i>
                                 View Item
@@ -60,11 +56,19 @@
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label fw-medium">Item Type</label>
-                                <input type="text" class="form-control" value="{{ $item->item_type == 'consumable' ? 'Consumable' : 'Non-Consumable' }}" readonly>
-                                <div class="form-text">
-                                    <small class="text-muted">Item type cannot be changed after creation</small>
-                                </div>
+                                <label for="category_id" class="form-label fw-medium">Category *</label>
+                                <select name="category_id" id="category_id" 
+                                        class="form-select @error('category_id') is-invalid @enderror" required>
+                                    <option value="">Select Category</option>
+                                    @foreach($categories as $category)
+                                        <option value="{{ $category->id }}" {{ old('category_id', $item->category_id) == $category->id ? 'selected' : '' }}>
+                                            {{ $category->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('category_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             <div class="col-12">
@@ -81,22 +85,6 @@
                         <hr class="my-4">
                         <h5 class="mb-3">Product Details</h5>
                         <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="category_id" class="form-label fw-medium">Category *</label>
-                                <select name="category_id" id="category_id" 
-                                        class="form-select @error('category_id') is-invalid @enderror" required>
-                                    <option value="">Select Category</option>
-                                    @foreach($categories as $category)
-                                        <option value="{{ $category->id }}" {{ old('category_id', $item->category_id) == $category->id ? 'selected' : '' }}>
-                                            {{ $category->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('category_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
                             <div class="col-md-6">
                                 <label for="unit" class="form-label fw-medium">Unit *</label>
                                 <input type="text" name="unit" id="unit" 
@@ -127,7 +115,7 @@
                                 @enderror
                             </div>
 
-                            @if($item->item_type == 'non_consumable')
+                            @if($item instanceof \App\Models\NonConsumable)
                             <div class="col-md-6">
                                 <label for="location" class="form-label fw-medium">Location *</label>
                                 <input type="text" name="location" id="location" 
@@ -198,59 +186,6 @@
                             </div>
                         </div>
 
-                        <!-- Dates -->
-                        <hr class="my-4">
-                        <h5 class="mb-3">Date Information</h5>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="warranty_date" class="form-label fw-medium">Warranty Expiry Date</label>
-                                <input type="date" name="warranty_date" id="warranty_date" 
-                                       class="form-control @error('warranty_date') is-invalid @enderror"
-                                       value="{{ old('warranty_date', $item->warranty_date?->format('Y-m-d')) }}">
-                                @error('warranty_date')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <div class="col-md-6">
-                                <label for="expiry_date" class="form-label fw-medium">Product Expiry Date</label>
-                                <input type="date" name="expiry_date" id="expiry_date" 
-                                       class="form-control @error('expiry_date') is-invalid @enderror"
-                                       value="{{ old('expiry_date', $item->expiry_date?->format('Y-m-d')) }}">
-                                @error('expiry_date')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <!-- QR Code Section -->
-                        <hr class="my-4">
-                        <div class="card border-primary">
-                            <div class="card-header bg-primary bg-opacity-10">
-                                <h5 class="card-title mb-0 text-primary">
-                                    <i class="fas fa-qrcode me-2"></i>
-                                    QR Code Information
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3 align-items-center">
-                                    <div class="col-md-8">
-                                        <p class="mb-2">
-                                            Current QR Code: <span class="fw-bold text-primary">{{ $item->qr_code }}</span>
-                                        </p>
-                                        <p class="text-muted small mb-0">QR codes are automatically generated when the item is saved.</p>
-                                    </div>
-                                    <div class="col-md-4 text-center">
-                                        <div id="qr-preview" class="mb-3"></div>
-                                        <button type="button" onclick="generateQRPreview()" 
-                                                class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-eye me-1"></i>
-                                            Preview QR Code
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </form>
                 </div>
 
@@ -271,28 +206,4 @@
     </div>
 </div>
 
-<script>
-function generateQRPreview() {
-    const itemId = {{ $item->id }};
-    fetch(`/qr/generate/${itemId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('qr-preview').innerHTML = 
-                `<img src="${data.qr_code}" alt="QR Code" class="img-thumbnail" style="width: 120px; height: 120px;">`;
-        } else {
-            alert('Failed to generate QR code: ' + data.message);
-        }
-    })
-    .catch(error => {
-        alert('Error generating QR code: ' + error.message);
-    });
-}
-</script>
 @endsection

@@ -192,7 +192,7 @@ function generateTestQR() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displayQRCode(data.qr_code, data.item.qr_code_data);
+                displayQRCode(data.qr_code, data.qr_data);
             } else {
                 alert('Failed to generate QR code: ' + data.message);
             }

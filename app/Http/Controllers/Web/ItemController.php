@@ -67,19 +67,21 @@ class ItemController extends Controller
         // Handle type filter
         if ($request->filled('type')) {
             if ($request->type === 'consumable') {
-                $nonConsumables = collect(); // Only show consumables
+                // Only show consumables - apply all filters to consumables query
                 $consumables = $consumablesQuery->get()->map(function ($item) {
                     $item->item_type = 'consumable';
                     return $item;
                 });
+                $nonConsumables = collect(); // Empty collection for non-consumables
             } elseif ($request->type === 'non_consumable') {
-                $consumables = collect(); // Only show non-consumables
+                // Only show non-consumables - apply all filters to non-consumables query
+                $consumables = collect(); // Empty collection for consumables
                 $nonConsumables = $nonConsumablesQuery->get()->map(function ($item) {
                     $item->item_type = 'non_consumable';
                     return $item;
                 });
             } else {
-                // Show all types
+                // Show all types - apply all filters to both queries
                 $consumables = $consumablesQuery->get()->map(function ($item) {
                     $item->item_type = 'consumable';
                     return $item;
@@ -90,7 +92,7 @@ class ItemController extends Controller
                 });
             }
         } else {
-            // Get paginated results
+            // No type filter - get all items with applied filters
             $consumables = $consumablesQuery->get()->map(function ($item) {
                 $item->item_type = 'consumable';
                 return $item;
@@ -206,15 +208,43 @@ class ItemController extends Controller
      */
     public function show($id)
     {
-        // Try to find the item in consumables first
-        $item = Consumable::with('category')->find($id);
+        $type = request('type'); // Get the type from query parameter
 
-        // If not found in consumables, try non-consumables
-        if (!$item) {
+        // If type is specified, search the appropriate table first
+        if ($type === 'consumable') {
+            $item = Consumable::with('category')->find($id);
+            if (!$item) {
+                // If not found in consumables, try non-consumables as fallback
+                $item = NonConsumable::with('category')->find($id);
+            }
+        } elseif ($type === 'non_consumable') {
             $item = NonConsumable::with('category')->find($id);
+            if (!$item) {
+                // If not found in non-consumables, try consumables as fallback
+                $item = Consumable::with('category')->find($id);
+            }
+        } else {
+            // No type specified - use the original logic
+            // First try to find in consumables
+            $consumableItem = Consumable::with('category')->find($id);
+
+            // Then try to find in non-consumables
+            $nonConsumableItem = NonConsumable::with('category')->find($id);
+
+            // Determine which item to show based on availability and context
+            if ($consumableItem && $nonConsumableItem) {
+                // Both exist - this shouldn't happen in a properly normalized database
+                // but if it does, prioritize based on some logic (e.g., most recently updated)
+                $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+            } elseif ($consumableItem) {
+                $item = $consumableItem;
+            } elseif ($nonConsumableItem) {
+                $item = $nonConsumableItem;
+            } else {
+                abort(404, 'Item not found');
+            }
         }
 
-        // If still not found, return 404
         if (!$item) {
             abort(404, 'Item not found');
         }
@@ -231,15 +261,42 @@ class ItemController extends Controller
      */
     public function edit($id)
     {
-        // Try to find the item in consumables first
-        $item = Consumable::find($id);
+        $type = request('type'); // Get the type from query parameter
 
-        // If not found in consumables, try non-consumables
-        if (!$item) {
+        // If type is specified, search the appropriate table first
+        if ($type === 'consumable') {
+            $item = Consumable::find($id);
+            if (!$item) {
+                // If not found in consumables, try non-consumables as fallback
+                $item = NonConsumable::find($id);
+            }
+        } elseif ($type === 'non_consumable') {
             $item = NonConsumable::find($id);
+            if (!$item) {
+                // If not found in non-consumables, try consumables as fallback
+                $item = Consumable::find($id);
+            }
+        } else {
+            // No type specified - use the original logic
+            // First try to find in consumables
+            $consumableItem = Consumable::find($id);
+
+            // Then try to find in non-consumables
+            $nonConsumableItem = NonConsumable::find($id);
+
+            // Determine which item to edit based on availability
+            if ($consumableItem && $nonConsumableItem) {
+                // Both exist - prioritize based on most recently updated
+                $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+            } elseif ($consumableItem) {
+                $item = $consumableItem;
+            } elseif ($nonConsumableItem) {
+                $item = $nonConsumableItem;
+            } else {
+                abort(404, 'Item not found');
+            }
         }
 
-        // If still not found, return 404
         if (!$item) {
             abort(404, 'Item not found');
         }
@@ -253,15 +310,42 @@ class ItemController extends Controller
      */
     public function update(Request $request, $id)
     {
-        // Try to find the item in consumables first
-        $item = Consumable::find($id);
+        $type = request('type'); // Get the type from query parameter
 
-        // If not found in consumables, try non-consumables
-        if (!$item) {
+        // If type is specified, search the appropriate table first
+        if ($type === 'consumable') {
+            $item = Consumable::find($id);
+            if (!$item) {
+                // If not found in consumables, try non-consumables as fallback
+                $item = NonConsumable::find($id);
+            }
+        } elseif ($type === 'non_consumable') {
             $item = NonConsumable::find($id);
+            if (!$item) {
+                // If not found in non-consumables, try consumables as fallback
+                $item = Consumable::find($id);
+            }
+        } else {
+            // No type specified - use the original logic
+            // First try to find in consumables
+            $consumableItem = Consumable::find($id);
+
+            // Then try to find in non-consumables
+            $nonConsumableItem = NonConsumable::find($id);
+
+            // Determine which item to update based on availability
+            if ($consumableItem && $nonConsumableItem) {
+                // Both exist - prioritize based on most recently updated
+                $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+            } elseif ($consumableItem) {
+                $item = $consumableItem;
+            } elseif ($nonConsumableItem) {
+                $item = $nonConsumableItem;
+            } else {
+                abort(404, 'Item not found');
+            }
         }
 
-        // If still not found, return 404
         if (!$item) {
             abort(404, 'Item not found');
         }
@@ -295,7 +379,7 @@ class ItemController extends Controller
 
         $item->update($request->all());
 
-        return redirect()->route('items.show', $item)
+        return redirect()->route('items.show', $item->id . '?type=' . ($item instanceof Consumable ? 'consumable' : 'non_consumable'))
             ->with('success', 'Item updated successfully.');
     }
 
@@ -304,16 +388,21 @@ class ItemController extends Controller
      */
     public function destroy($id)
     {
-        // Try to find the item in consumables first
-        $item = Consumable::find($id);
+        // First try to find in consumables
+        $consumableItem = Consumable::find($id);
 
-        // If not found in consumables, try non-consumables
-        if (!$item) {
-            $item = NonConsumable::find($id);
-        }
+        // Then try to find in non-consumables
+        $nonConsumableItem = NonConsumable::find($id);
 
-        // If still not found, return 404
-        if (!$item) {
+        // Determine which item to delete based on availability
+        if ($consumableItem && $nonConsumableItem) {
+            // Both exist - prioritize based on most recently updated
+            $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+        } elseif ($consumableItem) {
+            $item = $consumableItem;
+        } elseif ($nonConsumableItem) {
+            $item = $nonConsumableItem;
+        } else {
             abort(404, 'Item not found');
         }
 
@@ -537,16 +626,21 @@ class ItemController extends Controller
      */
     public function restock(Request $request, $id)
     {
-        // Try to find the item in consumables first
-        $item = Consumable::find($id);
+        // First try to find in consumables
+        $consumableItem = Consumable::find($id);
 
-        // If not found in consumables, try non-consumables
-        if (!$item) {
-            $item = NonConsumable::find($id);
-        }
+        // Then try to find in non-consumables
+        $nonConsumableItem = NonConsumable::find($id);
 
-        // If still not found, return 404
-        if (!$item) {
+        // Determine which item to restock based on availability
+        if ($consumableItem && $nonConsumableItem) {
+            // Both exist - prioritize based on most recently updated
+            $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+        } elseif ($consumableItem) {
+            $item = $consumableItem;
+        } elseif ($nonConsumableItem) {
+            $item = $nonConsumableItem;
+        } else {
             abort(404, 'Item not found');
         }
 
@@ -756,16 +850,21 @@ class ItemController extends Controller
      */
     public function showAssignForm($id)
     {
-        // Try to find the item in consumables first
-        $item = Consumable::find($id);
+        // First try to find in consumables
+        $consumableItem = Consumable::find($id);
 
-        // If not found in consumables, try non-consumables
-        if (!$item) {
-            $item = NonConsumable::find($id);
-        }
+        // Then try to find in non-consumables
+        $nonConsumableItem = NonConsumable::find($id);
 
-        // If still not found, return 404
-        if (!$item) {
+        // Determine which item to assign based on availability
+        if ($consumableItem && $nonConsumableItem) {
+            // Both exist - prioritize based on most recently updated
+            $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+        } elseif ($consumableItem) {
+            $item = $consumableItem;
+        } elseif ($nonConsumableItem) {
+            $item = $nonConsumableItem;
+        } else {
             abort(404, 'Item not found');
         }
 
@@ -780,16 +879,21 @@ class ItemController extends Controller
      */
     public function assign(Request $request, $id)
     {
-        // Try to find the item in consumables first
-        $item = Consumable::find($id);
+        // First try to find in consumables
+        $consumableItem = Consumable::find($id);
 
-        // If not found in consumables, try non-consumables
-        if (!$item) {
-            $item = NonConsumable::find($id);
-        }
+        // Then try to find in non-consumables
+        $nonConsumableItem = NonConsumable::find($id);
 
-        // If still not found, return 404
-        if (!$item) {
+        // Determine which item to assign based on availability
+        if ($consumableItem && $nonConsumableItem) {
+            // Both exist - prioritize based on most recently updated
+            $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+        } elseif ($consumableItem) {
+            $item = $consumableItem;
+        } elseif ($nonConsumableItem) {
+            $item = $nonConsumableItem;
+        } else {
             abort(404, 'Item not found');
         }
 
@@ -814,7 +918,7 @@ class ItemController extends Controller
             }
         }
 
-        return redirect()->route('items.show', $item)
+        return redirect()->route('items.show', $item->id . '?type=' . ($item instanceof Consumable ? 'consumable' : 'non_consumable'))
             ->with('success', "Item '{$item->name}' has been assigned to {$user->name}.");
     }
 
@@ -823,15 +927,42 @@ class ItemController extends Controller
      */
     public function unassign($id)
     {
-        // Try to find the item in consumables first
-        $item = Consumable::find($id);
+        $type = request('type'); // Get the type from query parameter
 
-        // If not found in consumables, try non-consumables
-        if (!$item) {
+        // If type is specified, search the appropriate table first
+        if ($type === 'consumable') {
+            $item = Consumable::find($id);
+            if (!$item) {
+                // If not found in consumables, try non-consumables as fallback
+                $item = NonConsumable::find($id);
+            }
+        } elseif ($type === 'non_consumable') {
             $item = NonConsumable::find($id);
+            if (!$item) {
+                // If not found in non-consumables, try consumables as fallback
+                $item = Consumable::find($id);
+            }
+        } else {
+            // No type specified - use the original logic
+            // First try to find in consumables
+            $consumableItem = Consumable::find($id);
+
+            // Then try to find in non-consumables
+            $nonConsumableItem = NonConsumable::find($id);
+
+            // Determine which item to unassign based on availability
+            if ($consumableItem && $nonConsumableItem) {
+                // Both exist - prioritize based on most recently updated
+                $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+            } elseif ($consumableItem) {
+                $item = $consumableItem;
+            } elseif ($nonConsumableItem) {
+                $item = $nonConsumableItem;
+            } else {
+                abort(404, 'Item not found');
+            }
         }
 
-        // If still not found, return 404
         if (!$item) {
             abort(404, 'Item not found');
         }
@@ -847,11 +978,11 @@ class ItemController extends Controller
             $item->update(['current_holder_id' => null]);
         } else {
             // For consumables, just return success (they don't have holders)
-            return redirect()->route('items.show', $item)
+            return redirect()->route('items.show', $item->id . '?type=' . ($item instanceof Consumable ? 'consumable' : 'non_consumable'))
                 ->with('error', 'Consumable items cannot be assigned to users.');
         }
 
-        return redirect()->route('items.show', $item)
+        return redirect()->route('items.show', $item->id . '?type=' . ($item instanceof Consumable ? 'consumable' : 'non_consumable'))
             ->with('success', "Item '{$item->name}' has been returned from {$holderName}.");
     }
 

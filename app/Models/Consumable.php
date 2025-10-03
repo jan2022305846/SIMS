@@ -71,4 +71,64 @@ class Consumable extends Model
             $this->product_code
         );
     }
+
+    /**
+     * Check if item is out of stock
+     *
+     * @return bool
+     */
+    public function isOutOfStock(): bool
+    {
+        return $this->quantity <= 0;
+    }
+
+    /**
+     * Check if item is low on stock
+     *
+     * @return bool
+     */
+    public function isLowStock(): bool
+    {
+        return $this->quantity <= $this->min_stock && $this->quantity > 0;
+    }
+
+    /**
+     * Get stock percentage relative to minimum stock
+     *
+     * @return float
+     */
+    public function getStockPercentage(): float
+    {
+        if ($this->min_stock <= 0) {
+            return $this->quantity > 0 ? 100.0 : 0.0;
+        }
+
+        return min(($this->quantity / $this->min_stock) * 100, 100.0);
+    }
+
+    /**
+     * Get stock status as string
+     *
+     * @return string
+     */
+    public function getStockStatus(): string
+    {
+        if ($this->isOutOfStock()) {
+            return 'Out of Stock';
+        } elseif ($this->isLowStock()) {
+            return 'Low Stock';
+        } else {
+            return 'In Stock';
+        }
+    }
+
+    /**
+     * Check if item is assigned (consumables are typically not assigned to specific users)
+     *
+     * @return bool
+     */
+    public function isAssigned(): bool
+    {
+        return false;
+    }
 }

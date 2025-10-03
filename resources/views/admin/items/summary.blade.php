@@ -272,7 +272,7 @@
                                                     </div>
                                                     <div>
                                                         <h6 class="mb-1 fw-semibold">
-                                                            <a href="{{ route('items.show', $item) }}" 
+                                                            <a href="{{ route('items.show', $item->id) }}?type={{ $item->item_type }}" 
                                                                class="text-decoration-none text-dark">
                                                                 {{ $item->name }}
                                                             </a>
@@ -322,11 +322,11 @@
                                             
                                             <td>
                                                 <div class="btn-group btn-group-sm">
-                                                    <a href="{{ route('items.show', $item) }}" 
+                                                    <a href="{{ route('items.show', $item->id) }}?type={{ $item->item_type }}" 
                                                        class="btn btn-outline-primary btn-sm">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
-                                                    <a href="{{ route('items.edit', $item) }}" 
+                                                    <a href="{{ route('items.edit', $item->id) }}?type={{ $item->item_type }}" 
                                                        class="btn btn-outline-warning btn-sm">
                                                         <i class="fas fa-edit"></i>
                                                     </a>

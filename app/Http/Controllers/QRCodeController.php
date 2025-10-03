@@ -53,16 +53,21 @@ class QRCodeController extends Controller
      */
     public function generate($id): JsonResponse
     {
-        // Try to find the item in consumables first
-        $item = Consumable::find($id);
+        // First try to find in consumables
+        $consumableItem = Consumable::find($id);
 
-        // If not found in consumables, try non-consumables
-        if (!$item) {
-            $item = NonConsumable::find($id);
-        }
+        // Then try to find in non-consumables
+        $nonConsumableItem = NonConsumable::find($id);
 
-        // If still not found, return 404
-        if (!$item) {
+        // Determine which item to use based on availability
+        if ($consumableItem && $nonConsumableItem) {
+            // Both exist - prioritize based on most recently updated
+            $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+        } elseif ($consumableItem) {
+            $item = $consumableItem;
+        } elseif ($nonConsumableItem) {
+            $item = $nonConsumableItem;
+        } else {
             return response()->json([
                 'success' => false,
                 'message' => 'Item not found'
@@ -72,7 +77,7 @@ class QRCodeController extends Controller
         try {
             $qrCodeDataUrl = $item->getQRCodeDataUrl();
 
-            // Update the item's QR code data
+            // Generate QR data for display
             $qrData = [
                 'type' => 'item',
                 'id' => $item->id,
@@ -81,12 +86,10 @@ class QRCodeController extends Controller
                 'url' => route('items.show', $item->id)
             ];
 
-            $item->qr_code_data = json_encode($qrData);
-            $item->save();
-
             return response()->json([
                 'success' => true,
                 'qr_code' => $qrCodeDataUrl,
+                'qr_data' => json_encode($qrData),
                 'item' => $item
             ]);
         } catch (\Exception $e) {
@@ -114,18 +117,24 @@ class QRCodeController extends Controller
                 ], 400);
             }
 
-            // Try to find the item in consumables first
-            $item = Consumable::find($parsedData['id']);
+            // First try to find in consumables
+            $consumableItem = Consumable::find($parsedData['id']);
 
-            // If not found in consumables, try non-consumables
-            if (!$item) {
-                $item = NonConsumable::find($parsedData['id']);
+            // Then try to find in non-consumables
+            $nonConsumableItem = NonConsumable::find($parsedData['id']);
+
+            // Determine which item to use based on availability
+            if ($consumableItem && $nonConsumableItem) {
+                // Both exist - prioritize based on most recently updated
+                $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+                $itemType = $item instanceof Consumable ? 'consumable' : 'non_consumable';
+            } elseif ($consumableItem) {
+                $item = $consumableItem;
+                $itemType = 'consumable';
+            } elseif ($nonConsumableItem) {
+                $item = $nonConsumableItem;
                 $itemType = 'non_consumable';
             } else {
-                $itemType = 'consumable';
-            }
-            
-            if (!$item) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Item not found'
@@ -191,16 +200,21 @@ class QRCodeController extends Controller
      */
     public function download($id)
     {
-        // Try to find the item in consumables first
-        $item = Consumable::find($id);
+        // First try to find in consumables
+        $consumableItem = Consumable::find($id);
 
-        // If not found in consumables, try non-consumables
-        if (!$item) {
-            $item = NonConsumable::find($id);
-        }
+        // Then try to find in non-consumables
+        $nonConsumableItem = NonConsumable::find($id);
 
-        // If still not found, return 404
-        if (!$item) {
+        // Determine which item to use based on availability
+        if ($consumableItem && $nonConsumableItem) {
+            // Both exist - prioritize based on most recently updated
+            $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+        } elseif ($consumableItem) {
+            $item = $consumableItem;
+        } elseif ($nonConsumableItem) {
+            $item = $nonConsumableItem;
+        } else {
             return back()->with('error', 'Item not found');
         }
 
