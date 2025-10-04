@@ -837,6 +837,7 @@ class ItemController extends Controller
                 'category' => $item->category ? $item->category->name : 'N/A',
                 'quantity' => $item->quantity,
                 'min_stock' => $item->min_stock,
+                'unit' => $item->unit ?? 'pcs',
                 'location' => $item->location ?? 'N/A',
                 'condition' => $item->condition ?? 'N/A',
                 'description' => $item->description,

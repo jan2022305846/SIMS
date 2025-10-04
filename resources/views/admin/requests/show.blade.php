@@ -315,18 +315,21 @@
                             
                             @if($request->canBeClaimed())
                                 <div class="mb-3">
-                                    <label for="claim_barcode" class="form-label fw-medium">Scan Claim Slip Barcode</label>
+                                    <label for="claim_barcode" class="form-label fw-medium">
+                                        <i class="fas fa-ticket-alt text-primary me-1"></i>
+                                        Scan Claim Slip QR Code
+                                    </label>
                                     <div class="input-group">
                                         <input type="text" name="claim_barcode" id="claim_barcode"
                                                class="form-control" placeholder="Enter claim slip number manually" value="">
-                                        <button type="button" class="btn btn-outline-primary" id="scan-claim-barcode-btn" title="Scan Barcode">
+                                        <button type="button" class="btn btn-outline-primary" id="scan-claim-barcode-btn" title="Scan Claim Slip QR Code">
                                             <i class="fas fa-qrcode"></i>
                                         </button>
                                     </div>
                                     <div class="form-text">
                                         <small class="text-muted">
                                             <i class="fas fa-info-circle me-1"></i>
-                                            Scan the claim slip barcode to verify and mark as claimed
+                                            <strong>Step 1:</strong> Scan the QR code from the faculty member's printed claim slip (contains claim slip number like "CS-2025-000003")
                                         </small>
                                     </div>
                                 </div>
@@ -347,18 +350,21 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="claim_item_barcode" class="form-label fw-medium">Scan Item Barcode</label>
+                                    <label for="claim_item_barcode" class="form-label fw-medium">
+                                        <i class="fas fa-box text-warning me-1"></i>
+                                        Scan Item Barcode
+                                    </label>
                                     <div class="input-group">
                                         <input type="text" name="claim_item_barcode" id="claim_item_barcode"
                                                class="form-control" placeholder="Enter item barcode manually" value="">
-                                        <button type="button" class="btn btn-outline-primary" id="scan-claim-item-barcode-btn" title="Scan Barcode">
+                                        <button type="button" class="btn btn-outline-warning" id="scan-claim-item-barcode-btn" title="Scan Item Barcode">
                                             <i class="fas fa-qrcode"></i>
                                         </button>
                                     </div>
                                     <div class="form-text">
                                         <small class="text-muted">
                                             <i class="fas fa-info-circle me-1"></i>
-                                            Scan the item's barcode to verify the physical item matches the request
+                                            <strong>Step 2:</strong> Scan the actual item barcode on the physical item (contains product code for item verification)
                                         </small>
                                     </div>
                                 </div>
@@ -638,7 +644,7 @@
                                             <div class="step-description mt-2">
                                                 <small class="text-muted">
                                                     <i class="fas fa-check-double me-1"></i>
-                                                    Dual verification completed: Claim slip QR + Item barcode scanned
+                                                    Dual verification completed: Claim slip QR code + Item barcode scanned successfully
                                                 </small>
                                             </div>
                                         @elseif($request->status === 'ready_for_pickup')
@@ -653,9 +659,9 @@
                                                     <strong>Next Steps:</strong>
                                                 </small>
                                                 <ul class="mb-0 mt-1 small text-muted">
-                                                    <li>Faculty presents claim slip QR code</li>
-                                                    <li>Admin scans item barcode for verification</li>
-                                                    <li>Items are handed over and marked as claimed</li>
+                                                    <li><strong>Step 1:</strong> Faculty presents claim slip QR code for verification</li>
+                                                    <li><strong>Step 2:</strong> Admin scans the actual item barcode for item verification</li>
+                                                    <li><strong>Step 3:</strong> Items are handed over and marked as claimed</li>
                                                 </ul>
                                             </div>
                                         @else
@@ -1294,19 +1300,21 @@ function initializeItemBarcodeScanner() {
                 <div class="col-md-6">
                     <h6 class="text-success mb-2"><i class="fas fa-tag me-1"></i>Item Information</h6>
                     <p class="mb-1"><strong>Name:</strong> ${item.name}</p>
-                    <p class="mb-1"><strong>Barcode:</strong> <code>${item.barcode || 'N/A'}</code></p>
+                    <p class="mb-1"><strong>Barcode:</strong> <code>${item.product_code || 'N/A'}</code></p>
                     <p class="mb-1"><strong>Brand:</strong> ${item.brand || 'N/A'}</p>
-                    <p class="mb-1"><strong>Category:</strong> ${item.category ? item.category.name : 'N/A'}</p>
+                    <p class="mb-1"><strong>Category:</strong> ${item.category || 'N/A'}</p>
                 </div>
                 <div class="col-md-6">
                     <h6 class="text-success mb-2"><i class="fas fa-boxes me-1"></i>Stock Information</h6>
-                    <p class="mb-1"><strong>Current Stock:</strong> ${item.current_stock} ${item.unit || 'pcs'}</p>
-                    <p class="mb-1"><strong>Minimum Stock:</strong> ${item.minimum_stock || 'N/A'}</p>
+                    <p class="mb-1"><strong>Current Stock:</strong> ${item.quantity} ${item.unit || 'pcs'}</p>
+                    <p class="mb-1"><strong>Minimum Stock:</strong> ${item.min_stock || 'N/A'}</p>
                     <p class="mb-1"><strong>Location:</strong> ${item.location || 'N/A'}</p>
                     <p class="mb-1"><strong>Condition:</strong> ${item.condition || 'N/A'}</p>
                 </div>
             </div>
-            ${item.description ? `<div class="mt-2"><strong>Description:</strong> ${item.description}</div>` : ''}
+            <div class="mt-2">
+                <strong>Status:</strong> <span class="badge bg-success">Verified - Matches Request</span>
+            </div>
         `;
     }
 
@@ -1415,13 +1423,16 @@ function initializeClaimBarcodeScanner() {
         `;
 
         scannerContainer.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>Scan Claim Slip Barcode</h5>
-                <button type="button" class="btn-close" id="close-claim-scanner"></button>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-ticket-alt me-2 text-primary"></i>Scan Claim Slip QR Code</h5>
+                <button type="button" class="btn-close" id="close-claim-scanner" aria-label="Close"></button>
             </div>
             <div id="claim-scanner-viewport" style="width: 100%; height: 300px; border: 1px solid #ddd;"></div>
             <div class="mt-3 text-center">
-                <small class="text-muted">Position claim slip barcode in front of camera</small>
+                <small class="text-muted">Position claim slip QR code in front of camera</small>
+            </div>
+            <div class="mt-2 text-center">
+                <small class="text-primary fw-medium">This QR code contains the claim slip number (e.g., CS-2025-000003)</small>
             </div>
         `;
 
@@ -1642,7 +1653,7 @@ function initializeClaimItemBarcodeScanner() {
 
         scannerContainer.innerHTML = `
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="mb-0 fw-bold"><i class="fas fa-qrcode me-2 text-primary"></i>Scan Item Barcode</h5>
+                <h5 class="mb-0 fw-bold"><i class="fas fa-box me-2 text-warning"></i>Scan Item Barcode</h5>
                 <button type="button" class="btn-close" id="close-claim-item-scanner" aria-label="Close"></button>
             </div>
             <div id="claim-item-scanner-viewport" style="
@@ -1662,10 +1673,8 @@ function initializeClaimItemBarcodeScanner() {
                     Position item barcode in front of camera
                 </small>
             </div>
-            <div class="mt-3 text-center">
-                <small class="text-secondary">
-                    Camera will automatically detect and scan the barcode
-                </small>
+            <div class="mt-2 text-center">
+                <small class="text-warning fw-medium">This barcode is on the physical item (contains product code)</small>
             </div>
         `;
 
@@ -1828,14 +1837,14 @@ function initializeClaimItemBarcodeScanner() {
                 <div class="col-md-6">
                     <h6 class="text-success mb-2"><i class="fas fa-tag me-1"></i>Item Information</h6>
                     <p class="mb-1"><strong>Name:</strong> ${item.name}</p>
-                    <p class="mb-1"><strong>Barcode:</strong> <code>${item.barcode || 'N/A'}</code></p>
+                    <p class="mb-1"><strong>Barcode:</strong> <code>${item.product_code || 'N/A'}</code></p>
                     <p class="mb-1"><strong>Brand:</strong> ${item.brand || 'N/A'}</p>
-                    <p class="mb-1"><strong>Category:</strong> ${item.category ? item.category.name : 'N/A'}</p>
+                    <p class="mb-1"><strong>Category:</strong> ${item.category || 'N/A'}</p>
                 </div>
                 <div class="col-md-6">
                     <h6 class="text-success mb-2"><i class="fas fa-boxes me-1"></i>Stock Information</h6>
-                    <p class="mb-1"><strong>Current Stock:</strong> ${item.current_stock} ${item.unit || 'pcs'}</p>
-                    <p class="mb-1"><strong>Minimum Stock:</strong> ${item.minimum_stock || 'N/A'}</p>
+                    <p class="mb-1"><strong>Current Stock:</strong> ${item.quantity} ${item.unit || 'pcs'}</p>
+                    <p class="mb-1"><strong>Minimum Stock:</strong> ${item.min_stock || 'N/A'}</p>
                     <p class="mb-1"><strong>Location:</strong> ${item.location || 'N/A'}</p>
                     <p class="mb-1"><strong>Condition:</strong> ${item.condition || 'N/A'}</p>
                 </div>

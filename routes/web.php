@@ -109,6 +109,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports/user-activity', [ReportsController::class, 'userActivityReport'])->name('reports.user-activity');
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
         
+        // Admin Reports - PDF Downloads
+        Route::get('reports/download', [ReportsController::class, 'downloadReport'])->name('reports.download');
+        Route::get('reports/export', [ReportsController::class, 'exportReport'])->name('reports.export');
+        
         // Admin Reports - QR Scan Reports Only
         Route::get('reports/qr-scan-analytics', [ReportsController::class, 'qrScanAnalytics'])->name('reports.qr-scan-analytics');
         Route::get('reports/item-scan-history/{itemId}', [ReportsController::class, 'itemScanHistory'])->name('reports.item-scan-history');
@@ -116,6 +120,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports/monthly-summary', [ReportsController::class, 'monthlySummary'])->name('reports.monthly-summary');
         Route::get('reports/quarterly-summary', [ReportsController::class, 'quarterlySummary'])->name('reports.quarterly-summary');
         Route::get('reports/annual-summary', [ReportsController::class, 'annualSummary'])->name('reports.annual-summary');
+        
+        // QR Scan Logs Downloads
+        Route::get('reports/qr-scan-logs/download', [ReportsController::class, 'downloadQrScanLogs'])->name('reports.qr-scan-logs.download');
+        Route::get('reports/qr-scan-logs/export', [ReportsController::class, 'exportQrScanLogs'])->name('reports.qr-scan-logs.export');
     });
     
     // Item verification (accessible to authenticated users for barcode scanning)

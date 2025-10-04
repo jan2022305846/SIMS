@@ -68,13 +68,13 @@
                                 <h6 class="text-muted mb-2">Request Timeline</h6>
                                 <div class="mb-3">
                                     <div class="small">
-                                        <div class="mb-1"><strong>Submitted:</strong> {{ $request->request_date ? $request->request_date->format('M j, Y g:i A') : 'N/A' }}</div>
+                                        <div class="mb-1"><strong>Submitted:</strong> {{ $request->created_at ? $request->created_at->format('M j, Y g:i A') : 'N/A' }}</div>
                                         <div class="mb-1"><strong>Needed by:</strong> {{ $request->needed_date ? $request->needed_date->format('M j, Y') : 'N/A' }}</div>
-                                        @if($request->fulfilled_date)
-                                            <div class="mb-1 text-success"><strong>Ready for pickup:</strong> {{ $request->fulfilled_date->format('M j, Y') }}</div>
+                                        @if($request->status === 'fulfilled' || $request->status === 'claimed')
+                                            <div class="mb-1 text-success"><strong>Ready for pickup:</strong> {{ $request->updated_at->format('M j, Y') }}</div>
                                         @endif
-                                        @if($request->claimed_date)
-                                            <div class="mb-1 text-success"><strong>Completed:</strong> {{ $request->claimed_date->format('M j, Y') }}</div>
+                                        @if($request->status === 'claimed')
+                                            <div class="mb-1 text-success"><strong>Completed:</strong> {{ $request->updated_at->format('M j, Y') }}</div>
                                         @endif
                                     </div>
                                 </div>
@@ -96,8 +96,8 @@
                                             </div>
                                             <div class="col-6">
                                                 <small class="text-muted">Available Stock</small>
-                                                <div class="fw-bold fs-5 {{ $request->item && $request->item->current_stock < $request->quantity ? 'text-danger' : 'text-success' }}">
-                                                    {{ $request->item ? $request->item->current_stock : 'N/A' }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}
+                                                <div class="fw-bold fs-5 {{ $request->item && $request->item->quantity < $request->quantity ? 'text-danger' : 'text-success' }}">
+                                                    {{ $request->item ? $request->item->quantity : 'N/A' }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}
                                                 </div>
                                             </div>
                                         </div>
@@ -108,8 +108,8 @@
                                 <h6 class="text-muted mb-2">Request Details</h6>
                                 <div class="mb-3">
                                     <div class="row mb-2">
-                                        <div class="col-5"><strong>Department:</strong></div>
-                                        <div class="col-7">{{ $request->department }}</div>
+                                        <div class="col-5"><strong>Office:</strong></div>
+                                        <div class="col-7">{{ $request->office ? $request->office->name : 'N/A' }}</div>
                                     </div>
                                     @if($request->claim_slip_number)
                                         <div class="row mb-2">
@@ -258,7 +258,7 @@
                                 </div>
                                 <div class="timeline-content">
                                     <h6 class="mb-1">Request Submitted</h6>
-                                    <p class="mb-1 text-muted small">{{ $request->request_date ? $request->request_date->format('M j, Y g:i A') : 'N/A' }}</p>
+                                    <p class="mb-1 text-muted small">{{ $request->created_at ? $request->created_at->format('M j, Y g:i A') : 'N/A' }}</p>
                                     <p class="mb-0 small">Request created successfully</p>
                                 </div>
                             </div>
@@ -270,13 +270,13 @@
                                 </div>
                                 <div class="timeline-content">
                                     <h6 class="mb-1">Admin Approval</h6>
-                                    @if($request->admin_approval_date)
-                                        <p class="mb-1 text-success small">{{ $request->admin_approval_date->format('M j, Y g:i A') }}</p>
+                                    @if($request->approved_by_admin_id)
+                                        <p class="mb-1 text-success small">{{ $request->updated_at->format('M j, Y g:i A') }}</p>
                                         <p class="mb-0 small">Approved by {{ $request->adminApprover->name ?? 'Administrator' }}</p>
                                     @elseif($request->status === 'declined')
                                         <p class="mb-1 text-danger small">Declined</p>
-                                        @if($request->admin_notes)
-                                            <p class="mb-0 small text-muted">"{{ $request->admin_notes }}"</p>
+                                        @if($request->notes)
+                                            <p class="mb-0 small text-muted">"{{ $request->notes }}"</p>
                                         @endif
                                     @else
                                         <p class="mb-0 text-muted small">Waiting for admin approval</p>
@@ -307,8 +307,8 @@
                                 </div>
                                 <div class="timeline-content">
                                     <h6 class="mb-1">Item Pickup & Claim</h6>
-                                    @if($request->claimed_date)
-                                        <p class="mb-1 text-success small">{{ $request->claimed_date->format('M j, Y g:i A') }}</p>
+                                    @if($request->status === 'claimed')
+                                        <p class="mb-1 text-success small">{{ $request->updated_at->format('M j, Y g:i A') }}</p>
                                         <p class="mb-0 small">Items claimed and stock updated</p>
                                     @else
                                         <p class="mb-0 text-muted small">Visit supply office with printed claim slip</p>

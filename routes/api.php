@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\ItemController;
+use App\Http\Controllers\Web\ReportsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,3 +27,11 @@ Route::get('/items/lookup/{code}', [ItemController::class, 'lookup'])
 // Item verification for barcode scanning
 Route::get('/items/verify-barcode/{barcode}', [ItemController::class, 'verifyBarcode'])
     ->name('api.items.verify-barcode');
+
+// Reports API endpoints
+Route::middleware(['auth:web', 'admin'])->group(function () {
+    Route::get('/reports/inventory-data', [ReportsController::class, 'getInventoryData'])
+        ->name('api.reports.inventory-data');
+    Route::get('/reports/qr-scan-data', [ReportsController::class, 'getQrScanData'])
+        ->name('api.reports.qr-scan-data');
+});

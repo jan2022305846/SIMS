@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -35,5 +36,11 @@ class AppServiceProvider extends ServiceProvider
             request()->server->set('HTTPS', 'on');
             request()->server->set('HTTP_X_FORWARDED_PROTO', 'https');
         }
+
+        // Register morph map for polymorphic relationships
+        Relation::morphMap([
+            'consumable' => \App\Models\Consumable::class,
+            'non_consumable' => \App\Models\NonConsumable::class,
+        ]);
     }
 }

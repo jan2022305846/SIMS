@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use PhpOffice\PhpWord\PhpWord;
+use Illuminate\Support\Facades\Log;
 
 class ReportsController extends Controller
 {
@@ -308,40 +310,91 @@ class ReportsController extends Controller
     }
 
     /**
-     * Dashboard Data (API endpoint for dashboard widgets)
+     * Get inventory data for reports dashboard (API endpoint)
      */
-    public function dashboardData(Request $request)
+    public function getInventoryData(Request $request)
     {
         $period = $request->get('period', 'monthly');
+        $selection = $request->get('selection');
 
-        // Get date range based on period
-        $dateRange = $this->getDateRangeFromPeriod($period);
+        \Illuminate\Support\Facades\Log::info('getInventoryData called', ['period' => $period, 'selection' => $selection]);
+
+        // Get date range based on period and selection
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
         $dateFrom = $dateRange['from'];
         $dateTo = $dateRange['to'];
 
-        $dashboardData = [
-            'inventory_overview' => [
-                'total_items' => \App\Models\Consumable::count() + \App\Models\NonConsumable::count(),
-                'low_stock_items' => \App\Models\Consumable::where('quantity', '<=', 10)->count() + \App\Models\NonConsumable::where('quantity', '<=', 5)->count(),
-                'expiring_soon' => \App\Models\Consumable::where('expiration_date', '<=', now()->addDays(30))->count(),
-            ],
-            'request_overview' => [
-                'total_requests' => \App\Models\Request::whereBetween('created_at', [$dateFrom, $dateTo])->count(),
-                'pending_requests' => \App\Models\Request::where('status', 'pending')->whereBetween('created_at', [$dateFrom, $dateTo])->count(),
-                'completed_requests' => \App\Models\Request::where('status', 'completed')->whereBetween('created_at', [$dateFrom, $dateTo])->count(),
-            ],
-            'qr_scan_overview' => [
-                'total_scans' => \App\Models\ItemScanLog::whereBetween('created_at', [$dateFrom, $dateTo])->count(),
-                'unique_items_scanned' => \App\Models\ItemScanLog::whereBetween('created_at', [$dateFrom, $dateTo])->distinct('item_id')->count(),
-                'active_users' => \App\Models\ItemScanLog::whereBetween('created_at', [$dateFrom, $dateTo])->distinct('user_id')->count(),
-            ],
-            'recent_activity' => [
-                'recent_requests' => \App\Models\Request::with('user')->orderBy('created_at', 'desc')->take(5)->get(),
-                'recent_scans' => \App\Models\ItemScanLog::with(['user', 'item'])->orderBy('created_at', 'desc')->take(5)->get(),
-            ],
+        \Illuminate\Support\Facades\Log::info('Date range calculated', ['from' => $dateFrom, 'to' => $dateTo]);
+
+        // Get inventory statistics (consumables only for stock management)
+        $consumables = \App\Models\Consumable::all();
+
+        $summary = [
+            'totalItems' => $consumables->count(), // Only consumables
+            'totalAdded' => $this->getItemsAddedInPeriod($dateFrom, $dateTo),
+            'totalReleased' => $this->getItemsReleasedInPeriod($dateFrom, $dateTo),
+            'currentStock' => $consumables->sum('quantity'), // Only consumable stock
         ];
 
-        return response()->json($dashboardData);
+        // Get chart data based on period
+        $chartData = $this->getInventoryChartData($period, $selection);
+
+        // Get table data
+        $tableData = $this->getInventoryTableData($dateFrom, $dateTo);
+
+        return response()->json([
+            'summary' => $summary,
+            'chartData' => $chartData,
+            'tableData' => $tableData,
+        ]);
+    }
+
+    /**
+     * Get QR scan data for reports dashboard (API endpoint)
+     */
+    public function getQrScanData(Request $request)
+    {
+        $period = $request->get('period', 'monthly');
+        $selection = $request->get('selection');
+
+        // Get date range based on period and selection
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
+
+        // Get QR scan statistics
+        $scans = \App\Models\ItemScanLog::whereBetween('created_at', [$dateFrom, $dateTo])->get();
+
+        $summary = [
+            'totalScans' => $scans->count(),
+            'uniqueItems' => $scans->pluck('item_id')->unique()->count(),
+            'activeUsers' => $scans->pluck('user_id')->unique()->filter()->count(),
+            'todayScans' => \App\Models\ItemScanLog::whereDate('created_at', today())->count(),
+        ];
+
+        // Get scan logs with relationships
+        $scanLogs = \App\Models\ItemScanLog::with(['item', 'user', 'office'])
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($scan) {
+                $item = $scan->item;
+                return [
+                    'timestamp' => $scan->created_at->format('Y-m-d H:i:s'),
+                    'item' => $item ? $item->name : 'Unknown Item',
+                    'user' => $scan->user ? $scan->user->name : 'Unknown User',
+                    'scanner_type' => 'webcam', // Default, could be enhanced
+                    'location' => $scan->office ? $scan->office->name : 'N/A',
+                    'ip_address' => 'N/A', // Not stored in current model
+                    'item_id' => $scan->item_id,
+                    'user_id' => $scan->user_id,
+                ];
+            });
+
+        return response()->json([
+            'summary' => $summary,
+            'scanLogs' => $scanLogs,
+        ]);
     }
 
     /**
@@ -936,5 +989,512 @@ class ReportsController extends Controller
         }
 
         return $breakdown;
+    }
+
+    /**
+     * Get date range based on period and selection
+     */
+    private function getDateRangeFromPeriodAndSelection($period, $selection)
+    {
+        switch ($period) {
+            case 'monthly':
+                $date = Carbon::createFromFormat('Y-m', $selection);
+                return [
+                    'from' => $date->copy()->startOfMonth()->toDateString(),
+                    'to' => $date->copy()->endOfMonth()->toDateString()
+                ];
+            case 'quarterly':
+                // Handle simple Q1, Q2, Q3, Q4 format
+                $quarter = (int) str_replace('Q', '', $selection);
+                $year = Carbon::now()->year; // Use current year
+                $quarterStartMonth = ($quarter - 1) * 3 + 1;
+                $date = Carbon::createFromDate($year, $quarterStartMonth, 1);
+                return [
+                    'from' => $date->copy()->startOfQuarter()->toDateString(),
+                    'to' => $date->copy()->endOfQuarter()->toDateString()
+                ];
+            case 'annual':
+                $date = Carbon::createFromFormat('Y', $selection);
+                return [
+                    'from' => $date->copy()->startOfYear()->toDateString(),
+                    'to' => $date->copy()->endOfYear()->toDateString()
+                ];
+            default:
+                return $this->getDateRangeFromPeriod($period);
+        }
+    }
+
+    /**
+     * Get items added in period
+     */
+    private function getItemsAddedInPeriod($dateFrom, $dateTo)
+    {
+        // For now, we'll use item creation dates as "added" dates
+        // In a real system, you might have separate stock adjustment logs
+        $consumablesAdded = \App\Models\Consumable::whereBetween('created_at', [$dateFrom, $dateTo])->sum('quantity');
+        $nonConsumablesAdded = \App\Models\NonConsumable::whereBetween('created_at', [$dateFrom, $dateTo])->count(); // Count items, not quantity for non-consumables
+
+        return $consumablesAdded + $nonConsumablesAdded;
+    }
+
+    /**
+     * Get total items released (claimed) - overall count
+     */
+    private function getTotalItemsReleased()
+    {
+        // Count total items claimed through requests
+        return \App\Models\Request::where('status', 'claimed')->sum('quantity');
+    }
+
+    /**
+     * Get items released in period
+     */
+    private function getItemsReleasedInPeriod($dateFrom, $dateTo)
+    {
+        // Count items claimed through requests within the date range
+        return \App\Models\Request::where('status', 'claimed')
+            ->whereBetween('updated_at', [$dateFrom, $dateTo])
+            ->sum('quantity');
+    }
+
+    /**
+     * Get inventory chart data based on period
+     */
+    private function getInventoryChartData($period, $selection)
+    {
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
+
+        switch ($period) {
+            case 'monthly':
+                return $this->getMonthlyInventoryChartData($dateFrom, $dateTo);
+            case 'quarterly':
+                return $this->getQuarterlyInventoryChartData($dateFrom, $dateTo);
+            case 'annual':
+                return $this->getAnnualInventoryChartData($dateFrom, $dateTo);
+            default:
+                return $this->getMonthlyInventoryChartData($dateFrom, $dateTo);
+        }
+    }
+
+    /**
+     * Get monthly inventory chart data
+     */
+    private function getMonthlyInventoryChartData($dateFrom, $dateTo)
+    {
+        $startDate = Carbon::parse($dateFrom);
+        $endDate = Carbon::parse($dateTo);
+
+        $chartData = [];
+        $current = $startDate->copy()->startOfWeek();
+
+        while ($current <= $endDate) {
+            $weekEnd = $current->copy()->endOfWeek();
+            if ($weekEnd > $endDate) {
+                $weekEnd = $endDate;
+            }
+
+            // Get real data for added and released items in this week
+            $added = \App\Models\Request::where('status', 'claimed')
+                ->whereBetween('updated_at', [$current, $weekEnd])
+                ->sum('quantity');
+
+            $released = $added; // For now, released = claimed items
+
+            $chartData[] = [
+                'date' => 'Week ' . $current->weekOfMonth,
+                'added' => (int)$added,
+                'released' => (int)$released,
+            ];
+
+            $current = $weekEnd->copy()->addDay();
+        }
+
+        return $chartData;
+    }
+
+    /**
+     * Get quarterly inventory chart data
+     */
+    private function getQuarterlyInventoryChartData($dateFrom, $dateTo)
+    {
+        $startDate = Carbon::parse($dateFrom);
+        $endDate = Carbon::parse($dateTo);
+
+        $chartData = [];
+        $current = $startDate->copy();
+
+        while ($current <= $endDate) {
+            $monthEnd = $current->copy()->endOfMonth();
+
+            // Get real data for added and released items in this month
+            $added = \App\Models\Request::where('status', 'claimed')
+                ->whereBetween('updated_at', [$current, $monthEnd])
+                ->sum('quantity');
+
+            $released = $added; // For now, released = claimed items
+
+            $chartData[] = [
+                'date' => $current->format('M Y'),
+                'added' => (int)$added,
+                'released' => (int)$released,
+            ];
+
+            $current->addMonth();
+        }
+
+        return $chartData;
+    }
+
+    /**
+     * Get annual inventory chart data
+     */
+    private function getAnnualInventoryChartData($dateFrom, $dateTo)
+    {
+        $startDate = Carbon::parse($dateFrom);
+        $endDate = Carbon::parse($dateTo);
+
+        $chartData = [];
+        $current = $startDate->copy();
+
+        while ($current <= $endDate) {
+            $quarterEnd = $current->copy()->endOfQuarter();
+
+            // Get real data for added and released items in this quarter
+            $added = \App\Models\Request::where('status', 'claimed')
+                ->whereBetween('updated_at', [$current, $quarterEnd])
+                ->sum('quantity');
+
+            $released = $added; // For now, released = claimed items
+
+            $chartData[] = [
+                'date' => 'Q' . $current->quarter . ' ' . $current->year,
+                'added' => (int)$added,
+                'released' => (int)$released,
+            ];
+
+            $current->addQuarter();
+        }
+
+        return $chartData;
+    }
+
+    /**
+     * Get inventory table data (consumables only for stock management)
+     */
+    private function getInventoryTableData($dateFrom, $dateTo)
+    {
+        // Get only consumable items (non-consumables don't need stock management)
+        $consumables = \App\Models\Consumable::with('category')->get();
+
+        $tableData = [];
+
+        // Process only consumables
+        foreach ($consumables as $item) {
+            // Count how many were released/claimed in this period
+            $releasedInPeriod = \App\Models\Request::where('status', 'claimed')
+                ->where('item_type', 'consumable')
+                ->where('item_id', $item->id)
+                ->whereBetween('updated_at', [$dateFrom, $dateTo])
+                ->sum('quantity');
+
+            // Calculate total quantity at start of period + added during period
+            $addedDuringPeriod = 0; // For now, we'll assume no additions during period
+            $totalQuantity = $item->quantity + $addedDuringPeriod;
+
+            $tableData[] = [
+                'name' => $item->name,
+                'released' => $releasedInPeriod,
+                'totalQuantity' => $totalQuantity,
+                'remaining' => $item->quantity,
+                // Removed category column as requested
+            ];
+        }
+
+        return $tableData;
+    }
+
+    /**
+     * Download report PDF or DOCX
+     */
+    public function downloadReport(Request $request)
+    {
+        $period = $request->get('period', 'monthly');
+        $selection = $request->get('selection');
+        $format = $request->get('format', 'pdf');
+
+        // Get data for the report
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
+
+        $data = [
+            'period' => $period,
+            'selection' => $selection,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'summary' => [
+                'totalItems' => \App\Models\Consumable::count(), // Only consumables for stock management
+                'totalAdded' => $this->getItemsAddedInPeriod($dateFrom, $dateTo),
+                'totalReleased' => $this->getItemsReleasedInPeriod($dateFrom, $dateTo),
+                'currentStock' => \App\Models\Consumable::sum('quantity'), // Only consumable stock
+            ],
+            'chartData' => $this->getInventoryChartData($period, $selection),
+            'tableData' => $this->getInventoryTableData($dateFrom, $dateTo),
+        ];
+
+        if ($format === 'docx') {
+            return $this->generateDocxReport($data);
+        } else {
+            // Default to PDF
+            $pdf = Pdf::loadView('admin.reports.pdf.inventory-report', compact('data'))
+                ->setPaper('a4', 'landscape');
+
+            $filename = 'inventory-report-' . $period . '-' . $selection . '.pdf';
+            return $pdf->download($filename);
+        }
+    }
+
+    /**
+     * Generate DOCX report
+     */
+    private function generateDocxReport($data)
+    {
+        $phpWord = new \PhpOffice\PhpWord\PhpWord();
+
+        // Set document properties
+        $properties = $phpWord->getDocInfo();
+        $properties->setCreator('Supply Office System');
+        $properties->setCompany('Supply Office');
+        $properties->setTitle('Inventory Report');
+        $properties->setDescription('Monthly Inventory Report');
+        $properties->setCategory('Reports');
+        $properties->setLastModifiedBy('System');
+        $properties->setCreated(time());
+        $properties->setModified(time());
+
+        // Add a section
+        $section = $phpWord->addSection();
+
+        // Add title
+        $section->addTitle('Inventory Report', 1);
+        $section->addText('Period: ' . ucfirst($data['period']) . ' - ' . $data['selection']);
+        $section->addText('Report Date: ' . date('F j, Y'));
+        $section->addTextBreak(1);
+
+        // Add summary
+        $section->addTitle('Summary', 2);
+        $summary = $data['summary'];
+        $section->addText('Total Items: ' . $summary['totalItems']);
+        $section->addText('Items Added/Restocked: ' . $summary['totalAdded']);
+        $section->addText('Items Released/Claimed: ' . $summary['totalReleased']);
+        $section->addText('Current Stock: ' . $summary['currentStock']);
+        $section->addTextBreak(1);
+
+        // Add table data
+        $section->addTitle('Inventory Details', 2);
+
+        $table = $section->addTable();
+        $table->addRow();
+        $table->addCell(4000)->addText('Item Name');
+        $table->addCell(1750)->addText('Released/Claimed');
+        $table->addCell(1750)->addText('Total Quantity');
+        $table->addCell(1750)->addText('Remaining Stock');
+
+        foreach ($data['tableData'] as $item) {
+            $table->addRow();
+            $table->addCell(4000)->addText($item['name']);
+            $table->addCell(1750)->addText($item['released']);
+            $table->addCell(1750)->addText($item['totalQuantity']);
+            $table->addCell(1750)->addText($item['remaining']);
+        }
+
+        $filename = 'inventory-report-' . $data['period'] . '-' . $data['selection'] . '.docx';
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'docx');
+        $phpWord->save($tempFile, 'Word2007');
+
+        return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Generate QR Scan Logs DOCX report
+     */
+    private function generateQrScanLogsDocx($data)
+    {
+        $phpWord = new \PhpOffice\PhpWord\PhpWord();
+
+        // Set document properties
+        $properties = $phpWord->getDocInfo();
+        $properties->setCreator('Supply Office System');
+        $properties->setCompany('Supply Office');
+        $properties->setTitle('QR Scan Logs Report');
+        $properties->setDescription('QR Code Scan Logs Report');
+        $properties->setCategory('Reports');
+        $properties->setLastModifiedBy('System');
+        $properties->setCreated(time());
+        $properties->setModified(time());
+
+        // Add a section
+        $section = $phpWord->addSection();
+
+        // Add title
+        $section->addTitle('QR Scan Logs Report', 1);
+        $section->addText('Period: ' . ucfirst($data['period']) . ' - ' . $data['selection']);
+        $section->addText('Report Date: ' . date('F j, Y'));
+        $section->addTextBreak(1);
+
+        // Add summary
+        $section->addTitle('Summary', 2);
+        $summary = $data['summary'];
+        $section->addText('Total Scans: ' . $summary['totalScans']);
+        $section->addText('Unique Items Scanned: ' . $summary['uniqueItems']);
+        $section->addText('Active Users: ' . $summary['activeUsers']);
+        $section->addTextBreak(1);
+
+        // Add scan logs table
+        $section->addTitle('Scan Logs Details', 2);
+
+        $table = $section->addTable();
+        $table->addRow();
+        $table->addCell(1500)->addText('Timestamp');
+        $table->addCell(2000)->addText('Item Scanned');
+        $table->addCell(1500)->addText('User');
+        $table->addCell(1500)->addText('Action');
+        $table->addCell(1500)->addText('Location');
+        $table->addCell(2000)->addText('Notes');
+
+        foreach ($data['scans'] as $scan) {
+            $table->addRow();
+            $table->addCell(1500)->addText($scan->created_at->format('Y-m-d H:i:s'));
+            $table->addCell(2000)->addText($scan->item ? $scan->item->name : 'Unknown Item');
+            $table->addCell(1500)->addText($scan->user ? $scan->user->name : 'Unknown User');
+            $table->addCell(1500)->addText($this->formatScanAction($scan->action));
+            $table->addCell(1500)->addText($scan->office ? $scan->office->name : 'N/A');
+            $table->addCell(2000)->addText($scan->notes ?: 'No notes');
+        }
+
+        $filename = 'qr-scan-logs-' . $data['period'] . '-' . $data['selection'] . '.docx';
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'docx');
+        $phpWord->save($tempFile, 'Word2007');
+
+        return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Format scan action for display
+     */
+    private function formatScanAction($action)
+    {
+        $actionMap = [
+            'inventory_check' => 'Inventory Check',
+            'item_claim' => 'Item Claim',
+            'item_fulfill' => 'Item Fulfill',
+            'stock_adjustment' => 'Stock Adjustment'
+        ];
+
+        return $actionMap[$action] ?? ucwords(str_replace('_', ' ', $action));
+    }
+
+    /**
+     * Export report to Excel
+     */
+    public function exportReport(Request $request)
+    {
+        $period = $request->get('period', 'monthly');
+        $selection = $request->get('selection');
+
+        // Get data for export
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
+
+        $data = $this->getInventoryTableData($dateFrom, $dateTo);
+
+        // Create CSV content (consumables only, no category column)
+        $csv = "Item Name,Items Released/Claimed,Total Quantity (Start + Added),Remaining Stock\n";
+
+        foreach ($data as $item) {
+            $csv .= '"' . $item['name'] . '",' . $item['released'] . ',' . $item['totalQuantity'] . ',' . $item['remaining'] . "\n";
+        }
+
+        $filename = 'inventory-report-' . $period . '-' . $selection . '.csv';
+
+        return response($csv)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    /**
+     * Download QR scan logs DOCX
+     */
+    public function downloadQrScanLogs(Request $request)
+    {
+        $period = $request->get('period', 'monthly');
+        $selection = $request->get('selection');
+
+        // Get data for the report
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
+
+        $scans = \App\Models\ItemScanLog::with(['item', 'user', 'office'])
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $data = [
+            'period' => $period,
+            'selection' => $selection,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'scans' => $scans,
+            'summary' => [
+                'totalScans' => $scans->count(),
+                'uniqueItems' => $scans->pluck('item_id')->unique()->count(),
+                'activeUsers' => $scans->pluck('user_id')->unique()->filter()->count(),
+            ],
+        ];
+
+        return $this->generateQrScanLogsDocx($data);
+    }
+
+    /**
+     * Export QR scan logs to Excel
+     */
+    public function exportQrScanLogs(Request $request)
+    {
+        $period = $request->get('period', 'monthly');
+        $selection = $request->get('selection');
+
+        // Get data for export
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
+
+        $scans = \App\Models\ItemScanLog::with(['item', 'user', 'office'])
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Create CSV content
+        $csv = "Timestamp,Item Scanned,User,Scanner Type,Location,IP Address\n";
+
+        foreach ($scans as $scan) {
+            $csv .= '"' . $scan->created_at->format('Y-m-d H:i:s') . '",';
+            $csv .= '"' . ($scan->item ? $scan->item->name : 'Unknown Item') . '",';
+            $csv .= '"' . ($scan->user ? $scan->user->name : 'Unknown User') . '",';
+            $csv .= '"webcam",'; // Default scanner type
+            $csv .= '"' . ($scan->office ? $scan->office->name : 'N/A') . '",';
+            $csv .= '"N/A"' . "\n"; // IP address not stored
+        }
+
+        $filename = 'qr-scan-logs-' . $period . '-' . $selection . '.csv';
+
+        return response($csv)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 }

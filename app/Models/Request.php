@@ -166,6 +166,11 @@ class Request extends Model
         return $this->status === 'approved_by_admin';
     }
 
+    public function isReadyForPickup()
+    {
+        return $this->status === 'fulfilled';
+    }
+
     public function isFulfilled()
     {
         return $this->status === 'fulfilled';
