@@ -143,6 +143,13 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the user's scan logs
+     */
+    public function scanLogs()
+    {
+        return $this->hasMany(ItemScanLog::class);
+    }    
+    /**
      * Mark that user has set their password
      */
     public function markPasswordAsSet(): void

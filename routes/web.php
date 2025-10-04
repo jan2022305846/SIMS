@@ -101,21 +101,21 @@ Route::middleware(['auth'])->group(function () {
         // Add claim slip download route for admins
         Route::get('requests/{request}/download-claim-slip', [RequestController::class, 'downloadClaimSlip'])->name('admin.requests.download-claim-slip');
         
-        // Admin Reports
+        // Admin Reports - Main Reports Dashboard and Analytics
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
-        Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
-        Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
-        Route::get('reports/user-activity-report', [ReportsController::class, 'userActivityReport'])->name('reports.user-activity-report');
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
         Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
-        Route::get('reports/monthly-summary', [ReportsController::class, 'monthlySummary'])->name('reports.monthly-summary');
-        Route::get('reports/quarterly-summary', [ReportsController::class, 'quarterlySummary'])->name('reports.quarterly-summary');
-        Route::get('reports/annual-summary', [ReportsController::class, 'annualSummary'])->name('reports.annual-summary');
+        Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
+        Route::get('reports/user-activity', [ReportsController::class, 'userActivityReport'])->name('reports.user-activity');
+        Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
         
-        // QR Scan Reports
+        // Admin Reports - QR Scan Reports Only
         Route::get('reports/qr-scan-analytics', [ReportsController::class, 'qrScanAnalytics'])->name('reports.qr-scan-analytics');
         Route::get('reports/item-scan-history/{itemId}', [ReportsController::class, 'itemScanHistory'])->name('reports.item-scan-history');
         Route::get('reports/scan-alerts', [ReportsController::class, 'scanAlerts'])->name('reports.scan-alerts');
+        Route::get('reports/monthly-summary', [ReportsController::class, 'monthlySummary'])->name('reports.monthly-summary');
+        Route::get('reports/quarterly-summary', [ReportsController::class, 'quarterlySummary'])->name('reports.quarterly-summary');
+        Route::get('reports/annual-summary', [ReportsController::class, 'annualSummary'])->name('reports.annual-summary');
     });
     
     // Item verification (accessible to authenticated users for barcode scanning)
@@ -154,16 +154,6 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['admin'])->group(function () {
         Route::post('qr/generate/{id}', [QRCodeController::class, 'generate'])->name('qr.generate');
         Route::get('qr/download/{id}', [QRCodeController::class, 'download'])->name('qr.download');
-
-        // Activity Logs (Admin only)
-        Route::get('activity-logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity-logs.index');
-        Route::get('activity-logs/{activityLog}', [App\Http\Controllers\ActivityLogController::class, 'show'])->name('activity-logs.show');
-        Route::get('activity-logs/analytics/dashboard', [App\Http\Controllers\ActivityLogController::class, 'analytics'])->name('activity-logs.analytics');
-        Route::get('activity-logs/security/report', [App\Http\Controllers\ActivityLogController::class, 'securityReport'])->name('activity-logs.security');
-        Route::get('activity-logs/export/csv', [App\Http\Controllers\ActivityLogController::class, 'export'])->name('activity-logs.export');
-        Route::get('activity-logs/live/feed', [App\Http\Controllers\ActivityLogController::class, 'liveFeed'])->name('activity-logs.live-feed');
-        Route::post('activity-logs/cleanup', [App\Http\Controllers\ActivityLogController::class, 'cleanup'])->name('activity-logs.cleanup');
-        Route::get('users/{user}/activity', [App\Http\Controllers\ActivityLogController::class, 'userActivity'])->name('activity-logs.user-activity');
     });
 });
 

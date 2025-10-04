@@ -168,21 +168,6 @@ class RequestController extends Controller
             ]);
             Log::info('Supply request created successfully', ['request_id' => $supplyRequest->id]);
 
-            // Create log entry
-            Log::info('Creating activity log entry');
-            RequestActivityLog::logRequestActivity(
-                'Created request for {subject}',
-                $supplyRequest,
-                'created',
-                [
-                    'quantity' => $validatedData['quantity'],
-                    'item_name' => $item->name,
-                    'priority' => $validatedData['priority'],
-                    'purpose' => $validatedData['purpose']
-                ]
-            );
-            Log::info('Activity log created successfully');
-
             DB::commit();
             Log::info('Transaction committed successfully');
 
@@ -292,14 +277,6 @@ class RequestController extends Controller
 
         $request->update($validatedData);
 
-        // Create log entry
-        RequestActivityLog::logRequestActivity(
-            'Updated request for {subject}',
-            $request,
-            'updated',
-            ['item_name' => $item->name]
-        );
-
         return redirect()->route('requests.show', $request)
             ->with('success', 'Request updated successfully!');
     }
@@ -324,20 +301,6 @@ class RequestController extends Controller
         }
 
         $supplyRequest->approveByAdmin(Auth::user());
-
-        // Load item relationship if not already loaded
-        if (!$supplyRequest->relationLoaded('item')) {
-            $supplyRequest->load('item');
-        }
-
-        // Create log entry with null check
-        $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
-        RequestActivityLog::logRequestActivity(
-            'Approved request by admin for {subject}',
-            $supplyRequest,
-            'approved',
-            ['item_name' => $itemName]
-        );
 
         return back()->with('success', 'Request approved by administrator successfully!');
     }
@@ -384,31 +347,6 @@ class RequestController extends Controller
         DB::beginTransaction();
         try {
             $supplyRequest->fulfill(Auth::user());
-
-            // Load item relationship if not already loaded
-            if (!$supplyRequest->relationLoaded('item')) {
-                $supplyRequest->load('item');
-            }
-
-            // Create log entry with null check
-            $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
-            $logDetails = 'Fulfilled request for ' . $supplyRequest->quantity . ' ' . $itemName . '. Claim slip: ' . $supplyRequest->claim_slip_number;
-            
-            if ($httpRequest->filled('scanned_barcode')) {
-                $logDetails .= ' (Verified with barcode scan)';
-            }
-            
-            RequestActivityLog::logRequestActivity(
-                $logDetails,
-                $supplyRequest,
-                'fulfilled',
-                [
-                    'quantity' => $supplyRequest->quantity,
-                    'item_name' => $itemName,
-                    'claim_slip_number' => $supplyRequest->claim_slip_number,
-                    'scanned_barcode' => $httpRequest->filled('scanned_barcode')
-                ]
-            );
 
             DB::commit();
 
@@ -471,26 +409,6 @@ class RequestController extends Controller
         DB::beginTransaction();
         try {
             $supplyRequest->markAsClaimed(Auth::user());
-
-            // Create log entry with null check
-            $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
-            $logDetails = 'Marked request as claimed for ' . $supplyRequest->quantity . ' ' . $itemName . '. Claim slip: ' . $supplyRequest->claim_slip_number;
-            
-            if ($httpRequest->filled('scanned_barcode')) {
-                $logDetails .= ' (Verified with barcode scan)';
-            }
-            
-            RequestActivityLog::logRequestActivity(
-                $logDetails,
-                $supplyRequest,
-                'claimed',
-                [
-                    'quantity' => $supplyRequest->quantity,
-                    'item_name' => $itemName,
-                    'claim_slip_number' => $supplyRequest->claim_slip_number,
-                    'scanned_barcode' => $httpRequest->filled('scanned_barcode')
-                ]
-            );
 
             DB::commit();
 
@@ -559,26 +477,6 @@ class RequestController extends Controller
                 $supplyRequest->item->save();
             }
 
-            // Create log entry with null check
-            $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
-            $logDetails = 'Completed and claimed request for ' . $supplyRequest->quantity . ' ' . $itemName . '. Claim slip: ' . $claimSlipNumber;
-
-            if ($httpRequest->filled('scanned_barcode')) {
-                $logDetails .= ' (Verified with barcode scan)';
-            }
-
-            RequestActivityLog::logRequestActivity(
-                $logDetails,
-                $supplyRequest,
-                'fulfilled',
-                [
-                    'quantity' => $supplyRequest->quantity,
-                    'item_name' => $itemName,
-                    'claim_slip_number' => $claimSlipNumber,
-                    'scanned_barcode' => $httpRequest->filled('scanned_barcode')
-                ]
-            );
-
             DB::commit();
 
             return back()->with('success', 'Request completed and claimed successfully! Claim slip: ' . $claimSlipNumber);
@@ -609,23 +507,6 @@ class RequestController extends Controller
 
         $supplyRequest->decline(Auth::user(), $validatedData['reason']);
 
-        // Load item relationship if not already loaded
-        if (!$supplyRequest->relationLoaded('item')) {
-            $supplyRequest->load('item');
-        }
-
-        // Create log entry with null check
-        $itemName = $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item';
-        RequestActivityLog::logRequestActivity(
-            'Declined request for {subject}',
-            $supplyRequest,
-            'declined',
-            [
-                'item_name' => $itemName,
-                'reason' => $validatedData['reason']
-            ]
-        );
-
         return back()->with('success', 'Request declined successfully!');
     }
 
@@ -643,15 +524,6 @@ class RequestController extends Controller
         if (!$request->relationLoaded('item')) {
             $request->load('item');
         }
-
-        // Create log entry before deletion with null check
-        $itemName = $request->item ? $request->item->name : 'Unknown Item';
-        RequestActivityLog::logRequestActivity(
-            'Deleted request for {subject}',
-            $request,
-            'deleted',
-            ['item_name' => $itemName]
-        );
 
         $request->delete();
 
@@ -744,14 +616,6 @@ class RequestController extends Controller
 
         $request->generateClaimSlip();
 
-        // Create log entry
-        RequestActivityLog::logRequestActivity(
-            'Generated claim slip for request: {subject}',
-            $request,
-            'updated',
-            ['claim_slip_number' => $request->claim_slip_number]
-        );
-
         // Redirect back to request details page
         return redirect()->route('faculty.requests.show', $request)->with('success', 'Claim slip generated successfully! You can now print it and pick up your items from the supply office.');
     }
@@ -779,14 +643,6 @@ class RequestController extends Controller
         // Generate PDF with QR code
         $pdf = Pdf::loadView('admin.requests.claim-slip-pdf', compact('request', 'qrCodeImage'))
             ->setPaper('a4', 'portrait');
-
-        // Create log entry
-        RequestActivityLog::logRequestActivity(
-            'Downloaded claim slip PDF for request: {subject}',
-            $request,
-            'updated',
-            ['claim_slip_number' => $request->claim_slip_number]
-        );
 
         return $pdf->download('claim-slip-' . $request->claim_slip_number . '.pdf');
     }

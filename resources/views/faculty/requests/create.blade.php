@@ -54,6 +54,7 @@
                                             <option value="{{ $item->id }}"
                                                     data-stock="{{ $item->quantity }}"
                                                     data-unit="{{ $item->unit ?? 'pieces' }}"
+                                                    data-type="{{ $item instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}"
                                                     {{ request('item_id') == $item->id ? 'selected' : '' }}>
                                                 {{ $item->name }} ({{ $item->quantity }} {{ $item->unit ?? 'pieces' }} available)
                                             </option>
@@ -63,6 +64,8 @@
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
+                                <!-- Hidden input for item type -->
+                                <input type="hidden" name="item_type" id="item_type" value="">
                             @endif
 
                             <!-- Quantity -->
@@ -252,14 +255,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const itemSelect = document.getElementById('item_id');
     const quantityInput = document.getElementById('quantity');
     const stockInfo = document.getElementById('stock-info');
+    const itemTypeInput = document.getElementById('item_type');
 
-    // Update stock info when item is selected
+    // Update stock info and item type when item is selected
     itemSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
         if (selectedOption.value) {
             const stock = selectedOption.getAttribute('data-stock');
             const unit = selectedOption.getAttribute('data-unit') || 'pcs';
+            const itemType = selectedOption.getAttribute('data-type');
             stockInfo.textContent = `Available: ${stock} ${unit}`;
+
+            // Set item type
+            if (itemTypeInput) {
+                itemTypeInput.value = itemType;
+            }
 
             // Set max quantity
             quantityInput.max = stock;
@@ -267,6 +277,9 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             stockInfo.textContent = 'Select an item to see available stock';
             quantityInput.removeAttribute('max');
+            if (itemTypeInput) {
+                itemTypeInput.value = '';
+            }
         }
     });
 

@@ -133,9 +133,9 @@
                                     <span class="fw-bold">4</span>
                                 </div>
                                 <div>
-                                    <h6 class="fw-bold">Monitor System</h6>
-                                    <p class="text-muted small mb-0">Track activities and system health.</p>
-                                    <a href="{{ route('activity-logs.index') }}" class="btn btn-sm btn-outline-warning mt-2">Activity Logs</a>
+                                    <h6 class="fw-bold">QR Scan Analytics</h6>
+                                    <p class="text-muted small mb-0">Monitor QR code scanning activities and item tracking.</p>
+                                    <a href="{{ route('reports.qr-scan-analytics') }}" class="btn btn-sm btn-outline-warning mt-2">View Analytics</a>
                                 </div>
                             </div>
                         </div>

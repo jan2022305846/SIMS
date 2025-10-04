@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Consumable;
 use App\Models\NonConsumable;
 use App\Models\Request as SupplyRequest;
-use App\Models\ActivityLog;
 use App\Models\User;
 use App\Models\Category;
 use App\Models\ItemScanLog;
@@ -91,13 +90,13 @@ class DashboardService
             ],
             'users' => [
                 'total' => User::count(),
-                'active_today' => ActivityLog::whereDate('created_at', today())
-                    ->distinct('causer_id')->count('causer_id'),
+                'active_today' => ItemScanLog::whereDate('created_at', today())
+                    ->distinct('user_id')->count('user_id'),
                 'faculty' => User::where('id', '!=', 6)->count(), // Admin is ID 6
                 'staff' => 1 // Single admin system
             ],
             'activities' => [
-                'total_today' => ActivityLog::whereDate('created_at', today())->count(),
+                'total_today' => ItemScanLog::whereDate('created_at', today())->count(),
                 'scans_today' => ItemScanLog::whereDate('created_at', today())->count()
             ]
         ];
@@ -117,7 +116,7 @@ class DashboardService
                 'this_month' => SupplyRequest::where('user_id', $user->id)
                     ->whereMonth('created_at', Carbon::now()->month)->count()
             ],
-            'recent_activity' => ActivityLog::where('causer_id', $user->id)
+            'recent_activity' => ItemScanLog::where('user_id', $user->id)
                 ->whereDate('created_at', today())->count()
         ];
     }
@@ -222,30 +221,33 @@ class DashboardService
     }
 
     /**
-     * Get recent activities
+     * Get recent activities (QR scans)
      */
     public function getRecentActivities($user, $limit = 10, $filter = 'all'): Collection
     {
-        $query = ActivityLog::with(['causer'])
+        $query = ItemScanLog::with(['user', 'item'])
             ->orderBy('created_at', 'desc');
 
         if ($filter === 'mine') {
-            $query->where('causer_id', $user->id);
-        } elseif ($filter === 'important') {
-            $query->whereIn('event', ['created', 'deleted', 'acknowledged', 'approved', 'rejected']);
+            $query->where('user_id', $user->id);
         }
 
-        return $query->limit($limit)->get()->map(function ($activity) {
+        return $query->limit($limit)->get()->map(function ($scan) {
             return [
-                'id' => $activity->id,
-                'description' => $activity->description,
-                'event' => $activity->event,
-                'causer_name' => $activity->causer->name ?? 'System',
-                'causer_role' => $activity->causer ? ($activity->causer->isAdmin() ? 'admin' : 'faculty') : 'system',
-                'created_at' => $activity->created_at,
-                'time_ago' => $activity->created_at->diffForHumans(),
-                'properties' => $activity->properties,
-                'log_name' => $activity->log_name
+                'id' => $scan->id,
+                'description' => "Scanned item: " . ($scan->item->name ?? 'Unknown Item'),
+                'event' => 'qr_scan',
+                'causer_name' => $scan->user->name ?? 'System',
+                'causer_role' => $scan->user ? ($scan->user->isAdmin() ? 'admin' : 'faculty') : 'system',
+                'created_at' => $scan->created_at,
+                'time_ago' => $scan->created_at->diffForHumans(),
+                'properties' => [
+                    'item_id' => $scan->item_id,
+                    'item_name' => $scan->item->name ?? 'Unknown Item',
+                    'location' => $scan->location,
+                    'scanner_type' => $scan->scanner_type
+                ],
+                'log_name' => 'qr_scan'
             ];
         });
     }

@@ -103,7 +103,7 @@ class HelpController extends Controller
                 'topics' => [
                     'dashboard-analytics' => 'Dashboard Analytics',
                     'inventory-reports' => 'Inventory Reports',
-                    'activity-logs' => 'Activity Logs and Audit Trail',
+                    'qr-scan-analytics' => 'QR Scan Analytics',
                     'export-data' => 'Exporting Data'
                 ]
             ];
@@ -682,47 +682,45 @@ class HelpController extends Controller
                 'roles' => ['admin', 'office_head']
             ],
 
-            'activity-logs' => [
-                'title' => 'Activity Logs and Audit Trail',
-                'description' => 'Monitoring system activities and maintaining audit trails',
+            'qr-scan-analytics' => [
+                'title' => 'QR Scan Analytics',
+                'description' => 'Monitoring QR code scanning activities and item tracking analytics',
                 'content' => [
                     [
                         'type' => 'text',
-                        'content' => 'Activity logs provide a complete audit trail of all system activities for security and compliance.'
+                        'content' => 'QR scan analytics provide insights into item usage patterns, scanning frequency, and inventory tracking effectiveness.'
                     ],
                     [
                         'type' => 'steps',
-                        'title' => 'Using activity logs:',
+                        'title' => 'Using QR scan analytics:',
                         'steps' => [
-                            'Access Activity Logs from the admin menu',
-                            'Filter logs by user, action, or date range',
-                            'Review recent system activities',
-                            'Search for specific events or users',
-                            'Export logs for compliance reporting',
-                            'Monitor for unusual or suspicious activities'
+                            'Access QR Scan Analytics from the Reports menu',
+                            'View scanning trends and patterns over time',
+                            'Monitor item scanning frequency and popularity',
+                            'Track user scanning activity and engagement',
+                            'Identify items that need more attention',
+                            'Analyze scanning locations and patterns',
+                            'Export analytics data for further analysis'
                         ]
                     ],
                     [
                         'type' => 'info',
-                        'content' => 'All user actions, system changes, and security events are automatically logged.'
-                    ],
-                    [
-                        'type' => 'warning',
-                        'content' => 'Important: Activity logs are critical for security investigations and should never be deleted without proper authorization.'
+                        'content' => 'Analytics include scan frequency, user activity, item popularity, location tracking, and usage trends.'
                     ],
                     [
                         'type' => 'tips',
-                        'title' => 'Log Analysis Tips:',
+                        'title' => 'Analytics Insights:',
                         'tips' => [
-                            'Regularly review login attempts and failures',
-                            'Monitor administrative actions',
-                            'Track inventory changes and adjustments',
-                            'Identify usage patterns and peak times',
-                            'Use logs to troubleshoot system issues'
+                            'Identify frequently scanned items for priority stocking',
+                            'Monitor user engagement with the QR system',
+                            'Track scanning patterns to optimize item placement',
+                            'Identify items that may need better labeling',
+                            'Use data to improve inventory management processes',
+                            'Monitor system usage and adoption rates'
                         ]
                     ]
                 ],
-                'tags' => ['activity', 'logs', 'audit', 'security'],
+                'tags' => ['qr', 'scan', 'analytics', 'tracking', 'usage'],
                 'roles' => ['admin', 'office_head']
             ],
 
