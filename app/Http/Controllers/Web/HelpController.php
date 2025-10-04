@@ -73,25 +73,31 @@ class HelpController extends Controller
         if (in_array($user->role, ['admin', 'office_head'])) {
             $sections['inventory-management'] = [
                 'title' => 'Inventory Management',
-                'description' => 'Managing items, stock, and categories',
+                'description' => 'Managing consumable and non-consumable items, stock levels, and categories',
                 'icon' => 'fas fa-boxes',
                 'topics' => [
+                    'item-types' => 'Understanding Item Types (Consumable vs Non-Consumable)',
                     'add-item' => 'How to Add New Items',
                     'edit-item' => 'Editing Item Details',
                     'stock-management' => 'Managing Stock Levels',
+                    'item-assignment' => 'Assigning Non-Consumable Items',
                     'categories' => 'Working with Categories',
-                    'qr-codes' => 'Using QR Code System',
-                    'bulk-operations' => 'Bulk Item Operations'
+                    'bulk-operations' => 'Bulk Item Operations',
+                    'trash-restore' => 'Trash and Restore Items',
+                    'qr-codes' => 'Using QR Code System'
                 ]
             ];
 
-                        $sections['request-management'] = [
+            $sections['request-management'] = [
                 'title' => 'Request Management',
-                'description' => 'Handling supply requests and approvals',
+                'description' => 'Handling supply requests, approvals, and fulfillment',
                 'icon' => 'fas fa-clipboard-check',
                 'topics' => [
+                    'view-requests' => 'Viewing and Managing Requests',
                     'process-requests' => 'How to Process Requests',
                     'approval-workflow' => 'Understanding Approval Workflow',
+                    'fulfill-requests' => 'Fulfilling and Claiming Requests',
+                    'claim-slips' => 'Claim Slips and Documentation',
                     'request-reports' => 'Request Reports and Analytics'
                 ]
             ];
@@ -103,6 +109,8 @@ class HelpController extends Controller
                 'topics' => [
                     'dashboard-analytics' => 'Dashboard Analytics',
                     'inventory-reports' => 'Inventory Reports',
+                    'request-analytics' => 'Request Analytics',
+                    'user-activity-reports' => 'User Activity Reports',
                     'qr-scan-analytics' => 'QR Scan Analytics',
                     'export-data' => 'Exporting Data'
                 ]
@@ -114,6 +122,7 @@ class HelpController extends Controller
                 'icon' => 'fas fa-cogs',
                 'topics' => [
                     'user-management' => 'Managing Users',
+                    'category-management' => 'Managing Categories',
                     'system-settings' => 'System Configuration',
                     'backup-restore' => 'Backup and Restore',
                     'troubleshooting' => 'Common Issues and Solutions'
@@ -129,7 +138,8 @@ class HelpController extends Controller
                 'topics' => [
                     'create-request' => 'How to Create a Request',
                     'track-request' => 'Tracking Your Requests',
-                    'request-status' => 'Understanding Request Status'
+                    'request-status' => 'Understanding Request Status',
+                    'edit-request' => 'Editing Pending Requests'
                 ]
             ];
 
@@ -140,7 +150,8 @@ class HelpController extends Controller
                 'topics' => [
                     'browse-items' => 'Browsing Available Items',
                     'search-filters' => 'Using Search and Filters',
-                    'item-details' => 'Understanding Item Information'
+                    'item-details' => 'Understanding Item Information',
+                    'qr-scanning' => 'QR Code Scanning'
                 ]
             ];
         }
@@ -166,11 +177,17 @@ class HelpController extends Controller
                         'type' => 'steps',
                         'title' => 'Dashboard Components:',
                         'steps' => [
-                            'Statistics Cards - View key metrics at a glance',
-                            'Quick Actions - Perform common tasks quickly',
-                            'Recent Activities - See latest system activities',
-                            'Alerts - Important notifications and warnings'
+                            'Statistics Cards - View key metrics at a glance (total items, users, pending requests)',
+                            'Low Stock Alerts - Items that need restocking',
+                            'Recent Activities - Latest system activities and changes',
+                            'Pending Requests - Requests awaiting your approval (admin only)',
+                            'Quick Actions - Fast access to common tasks',
+                            'System Health - Overall system status and performance'
                         ]
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'The dashboard adapts based on your role - administrators see system-wide statistics while faculty members see their personal request information.'
                     ]
                 ],
                 'tags' => ['dashboard', 'overview', 'navigation'],
@@ -190,10 +207,11 @@ class HelpController extends Controller
                         'title' => 'Main Navigation Areas:',
                         'steps' => [
                             'Dashboard - Your central hub with overview and quick actions',
-                            'Items - Browse and manage inventory items',
-                            'Requests - Create and track supply requests',
-                            'Reports - View analytics and generate reports',
+                            'Items - Browse, add, edit, and manage inventory items',
+                            'Requests - Create and track supply requests (faculty) or manage all requests (admin)',
+                            'Reports - View analytics and generate reports (admin only)',
                             'Users - Manage system users (admin only)',
+                            'Categories - Organize items by categories (admin only)',
                             'Activity Logs - Monitor system activities (admin only)',
                             'Help - Access documentation and support'
                         ]
@@ -249,6 +267,50 @@ class HelpController extends Controller
                 'roles' => ['admin', 'office_head', 'faculty']
             ],
 
+            'item-types' => [
+                'title' => 'Understanding Item Types (Consumable vs Non-Consumable)',
+                'description' => 'Learn the difference between consumable and non-consumable items',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'The Supply Office system manages two types of items: consumable and non-consumable. Understanding the difference is crucial for proper inventory management.'
+                    ],
+                    [
+                        'type' => 'info',
+                        'title' => 'Consumable Items:',
+                        'content' => 'Items that are used up or depleted during use, such as paper, pens, cleaning supplies, or office consumables. These items have stock quantities that decrease when fulfilled.'
+                    ],
+                    [
+                        'type' => 'info',
+                        'title' => 'Non-Consumable Items:',
+                        'content' => 'Items that are not depleted during use, such as equipment, furniture, or durable goods. These items can be assigned to users and tracked individually.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Key Differences:',
+                        'steps' => [
+                            'Stock Tracking: Consumables track quantity, non-consumables track individual items',
+                            'Assignment: Non-consumables can be assigned to specific users, consumables cannot',
+                            'Fulfillment: Consumables reduce stock when claimed, non-consumables remain in inventory',
+                            'Location: Non-consumables have specific storage locations, consumables have general locations',
+                            'Condition: Non-consumables track condition (New, Good, Fair, Needs Repair)'
+                        ]
+                    ],
+                    [
+                        'type' => 'tips',
+                        'title' => 'Management Tips:',
+                        'tips' => [
+                            'Use consumables for items bought in bulk and used over time',
+                            'Use non-consumables for valuable or trackable individual items',
+                            'Regularly update non-consumable conditions and locations',
+                            'Set appropriate minimum stock levels for consumables'
+                        ]
+                    ]
+                ],
+                'tags' => ['items', 'consumable', 'non-consumable', 'inventory', 'types'],
+                'roles' => ['admin', 'office_head']
+            ],
+
             'add-item' => [
                 'title' => 'How to Add New Items',
                 'description' => 'Step-by-step guide to adding items to the inventory',
@@ -263,8 +325,9 @@ class HelpController extends Controller
                         'steps' => [
                             'Navigate to "Items" in the main menu',
                             'Click the "Add New Item" button',
+                            'Select item type: Consumable or Non-Consumable',
                             'Fill in all required fields (marked with *)',
-                            'Upload an item image if available',
+                            'For non-consumables: specify location and condition',
                             'Set initial stock quantity and minimum stock level',
                             'Assign the item to appropriate category',
                             'Add any additional details or notes',
@@ -273,7 +336,7 @@ class HelpController extends Controller
                     ],
                     [
                         'type' => 'warning',
-                        'content' => 'Important: Always double-check the unit price and initial stock quantity before saving.'
+                        'content' => 'Important: Always double-check the item type selection and initial stock quantity before saving.'
                     ],
                     [
                         'type' => 'tips',
@@ -288,6 +351,417 @@ class HelpController extends Controller
                 ],
                 'tags' => ['items', 'inventory', 'add', 'create'],
                 'roles' => ['admin', 'office_head']
+            ],
+
+            'item-assignment' => [
+                'title' => 'Assigning Non-Consumable Items',
+                'description' => 'How to assign non-consumable items to users and track their usage',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'Non-consumable items can be assigned to specific users for tracking and accountability. This feature helps monitor equipment usage and responsibility.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Assigning an item:',
+                        'steps' => [
+                            'Go to the item detail page',
+                            'Click "Assign Item" button',
+                            'Select the user to assign the item to',
+                            'Optionally specify location or notes',
+                            'Click "Assign" to complete'
+                        ]
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Unassigning an item:',
+                        'steps' => [
+                            'Go to the assigned item detail page',
+                            'Click "Unassign Item" button',
+                            'The item becomes available for reassignment'
+                        ]
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'Assigned items show the current holder in the item details and cannot be assigned to another user until unassigned.'
+                    ],
+                    [
+                        'type' => 'tips',
+                        'title' => 'Assignment Best Practices:',
+                        'tips' => [
+                            'Document the assignment reason in notes',
+                            'Regularly review assigned items for returns',
+                            'Update item conditions when returned',
+                            'Use assignments to track valuable equipment'
+                        ]
+                    ]
+                ],
+                'tags' => ['assignment', 'non-consumable', 'tracking', 'users'],
+                'roles' => ['admin', 'office_head']
+            ],
+
+            'trash-restore' => [
+                'title' => 'Trash and Restore Items',
+                'description' => 'How to soft-delete items and restore them from the trash',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'The system uses soft deletion to safely remove items while preserving data integrity. Deleted items can be restored if needed.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Moving items to trash:',
+                        'steps' => [
+                            'Go to Items list or item detail page',
+                            'Click the "Delete" button',
+                            'Confirm the deletion',
+                            'Item is moved to trash (soft deleted)'
+                        ]
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Restoring from trash:',
+                        'steps' => [
+                            'Go to Items → Trash',
+                            'Find the item to restore',
+                            'Click "Restore" button',
+                            'Item becomes active again'
+                        ]
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Permanent deletion:',
+                        'steps' => [
+                            'Go to Items → Trash',
+                            'Select items for permanent deletion',
+                            'Click "Force Delete" (cannot be undone)',
+                            'Item is completely removed from database'
+                        ]
+                    ],
+                    [
+                        'type' => 'warning',
+                        'content' => 'Warning: Permanent deletion cannot be undone. Use with extreme caution.'
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'Items in trash maintain their relationships and can be restored with all data intact.'
+                    ]
+                ],
+                'tags' => ['trash', 'restore', 'delete', 'soft-delete'],
+                'roles' => ['admin', 'office_head']
+            ],
+
+            'view-requests' => [
+                'title' => 'Viewing and Managing Requests',
+                'description' => 'How to view, filter, and manage all supply requests in the system',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'The requests management interface allows you to view all requests in the system with powerful filtering and search capabilities.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Viewing requests:',
+                        'steps' => [
+                            'Navigate to "Requests" in the main menu',
+                            'Use filters: status, priority, date range',
+                            'Search by user name, item name, or claim slip number',
+                            'Sort by date, status, or priority',
+                            'Click on any request to view details'
+                        ]
+                    ],
+                    [
+                        'type' => 'info',
+                        'title' => 'Request Statuses:',
+                        'content' => 'Pending → Under Review → Approved by Admin → Ready for Pickup → Fulfilled → Claimed'
+                    ],
+                    [
+                        'type' => 'tips',
+                        'title' => 'Management Tips:',
+                        'tips' => [
+                            'Use status filters to focus on urgent requests',
+                            'Check priority levels for time-sensitive items',
+                            'Review request history and comments',
+                            'Monitor fulfillment progress regularly'
+                        ]
+                    ]
+                ],
+                'tags' => ['requests', 'view', 'manage', 'filter', 'search'],
+                'roles' => ['admin', 'office_head']
+            ],
+
+            'fulfill-requests' => [
+                'title' => 'Fulfilling and Claiming Requests',
+                'description' => 'How to fulfill approved requests and process item claims',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'Fulfilling requests involves preparing items for pickup and generating claim slips. The system supports barcode verification for accuracy.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Fulfilling a request:',
+                        'steps' => [
+                            'Go to approved request details',
+                            'Click "Fulfill Request" button',
+                            'Verify item availability and stock',
+                            'Scan QR code or enter barcode for verification',
+                            'Generate claim slip number',
+                            'Update stock levels (for consumables)',
+                            'Mark request as fulfilled'
+                        ]
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Processing claims:',
+                        'steps' => [
+                            'User presents claim slip',
+                            'Scan claim slip QR code or enter number',
+                            'Verify request details',
+                            'Mark as claimed',
+                            'Complete the transaction'
+                        ]
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'Barcode verification ensures the correct items are dispensed and prevents errors.'
+                    ],
+                    [
+                        'type' => 'warning',
+                        'content' => 'Always verify stock availability before fulfilling requests to prevent overselling.'
+                    ]
+                ],
+                'tags' => ['fulfill', 'claim', 'barcode', 'verification'],
+                'roles' => ['admin', 'office_head']
+            ],
+
+            'claim-slips' => [
+                'title' => 'Claim Slips and Documentation',
+                'description' => 'Understanding claim slips, printing, and documentation',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'Claim slips serve as official documentation for item disbursement and provide QR codes for easy verification.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Claim slip process:',
+                        'steps' => [
+                            'Request is fulfilled by admin',
+                            'Unique claim slip number is generated',
+                            'QR code is created for the claim slip',
+                            'Faculty receives notification',
+                            'Faculty can print claim slip',
+                            'Present claim slip for item pickup'
+                        ]
+                    ],
+                    [
+                        'type' => 'info',
+                        'title' => 'Claim Slip Information:',
+                        'content' => 'Includes request details, items, quantities, claim slip number, QR code, and pickup instructions.'
+                    ],
+                    [
+                        'type' => 'tips',
+                        'title' => 'Best Practices:',
+                        'tips' => [
+                            'Always print claim slips for record keeping',
+                            'Keep claim slips until items are received',
+                            'Report any discrepancies immediately',
+                            'Use QR codes for quick verification'
+                        ]
+                    ]
+                ],
+                'tags' => ['claim-slip', 'documentation', 'qr-code', 'printing'],
+                'roles' => ['admin', 'office_head', 'faculty']
+            ],
+
+            'request-analytics' => [
+                'title' => 'Request Analytics',
+                'description' => 'Analyzing request patterns, approval times, and usage trends',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'Request analytics provide insights into system usage, approval efficiency, and item popularity.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Using request analytics:',
+                        'steps' => [
+                            'Go to Reports → Request Analytics',
+                            'Select time period (monthly, quarterly, annually)',
+                            'Review approval rates and processing times',
+                            'Analyze most requested items',
+                            'View user request patterns',
+                            'Export data for further analysis'
+                        ]
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'Analytics include approval times, request volumes, popular items, and user activity patterns.'
+                    ],
+                    [
+                        'type' => 'tips',
+                        'title' => 'Using Analytics Data:',
+                        'tips' => [
+                            'Identify bottlenecks in approval process',
+                            'Stock popular items proactively',
+                            'Monitor faculty department usage',
+                            'Optimize inventory based on demand'
+                        ]
+                    ]
+                ],
+                'tags' => ['analytics', 'requests', 'reports', 'trends'],
+                'roles' => ['admin', 'office_head']
+            ],
+
+            'user-activity-reports' => [
+                'title' => 'User Activity Reports',
+                'description' => 'Monitoring user engagement, scanning activity, and system usage',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'User activity reports show how users interact with the system, including QR scanning and request patterns.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Viewing user activity:',
+                        'steps' => [
+                            'Go to Reports → User Activity',
+                            'Select time period and filters',
+                            'View individual user statistics',
+                            'Analyze scanning patterns',
+                            'Review request activity',
+                            'Export detailed reports'
+                        ]
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'Reports include scan counts, unique items scanned, request frequency, and activity trends.'
+                    ],
+                    [
+                        'type' => 'tips',
+                        'title' => 'Activity Insights:',
+                        'tips' => [
+                            'Identify power users and system champions',
+                            'Monitor adoption rates across departments',
+                            'Track QR code usage effectiveness',
+                            'Identify training opportunities'
+                        ]
+                    ]
+                ],
+                'tags' => ['users', 'activity', 'reports', 'engagement'],
+                'roles' => ['admin', 'office_head']
+            ],
+
+            'category-management' => [
+                'title' => 'Managing Categories',
+                'description' => 'How to create, edit, and organize item categories',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'Categories help organize inventory items logically, making them easier to find and manage.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Managing categories:',
+                        'steps' => [
+                            'Go to Categories in the admin menu',
+                            'Create new categories with descriptive names',
+                            'Edit existing category information',
+                            'Assign items to appropriate categories',
+                            'View items grouped by category',
+                            'Delete categories (only if empty)'
+                        ]
+                    ],
+                    [
+                        'type' => 'warning',
+                        'content' => 'Categories cannot be deleted if they contain items. Reassign items first.'
+                    ],
+                    [
+                        'type' => 'tips',
+                        'title' => 'Category Best Practices:',
+                        'tips' => [
+                            'Use clear, hierarchical category names',
+                            'Create categories based on item function or department',
+                            'Avoid creating too many categories',
+                            'Regularly review and consolidate categories',
+                            'Use consistent naming conventions'
+                        ]
+                    ]
+                ],
+                'tags' => ['categories', 'organization', 'management'],
+                'roles' => ['admin', 'office_head']
+            ],
+
+            'edit-request' => [
+                'title' => 'Editing Pending Requests',
+                'description' => 'How to modify requests that are still pending approval',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'You can edit your requests while they are still in pending status. Once approved, requests cannot be modified.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Editing a request:',
+                        'steps' => [
+                            'Go to My Requests section',
+                            'Find the pending request',
+                            'Click "Edit" button',
+                            'Modify items, quantities, or purpose',
+                            'Update priority or dates if needed',
+                            'Save your changes'
+                        ]
+                    ],
+                    [
+                        'type' => 'warning',
+                        'content' => 'You cannot edit requests that have been approved or are being processed.'
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'Contact your supply office administrator if you need to modify an approved request.'
+                    ]
+                ],
+                'tags' => ['edit', 'requests', 'pending', 'modify'],
+                'roles' => ['faculty', 'admin', 'office_head']
+            ],
+
+            'qr-scanning' => [
+                'title' => 'QR Code Scanning',
+                'description' => 'How to use QR codes for quick item lookup and verification',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'QR codes provide instant access to item information and enable efficient inventory management.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Scanning QR codes:',
+                        'steps' => [
+                            'Use device camera or QR scanner',
+                            'Point at item QR code',
+                            'System automatically retrieves item details',
+                            'View stock status, location, and information',
+                            'Log scan for inventory tracking'
+                        ]
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'QR scanning works for both inventory checks and request fulfillment verification.'
+                    ],
+                    [
+                        'type' => 'tips',
+                        'title' => 'Scanning Tips:',
+                        'tips' => [
+                            'Ensure good lighting for accurate scanning',
+                            'Hold device steady while scanning',
+                            'Clean QR codes if scanning fails',
+                            'Use scanning for regular inventory audits'
+                        ]
+                    ]
+                ],
+                'tags' => ['qr', 'scan', 'barcode', 'verification'],
+                'roles' => ['faculty', 'admin', 'office_head']
             ],
 
             'create-request' => [
