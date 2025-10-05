@@ -1245,7 +1245,20 @@ class ReportsController extends Controller
         ];
 
         if ($format === 'docx') {
-            return $this->generateDocxReport($data);
+            try {
+                return $this->generateDocxReport($data);
+            } catch (\Exception $e) {
+                // Fallback to PDF if DOCX generation fails
+                Log::warning('DOCX report generation failed, falling back to PDF: ' . $e->getMessage());
+                
+                $pdf = Pdf::loadView('admin.reports.pdf.inventory-report', compact('data'))
+                    ->setPaper('a4', 'landscape');
+
+                $filename = 'inventory-report-' . $period . '-' . $selection . '.pdf';
+                return $pdf->download($filename)->withHeaders([
+                    'X-Fallback-Message' => 'DOCX export failed. PDF version downloaded instead.'
+                ]);
+            }
         } else {
             // Default to PDF
             $pdf = Pdf::loadView('admin.reports.pdf.inventory-report', compact('data'))
@@ -1257,10 +1270,15 @@ class ReportsController extends Controller
     }
 
     /**
-     * Generate DOCX report
+     * Generate DOCX report with ZipArchive check
      */
     private function generateDocxReport($data)
     {
+        // Check if ZipArchive is available
+        if (!class_exists('ZipArchive')) {
+            throw new \Exception('PHP ZipArchive extension is required for DOCX export. Please contact your administrator.');
+        }
+
         $phpWord = new \PhpOffice\PhpWord\PhpWord();
 
         // Set document properties
@@ -1323,6 +1341,11 @@ class ReportsController extends Controller
      */
     private function generateQrScanLogsDocx($data)
     {
+        // Check if ZipArchive is available
+        if (!class_exists('ZipArchive')) {
+            throw new \Exception('PHP ZipArchive extension is required for DOCX export. Please contact your administrator.');
+        }
+
         $phpWord = new \PhpOffice\PhpWord\PhpWord();
 
         // Set document properties
@@ -1458,7 +1481,31 @@ class ReportsController extends Controller
             ],
         ];
 
-        return $this->generateQrScanLogsDocx($data);
+        try {
+            return $this->generateQrScanLogsDocx($data);
+        } catch (\Exception $e) {
+            // Fallback to CSV if DOCX generation fails
+            Log::warning('QR Scan Logs DOCX generation failed, falling back to CSV: ' . $e->getMessage());
+            
+            // Create CSV content
+            $csv = "Timestamp,Item Scanned,User,Action,Location,Notes\n";
+
+            foreach ($scans as $scan) {
+                $csv .= '"' . $scan->created_at->format('Y-m-d H:i:s') . '",';
+                $csv .= '"' . ($scan->item ? $scan->item->name : 'Unknown Item') . '",';
+                $csv .= '"' . ($scan->user ? $scan->user->name : 'Unknown User') . '",';
+                $csv .= '"' . $this->formatScanAction($scan->action) . '",';
+                $csv .= '"' . ($scan->office ? $scan->office->name : 'N/A') . '",';
+                $csv .= '"' . ($scan->notes ?: 'No notes') . '"' . "\n";
+            }
+
+            $filename = 'qr-scan-logs-' . $period . '-' . $selection . '.csv';
+
+            return response($csv)
+                ->header('Content-Type', 'text/csv')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->header('X-Fallback-Message', 'DOCX export failed. CSV version downloaded instead.');
+        }
     }
 
     /**
