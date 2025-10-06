@@ -19,10 +19,6 @@
                             <i class="fas fa-arrow-left me-1"></i>
                             Back to Items
                         </a>
-                        <a href="{{ route('items.create') }}" class="btn btn-warning fw-bold">
-                            <i class="fas fa-plus me-1"></i>
-                            Add New Item
-                        </a>
                     </div>
                 </div>
 
@@ -132,8 +128,14 @@
                                             </td>
                                             <td>
                                                 @php
-                                                    $unitsNeeded = max(0, ($item->minimum_stock ?? 10) - $item->current_stock);
-                                                    $status = $unitsNeeded > 0 ? "Needs {$unitsNeeded} more" : "Above minimum";
+                                                    if ($item->current_stock <= 0) {
+                                                        $status = "Out of stock";
+                                                    } elseif ($item->current_stock < ($item->minimum_stock ?? 10)) {
+                                                        $unitsNeeded = ($item->minimum_stock ?? 10) - $item->current_stock;
+                                                        $status = "Needs {$unitsNeeded} more";
+                                                    } else {
+                                                        $status = "At minimum level";
+                                                    }
                                                 @endphp
                                                 <div class="d-flex flex-column">
                                                     <span class="fw-semibold">{{ $item->current_stock }} units</span>
