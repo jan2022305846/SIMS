@@ -29,10 +29,10 @@
                                id="searchInput">
                     </div>
                     <div class="col-md-4">
-                        <select name="category_id" class="form-select" id="categorySelect">
+                        <select name="category" class="form-select" id="categorySelect">
                             <option value="">All Categories</option>
                             @foreach($categories as $category)
-                                <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>
+                                <option value="{{ $category->id }}" {{ request('category') == $category->id ? 'selected' : '' }}>
                                     {{ $category->name }}
                                 </option>
                             @endforeach
@@ -44,7 +44,7 @@
                                 <i class="fas fa-search me-1"></i>
                                 Filter
                             </button>
-                            @if(request()->hasAny(['search', 'category_id']))
+                            @if(request()->hasAny(['search', 'category']))
                                 <a href="{{ route('faculty.items.index') }}" class="btn btn-outline-secondary">
                                     <i class="fas fa-times"></i>
                                 </a>
@@ -98,7 +98,7 @@
                                     </button>
                                 @endif
 
-                                @if($item->quantity <= ($item->minimum_stock ?? 10))
+                                @if($item->isLowStock())
                                     <div class="text-center">
                                         <span class="badge bg-danger">
                                             Low Stock
