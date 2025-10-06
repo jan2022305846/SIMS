@@ -354,21 +354,24 @@ class ItemController extends Controller
 
         $rules = [
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' =>  'required|exists:categories,id',
             'category_id' => 'required|exists:categories,id',
             'unit' => 'required|string|max:50',
-            'product_code' => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::unique($isConsumable ? 'consumables' : 'non_consumables')->whereNull('deleted_at')->ignore($item->id)
-            ],
-            'add_quantity' => 'nullable|integer|min:0',
+            'product_code' => 'nullable|string|max:100',
+            'brand' => 'nullable|string|max:100',
             'min_stock' => 'required|integer|min:0',
             'max_stock' => 'nullable|integer|min:0',
-            'brand' => 'nullable|string|max:255',
+            'add_quantity' => 'nullable|integer|min:0',
         ];
 
+        // Non-Consumable Specific rule requirements
+        if($item instanceof NonConsumable){
+            $rules =[
+                'location' => 'required|string|max:255',
+                'condition' =>  'required|in:New,Good,Fair,Needs Repair'
+            ] ;
+        }
+        
         // Add conditional validation for non-consumables
         if (!$isConsumable) {
             $rules['location'] = 'required|string|max:255';
