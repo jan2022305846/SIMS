@@ -18,7 +18,7 @@
                             </p>
                         </div>
                         <div class="d-flex gap-2 mt-2 mt-md-0">
-                            <a href="{{ route('items.show', $item) }}" class="btn btn-secondary btn-sm">
+                            <a href="{{ route('items.show', $item->id) }}?type={{ $item instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}" class="btn btn-secondary btn-sm">
                                 <i class="fas fa-arrow-left me-1"></i>
                                 Back to Item
                             </a>
@@ -148,7 +148,7 @@
                                         @endif
                                     </div>
                                     <div class="d-flex gap-2">
-                                        <a href="{{ route('items.show', $item) }}" class="btn btn-secondary">
+                                        <a href="{{ route('items.show', $item->id) }}?type={{ $item instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}" class="btn btn-secondary">
                                             <i class="fas fa-times me-1"></i>
                                             Cancel
                                         </a>
