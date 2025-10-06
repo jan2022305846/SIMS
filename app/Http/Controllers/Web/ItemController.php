@@ -636,39 +636,6 @@ class ItemController extends Controller
     }
 
     /**
-     * Restock an item.
-     */
-    public function restock(Request $request, $id)
-    {
-        // First try to find in consumables
-        $consumableItem = Consumable::find($id);
-
-        // Then try to find in non-consumables
-        $nonConsumableItem = NonConsumable::find($id);
-
-        // Determine which item to restock based on availability
-        if ($consumableItem && $nonConsumableItem) {
-            // Both exist - prioritize based on most recently updated
-            $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
-        } elseif ($consumableItem) {
-            $item = $consumableItem;
-        } elseif ($nonConsumableItem) {
-            $item = $nonConsumableItem;
-        } else {
-            abort(404, 'Item not found');
-        }
-
-        $request->validate([
-            'additional_quantity' => 'required|integer|min:1'
-        ]);
-
-        $item->increment('quantity', $request->additional_quantity);
-
-        return redirect()->back()
-            ->with('success', "Successfully added {$request->additional_quantity} units to {$item->name}.");
-    }
-
-    /**
      * Display expiring items.
      */
     public function expiringSoon()

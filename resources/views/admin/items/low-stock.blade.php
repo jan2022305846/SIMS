@@ -156,14 +156,6 @@
                                                        title="Edit Item">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
-                                                    @if($item->current_stock > 0)
-                                                        <button class="btn btn-outline-success"
-                                                                data-bs-toggle="tooltip"
-                                                                title="Restock Item"
-                                                                onclick="showRestockModal({{ $item->id }}, '{{ $item->name }}')">
-                                                            <i class="fas fa-plus"></i>
-                                                        </button>
-                                                    @endif
                                                 </div>
                                             </td>
                                         </tr>
@@ -208,37 +200,6 @@
     </div>
 </div>
 
-<!-- Restock Modal -->
-<div class="modal fade" id="restockModal" tabindex="-1" aria-labelledby="restockModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="restockModalLabel">Restock Item</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="restockForm" method="POST">
-                @csrf
-                @method('PATCH')
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="restock_quantity" class="form-label">Additional Quantity</label>
-                        <input type="number" class="form-control" id="restock_quantity" name="additional_quantity" min="1" required>
-                        <div class="form-text">Enter the quantity to add to current stock</div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Current Stock: <span id="currentStock">0</span></label>
-                        <label class="form-label">New Total: <span id="newTotal">0</span></label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Restock Item</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips
@@ -247,26 +208,5 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 });
-
-// Restock modal functionality
-function showRestockModal(itemId, itemName) {
-    document.getElementById('restockModalLabel').textContent = 'Restock: ' + itemName;
-    document.getElementById('restockForm').action = `/items/${itemId}/restock`;
-
-    // You would need to fetch current stock here, for now using placeholder
-    document.getElementById('currentStock').textContent = 'Loading...';
-    document.getElementById('newTotal').textContent = 'Loading...';
-
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('restockModal'));
-    modal.show();
-
-    // Update calculations when quantity changes
-    document.getElementById('restock_quantity').addEventListener('input', function() {
-        const additional = parseInt(this.value) || 0;
-        const current = parseInt(document.getElementById('currentStock').textContent) || 0;
-        document.getElementById('newTotal').textContent = current + additional;
-    });
-}
 </script>
 @endsection

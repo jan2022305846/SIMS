@@ -67,7 +67,6 @@ Route::middleware(['auth'])->group(function () {
         // Items
         Route::get('items/summary', [ItemController::class, 'summary'])->name('items.summary');
         Route::get('items/low-stock', [ItemController::class, 'lowStock'])->name('items.low-stock');
-        Route::patch('items/{id}/restock', [ItemController::class, 'restock'])->name('items.restock');
         Route::get('items/expiring-soon', [ItemController::class, 'expiringSoon'])->name('items.expiring-soon');
         Route::get('items/trashed', [ItemController::class, 'trashed'])->name('items.trashed');
         Route::post('items/{id}/restore', [ItemController::class, 'restore'])->name('items.restore');
