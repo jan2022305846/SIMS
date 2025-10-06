@@ -580,20 +580,44 @@ class ItemController extends Controller
      */
     public function lowStock()
     {
-        // Get low stock consumables
+        // Get low stock consumables - items where quantity <= min_stock (or <= 10 if min_stock not set)
         $consumables = Consumable::with('category')
-            ->whereRaw('quantity <= min_stock')
-            ->orWhere('quantity', '<=', 10)
+            ->where(function ($query) {
+                $query->where(function ($q) {
+                    // Items with min_stock set: show if quantity <= min_stock
+                    $q->whereNotNull('min_stock')
+                      ->where('min_stock', '>', 0)
+                      ->whereRaw('quantity <= min_stock');
+                })->orWhere(function ($q) {
+                    // Items without min_stock set: show if quantity <= 10 (default threshold)
+                    $q->where(function ($subQuery) {
+                        $subQuery->whereNull('min_stock')
+                                 ->orWhere('min_stock', '<=', 0);
+                    })->where('quantity', '<=', 10);
+                });
+            })
             ->get()
             ->map(function ($item) {
                 $item->item_type = 'consumable';
                 return $item;
             });
 
-        // Get low stock non-consumables
+        // Get low stock non-consumables - items where quantity <= min_stock (or <= 10 if min_stock not set)
         $nonConsumables = NonConsumable::with('category')
-            ->whereRaw('quantity <= min_stock')
-            ->orWhere('quantity', '<=', 10)
+            ->where(function ($query) {
+                $query->where(function ($q) {
+                    // Items with min_stock set: show if quantity <= min_stock
+                    $q->whereNotNull('min_stock')
+                      ->where('min_stock', '>', 0)
+                      ->whereRaw('quantity <= min_stock');
+                })->orWhere(function ($q) {
+                    // Items without min_stock set: show if quantity <= 10 (default threshold)
+                    $q->where(function ($subQuery) {
+                        $subQuery->whereNull('min_stock')
+                                 ->orWhere('min_stock', '<=', 0);
+                    })->where('quantity', '<=', 10);
+                });
+            })
             ->get()
             ->map(function ($item) {
                 $item->item_type = 'non_consumable';

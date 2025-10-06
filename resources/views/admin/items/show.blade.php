@@ -29,9 +29,14 @@
                                     Download QR
                                 </a>
                             @endcan
-                            <a href="{{ route('items.index') }}" class="btn btn-secondary btn-sm">
+                            @php
+                                $referer = request()->headers->get('referer');
+                                $backRoute = (strpos($referer, 'low-stock') !== false) ? route('items.low-stock') : route('items.index');
+                                $backText = (strpos($referer, 'low-stock') !== false) ? 'Back to Low Stock' : 'Back to Items';
+                            @endphp
+                            <a href="{{ $backRoute }}" class="btn btn-secondary btn-sm">
                                 <i class="fas fa-arrow-left me-1"></i>
-                                Back to Items
+                                {{ $backText }}
                             </a>
                         </div>
                     </div>
