@@ -177,10 +177,11 @@
                             <div class="card-body">
                                 <div class="row g-3">
                                     <div class="col-md-4">
-                                        <label for="quantity" class="form-label fw-medium">Current Stock *</label>
+                                        <label for="quantity" class="form-label fw-medium">Initial Stock *</label>
                                         <input type="number" name="quantity" id="quantity" min="0"
                                                class="form-control @error('quantity') is-invalid @enderror"
                                                value="{{ old('quantity') }}" required>
+                                        <small class="text-muted">Set the starting stock level for this item</small>
                                         @error('quantity')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror

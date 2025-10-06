@@ -153,17 +153,28 @@
                             </div>
                             <div class="card-body">
                                 <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <label for="quantity" class="form-label fw-medium">Current Stock *</label>
-                                        <input type="number" name="quantity" id="quantity" min="0"
-                                               class="form-control @error('quantity') is-invalid @enderror"
-                                               value="{{ old('quantity', $item->quantity) }}" required>
-                                        @error('quantity')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
+                                    <!-- First Row: Current Stock and Add Stock -->
+                                    <div class="col-md-6">
+                                        <label for="current_stock_display" class="form-label fw-medium">Current Stock</label>
+                                        <input type="text" id="current_stock_display"
+                                               class="form-control bg-light"
+                                               value="{{ $item->quantity }} {{ $item->unit ?? 'pcs' }}" readonly>
+                                        <small class="text-muted">Current stock level (read-only)</small>
                                     </div>
 
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
+                                        <label for="add_quantity" class="form-label fw-medium">Add Stock</label>
+                                        <input type="number" name="add_quantity" id="add_quantity" min="0"
+                                               class="form-control @error('add_quantity') is-invalid @enderror"
+                                               value="{{ old('add_quantity', 0) }}" placeholder="Enter quantity to add">
+                                        @error('add_quantity')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                        <small class="text-muted">Add additional stock to current inventory</small>
+                                    </div>
+
+                                    <!-- Second Row: Minimum Stock and Maximum Stock -->
+                                    <div class="col-md-6">
                                         <label for="min_stock" class="form-label fw-medium">Minimum Stock *</label>
                                         <input type="number" name="min_stock" id="min_stock" min="0"
                                                class="form-control @error('min_stock') is-invalid @enderror"
@@ -173,7 +184,7 @@
                                         @enderror
                                     </div>
 
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <label for="max_stock" class="form-label fw-medium">Maximum Stock</label>
                                         <input type="number" name="max_stock" id="max_stock" min="0"
                                                class="form-control @error('max_stock') is-invalid @enderror"

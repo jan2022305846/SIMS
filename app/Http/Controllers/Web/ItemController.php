@@ -363,7 +363,7 @@ class ItemController extends Controller
                 'max:255',
                 Rule::unique($isConsumable ? 'consumables' : 'non_consumables')->whereNull('deleted_at')->ignore($item->id)
             ],
-            'quantity' => 'required|integer|min:0',
+            'add_quantity' => 'nullable|integer|min:0',
             'min_stock' => 'required|integer|min:0',
             'max_stock' => 'nullable|integer|min:0',
             'brand' => 'nullable|string|max:255',
@@ -377,10 +377,22 @@ class ItemController extends Controller
 
         $request->validate($rules);
 
-        $item->update($request->all());
+        // Prepare update data (exclude add_quantity)
+        $updateData = $request->except(['add_quantity']);
+
+        // Update the item
+        $item->update($updateData);
+
+        // Handle stock addition if provided
+        if ($request->filled('add_quantity') && $request->add_quantity > 0) {
+            $item->increment('quantity', $request->add_quantity);
+            $message = 'Item updated successfully. Added ' . $request->add_quantity . ' ' . $item->unit . ' to stock.';
+        } else {
+            $message = 'Item updated successfully.';
+        }
 
         return redirect()->route('items.show', $item->id . '?type=' . ($item instanceof Consumable ? 'consumable' : 'non_consumable'))
-            ->with('success', 'Item updated successfully.');
+            ->with('success', $message);
     }
 
     /**
