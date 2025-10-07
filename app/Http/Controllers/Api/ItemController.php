@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Consumable;
 use App\Models\NonConsumable;
+use App\Models\ItemScanLog;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Schema;
@@ -57,6 +58,19 @@ class ItemController extends Controller
                     'code' => $code,
                     'item_id' => $item->id,
                     'item_name' => $item->name
+                ]);
+
+                // Log the scan
+                ItemScanLog::create([
+                    'item_id' => $item->id,
+                    'user_id' => Auth::id(),
+                    'action' => 'scanned',
+                    'metadata' => [
+                        'scanned_at' => now(),
+                        'scanner' => 'dashboard',
+                        'ip_address' => $request->ip(),
+                        'qr_data' => $code
+                    ]
                 ]);
 
                 // Determine item type
