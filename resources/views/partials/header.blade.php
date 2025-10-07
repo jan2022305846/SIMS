@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const month = monthNames[now.getMonth()];
         const day = String(now.getDate()).padStart(2, '0');
         const year = now.getFullYear();
-        const dateString = `${month},${day},${year}`;
+        const dateString = `${month} ${day} ${year}`;
         
         // Update the display elements
         const timeElement = document.getElementById('current-time');
