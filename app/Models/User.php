@@ -95,14 +95,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user is an office head (deprecated - no longer used)
-     */
-    public function isOfficeHead(): bool
-    {
-        return false; // No office heads in single admin system
-    }
-
-    /**
      * Check if user is faculty (all non-admin users are faculty)
      */
     public function isFaculty(): bool

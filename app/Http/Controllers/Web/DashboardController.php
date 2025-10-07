@@ -8,7 +8,6 @@ use App\Models\NonConsumable;
 use App\Models\ItemScanLog;
 use App\Models\Request;
 use App\Models\User;
-use App\Models\ActivityLog;
 use App\Models\Category;
 use App\Services\QRCodeService;
 use App\Services\DashboardService;
