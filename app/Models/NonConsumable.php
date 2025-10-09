@@ -26,12 +26,21 @@ class NonConsumable extends Model
         'condition',
     ];
 
+    protected $attributes = [
+        'location' => null,
+        'condition' => null,
+    ];
+
     protected $casts = [
         'quantity' => 'integer',
         'min_stock' => 'integer',
         'max_stock' => 'integer',
         'current_holder_id' => 'integer',
     ];
+
+    // Explicitly declare properties for linter
+    public $location;
+    public $condition;
 
     public function category(): BelongsTo
     {
