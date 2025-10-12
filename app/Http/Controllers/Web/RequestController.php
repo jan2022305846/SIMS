@@ -83,9 +83,11 @@ class RequestController extends Controller
     public function store(Request $request)
     {
         // Debug logging
+        /** @var User $currentUser */
+        $currentUser = Auth::user();
         Log::info('Faculty request submission attempt', [
             'user_id' => Auth::id(),
-            'user_is_admin' => Auth::user()->isAdmin(),
+            'user_is_admin' => $currentUser->isAdmin(),
             'method' => $request->method(),
             'all_data' => $request->all(),
             'has_csrf' => $request->has('_token'),
@@ -157,7 +159,7 @@ class RequestController extends Controller
             $supplyRequest = SupplyRequest::create([
                 'user_id' => Auth::id(),
                 'item_id' => $validatedData['item_id'],
-                'item_type' => $item instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable',
+                'item_type' => $item instanceof Consumable ? 'consumable' : 'non_consumable',
                 'quantity' => $validatedData['quantity'],
                 'purpose' => $validatedData['purpose'],
                 'needed_date' => $validatedData['needed_date'],
@@ -170,6 +172,9 @@ class RequestController extends Controller
 
             DB::commit();
             Log::info('Transaction committed successfully');
+
+            // Notify admin about new pending request
+            \App\Services\NotificationService::notifyNewPendingRequest($supplyRequest);
 
             return redirect()->route('faculty.requests.show', $supplyRequest)
                 ->with('success', 'Request submitted successfully!');
@@ -203,31 +208,33 @@ class RequestController extends Controller
         }
     }
 
-    public function show(SupplyRequest $request)
+    public function show(SupplyRequest $supplyRequest)
     {
-        $request->load(['user', 'item', 'adminApprover', 'office']);
+        $supplyRequest->load(['user', 'item', 'adminApprover', 'office']);
 
         // Check permissions
         /** @var User $user */
         $user = Auth::user();
-        if (!$user->isAdmin() && $request->user_id !== $user->id) {
+
+        // Check if user is authenticated and has permission
+        if (!$user || (!$user->isAdmin() && $supplyRequest->user_id !== $user->id)) {
             abort(403, 'Unauthorized access to this request.');
         }
 
         // Return appropriate view based on user role
         if (!$user->isAdmin()) {
-            return view('faculty.requests.show', compact('request'));
+            return view('faculty.requests.show', compact('supplyRequest'));
         }
 
-        return view('admin.requests.show', compact('request'));
+        return view('admin.requests.show', ['supplyRequest' => $supplyRequest]);
     }
 
-    public function edit(SupplyRequest $request)
+    public function edit(SupplyRequest $supplyRequest)
     {
         // Only allow editing if request is still pending and user is the requester or admin
         /** @var User $user */
         $user = Auth::user();
-        if (!$request->isPending() || (!$user->isAdmin() && $request->user_id !== $user->id)) {
+        if (!$user || !$supplyRequest->isPending() || (!$user->isAdmin() && $supplyRequest->user_id !== $user->id)) {
             abort(403, 'This request cannot be edited.');
         }
 
@@ -236,15 +243,15 @@ class RequestController extends Controller
         $items = $consumables->concat($nonConsumables);
         $offices = \App\Models\Office::all();
 
-        return view('admin.requests.edit', compact('request', 'items', 'offices'));
+        return view('admin.requests.edit', compact('supplyRequest', 'items', 'offices'));
     }
 
-    public function update(Request $updateRequest, SupplyRequest $request)
+    public function update(Request $updateRequest, SupplyRequest $supplyRequest)
     {
         // Check permissions
         /** @var User $user */
         $user = Auth::user();
-        if (!$request->isPending() || (!$user->isAdmin() && $request->user_id !== $user->id)) {
+        if (!$user || !$supplyRequest->isPending() || (!$user->isAdmin() && $supplyRequest->user_id !== $user->id)) {
             abort(403, 'This request cannot be updated.');
         }
 
@@ -275,9 +282,9 @@ class RequestController extends Controller
             return back()->withErrors(['quantity' => 'Requested quantity exceeds available stock (' . $item->quantity . ' available)']);
         }
 
-        $request->update($validatedData);
+        $supplyRequest->update($validatedData);
 
-        return redirect()->route('requests.show', $request)
+        return redirect()->route('requests.show', $supplyRequest)
             ->with('success', 'Request updated successfully!');
     }
 
@@ -292,7 +299,7 @@ class RequestController extends Controller
 
         /** @var User $user */
         $user = Auth::user();
-        if (!$user->isAdmin()) {
+        if (!$user || !$user->isAdmin()) {
             abort(403, 'Only administrators can approve requests.');
         }
 
@@ -309,7 +316,7 @@ class RequestController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
-        if (!$user->isAdmin()) {
+        if (!$user || !$user->isAdmin()) {
             abort(403, 'Only administrators can fulfill requests.');
         }
 
@@ -369,7 +376,7 @@ class RequestController extends Controller
 
         /** @var User $user */
         $user = Auth::user();
-        if (!$user->isAdmin()) {
+        if (!$user || !$user->isAdmin()) {
             abort(403, 'Only administrators can mark requests as claimed.');
         }
 
@@ -425,7 +432,7 @@ class RequestController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
-        if (!$user->isAdmin()) {
+        if (!$user || !$user->isAdmin()) {
             abort(403, 'Only administrators can complete requests.');
         }
 
@@ -489,10 +496,16 @@ class RequestController extends Controller
 
     public function decline(Request $request, SupplyRequest $supplyRequest)
     {
+        Log::info('Decline method called', [
+            'request_id' => $supplyRequest->id,
+            'user_id' => Auth::id(),
+            'form_data' => $request->all()
+        ]);
+
         /** @var User $user */
         $user = Auth::user();
-        
-        if (!$user->isAdmin()) {
+
+        if (!$user || !$user->isAdmin()) {
             abort(403, 'Only administrators can decline requests.');
         }
 
@@ -505,27 +518,49 @@ class RequestController extends Controller
             'reason' => 'required|string|max:500',
         ]);
 
+        Log::info('Declining request', [
+            'request_id' => $supplyRequest->id,
+            'current_status' => $supplyRequest->status,
+            'reason' => $validatedData['reason']
+        ]);
+
+        $supplyRequest->load('user');
         $supplyRequest->decline(Auth::user(), $validatedData['reason']);
 
-        return back()->with('success', 'Request declined successfully!');
+        // Check if the status was actually updated
+        $supplyRequest->refresh();
+        Log::info('Request status after decline', [
+            'request_id' => $supplyRequest->id,
+            'new_status' => $supplyRequest->status,
+            'notes' => $supplyRequest->notes
+        ]);
+
+        return redirect()->route('requests.manage')->with('success', 'Request declined successfully!');
     }
 
-    public function destroy(SupplyRequest $request)
+    public function destroy($requestId)
     {
+        // Manual model loading since route model binding had issues
+        $supplyRequest = SupplyRequest::find($requestId);
+
+        if (!$supplyRequest) {
+            return back()->withErrors(['error' => 'Request not found.']);
+        }
+
         /** @var User $user */
         $user = Auth::user();
         
         // Only allow deletion if request is pending and user is the requester or admin
-        if (!$request->isPending() || (!$user->isAdmin() && $request->user_id !== $user->id)) {
+        if (!$user || !$supplyRequest->isPending() || (!$user->isAdmin() && $supplyRequest->user_id !== $user->id)) {
             abort(403, 'This request cannot be deleted.');
         }
 
         // Load item relationship if not already loaded
-        if (!$request->relationLoaded('item')) {
-            $request->load('item');
+        if (!$supplyRequest->relationLoaded('item')) {
+            $supplyRequest->load('item');
         }
 
-        $request->delete();
+        $supplyRequest->delete();
 
         // Redirect based on user role
         if ($user->isAdmin()) {
@@ -537,27 +572,26 @@ class RequestController extends Controller
         }
     }
 
-    public function printClaimSlip(SupplyRequest $request)
+    public function printClaimSlip(SupplyRequest $supplyRequest)
     {
         /** @var User $user */
         $user = Auth::user();
 
         // Only faculty and admin can view claim slips
-        if (($user->isAdmin() && $user->isAdmin()) || 
-            (!$user->isAdmin() && $request->user_id !== $user->id)) {
+        if (!$user || !($user->isAdmin() || $supplyRequest->user_id === $user->id)) {
             abort(403, 'You are not authorized to view claim slips for this request.');
         }
 
-        if (!$request->isApprovedByAdmin() && !$request->isReadyForPickup() && !$request->isFulfilled() && !$request->isClaimed()) {
+        if (!$supplyRequest->isApprovedByAdmin() && !$supplyRequest->isReadyForPickup() && !$supplyRequest->isFulfilled() && !$supplyRequest->isClaimed()) {
             abort(404, 'Claim slip not available for this request.');
         }
 
         // Generate QR code for the claim slip number
         $qrCode = new \chillerlan\QRCode\QRCode();
-        $qrCodeData = $request->claim_slip_number;
+        $qrCodeData = $supplyRequest->claim_slip_number;
         $qrCodeImage = $qrCode->render($qrCodeData);
 
-        return view('admin.requests.claim-slip', compact('request', 'qrCodeImage'));
+        return view('admin.requests.claim-slip', compact('supplyRequest', 'qrCodeImage'));
     }
 
     // Legacy methods for backwards compatibility
@@ -600,50 +634,49 @@ class RequestController extends Controller
         return view('faculty.requests.index', compact('requests'));
     }
 
-    public function generateClaimSlip(SupplyRequest $request)
+    public function generateClaimSlip(SupplyRequest $supplyRequest)
     {
         /** @var User $user */
         $user = Auth::user();
         
         // Only faculty can generate claim slips for their own approved requests
-        if ($user->isAdmin() || $request->user_id !== $user->id) {
+        if (!$user || ($user->isAdmin() || $supplyRequest->user_id !== $user->id)) {
             abort(403, 'You are not authorized to generate claim slips for this request.');
         }
 
-        if (!$request->canGenerateClaimSlip()) {
+        if (!$supplyRequest->canGenerateClaimSlip()) {
             return back()->withErrors(['error' => 'This request is not eligible for claim slip generation.']);
         }
 
-        $request->generateClaimSlip();
+        $supplyRequest->generateClaimSlip();
 
         // Redirect back to request details page
-        return redirect()->route('faculty.requests.show', $request)->with('success', 'Claim slip generated successfully! You can now print it and pick up your items from the supply office.');
+        return redirect()->route('faculty.requests.show', $supplyRequest)->with('success', 'Claim slip generated successfully! You can now print it and pick up your items from the supply office.');
     }
 
-    public function downloadClaimSlip(SupplyRequest $request)
+    public function downloadClaimSlip(SupplyRequest $supplyRequest)
     {
         /** @var User $user */
         $user = Auth::user();
 
         // Only faculty and admin can download claim slips for fulfilled/claimed requests
-        if (($user->isAdmin() && $user->isAdmin()) || 
-            (!$user->isAdmin() && $request->user_id !== $user->id)) {
+        if (!$user || !($user->isAdmin() || $supplyRequest->user_id === $user->id)) {
             abort(403, 'You are not authorized to download claim slips for this request.');
         }
 
-        if (!$request->isApprovedByAdmin() && !$request->isReadyForPickup() && !$request->isFulfilled() && !$request->isClaimed()) {
+        if (!$supplyRequest->isApprovedByAdmin() && !$supplyRequest->isReadyForPickup() && !$supplyRequest->isFulfilled() && !$supplyRequest->isClaimed()) {
             abort(404, 'Claim slip not available for this request.');
         }
 
         // Generate QR code for the claim slip number
         $qrCode = new \chillerlan\QRCode\QRCode();
-        $qrCodeData = $request->claim_slip_number;
+        $qrCodeData = $supplyRequest->claim_slip_number;
         $qrCodeImage = $qrCode->render($qrCodeData);
 
         // Generate PDF with QR code
-        $pdf = Pdf::loadView('admin.requests.claim-slip-pdf', compact('request', 'qrCodeImage'))
+        $pdf = Pdf::loadView('admin.requests.claim-slip-pdf', compact('supplyRequest', 'qrCodeImage'))
             ->setPaper('a4', 'portrait');
 
-        return $pdf->download('claim-slip-' . $request->claim_slip_number . '.pdf');
+        return $pdf->download('claim-slip-' . $supplyRequest->claim_slip_number . '.pdf');
     }
 }

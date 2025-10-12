@@ -95,13 +95,14 @@
                         </div>
 
                         <!-- Recent Activity -->
-                        @if($user->requests->count() > 0)
+                        @if($requests->count() > 0)
                         <div class="card shadow-sm mt-4">
-                            <div class="card-header bg-white">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
                                 <h5 class="card-title mb-0">
                                     <i class="fas fa-history me-2"></i>
-                                    Recent Requests
+                                    Request History
                                 </h5>
+                                <span class="badge bg-info">{{ $requests->total() }} total requests</span>
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive">
@@ -115,13 +116,13 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach($user->requests->take(5) as $request)
+                                            @foreach($requests as $request)
                                             <tr>
                                                 <td>{{ $request->item->name ?? 'N/A' }}</td>
                                                 <td>{{ $request->quantity }}</td>
                                                 <td>
-                                                    <span class="badge bg-{{ $request->status === 'completed' ? 'success' : ($request->status === 'pending' ? 'warning' : 'secondary') }}">
-                                                        {{ ucfirst($request->status) }}
+                                                    <span class="badge bg-{{ $request->status === 'completed' ? 'success' : ($request->status === 'pending' ? 'warning' : ($request->status === 'claimed' ? 'primary' : 'secondary')) }}">
+                                                        {{ ucfirst(str_replace('_', ' ', $request->status)) }}
                                                     </span>
                                                 </td>
                                                 <td>{{ $request->created_at->format('M j, Y') }}</td>
@@ -130,6 +131,13 @@
                                         </tbody>
                                     </table>
                                 </div>
+
+                                <!-- Pagination -->
+                                @if($requests->hasPages())
+                                    <div class="d-flex justify-content-center mt-3">
+                                        {{ $requests->links('pagination::bootstrap-5') }}
+                                    </div>
+                                @endif
                             </div>
                         </div>
                         @endif

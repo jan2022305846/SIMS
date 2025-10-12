@@ -81,9 +81,16 @@ class UserController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(User $user)
+    public function show(Request $request, User $user)
     {
-        return view('admin.users.show', compact('user'));
+        // Paginate user's requests instead of showing just 5
+        $requests = $user->requests()
+            ->with(['item'])
+            ->latest()
+            ->paginate(10)
+            ->appends($request->query());
+
+        return view('admin.users.show', compact('user', 'requests'));
     }
 
     /**

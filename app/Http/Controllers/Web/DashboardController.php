@@ -32,9 +32,8 @@ class DashboardController extends Controller
      */
     public function index()
     {
+        /** @var User $user */
         $user = Auth::user();
-
-        // Get dashboard data using the service
         $dashboardData = $this->dashboardService->getDashboardData($user);
 
         // Flatten the data structure for backward compatibility with the view
@@ -122,7 +121,9 @@ class DashboardController extends Controller
     public function systemHealth()
     {
         // Only for admin
-        if (!Auth::user()->isAdmin()) {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user->isAdmin()) {
             abort(403);
         }
         

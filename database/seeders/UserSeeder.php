@@ -16,7 +16,7 @@ class UserSeeder extends Seeder
     {
         // Get office IDs
         $supplyOfficeId = \App\Models\Office::where('name', 'Supply Office')->first()->id;
-        $informationTechnologyId = \App\Models\Office::where('name', 'Information Technology')->first()->id;
+        $itOfficeId = \App\Models\Office::where('name', 'IT Department Head')->first()->id ?? $supplyOfficeId;
 
         // Seed Denver Ian Gemino (Admin)
         User::updateOrCreate(
@@ -27,9 +27,8 @@ class UserSeeder extends Seeder
                 'email' => 'denverian@ustp.edu.ph',
                 'email_verified_at' => null,
                 'password' => '$2y$12$nIO93N0C1p3lAUbfOOXgkuZONjGP0JBna./70oVppK.uO4b42JHBe', // Already hashed
-                'role' => 'admin',
-                'must_set_password' => 0,
-                'office_id' => $supplyOfficeId,
+                                'must_set_password' => 0,
+                'office_id' => $itOfficeId,
                 'remember_token' => null,
                 'created_at' => '2025-09-10 23:16:30',
                 'updated_at' => '2025-09-20 15:58:05',
@@ -45,9 +44,8 @@ class UserSeeder extends Seeder
                 'email' => 'markrey@ustp.edu.ph',
                 'email_verified_at' => null,
                 'password' => '$2y$12$QwYzswRoyWrpl2Rhist.YOBbLWfS2qjSYtItxBMtsVf3OTK6hDSPu', // Already hashed
-                'role' => 'faculty',
                 'must_set_password' => 0,
-                'office_id' => $informationTechnologyId,
+                'office_id' => $itOfficeId,
                 'remember_token' => null,
                 'created_at' => '2025-09-10 23:16:30',
                 'updated_at' => '2025-09-20 15:59:04',

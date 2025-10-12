@@ -256,6 +256,16 @@
                                                             </form>
                                                         @endif
                                                         
+                                                        @if($request->isPending())
+                                                            <button type="button" 
+                                                                    class="btn btn-outline-danger btn-sm"
+                                                                    data-bs-toggle="modal" 
+                                                                    data-bs-target="#declineModal{{ $request->id }}"
+                                                                    title="Decline Request">
+                                                                <i class="fas fa-times"></i>
+                                                            </button>
+                                                        @endif
+                                                        
                                                         @if($request->canBeFulfilled())
                                                             <a href="{{ route('requests.show', $request) }}" 
                                                                class="btn btn-outline-primary btn-sm"
@@ -480,8 +490,63 @@ document.addEventListener('DOMContentLoaded', function() {
             e.stopPropagation();
         });
     });
+
+    // Handle decline form submissions
+    @foreach($requests as $request)
+        @if($request->isPending())
+            const declineForm{{ $request->id }} = document.getElementById('declineForm{{ $request->id }}');
+            const declineSubmitBtn{{ $request->id }} = document.getElementById('declineSubmitBtn{{ $request->id }}');
+            
+            if (declineForm{{ $request->id }} && declineSubmitBtn{{ $request->id }}) {
+                declineForm{{ $request->id }}.addEventListener('submit', function(e) {
+                    console.log('Decline form submitted for request {{ $request->id }}');
+                    // Show loading state
+                    declineSubmitBtn{{ $request->id }}.disabled = true;
+                    declineSubmitBtn{{ $request->id }}.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+                });
+            }
+        @endif
+    @endforeach
 });
 </script>
 @endpush
+
+<!-- Decline Modals for each pending request -->
+@foreach($requests as $request)
+    @if($request->isPending())
+        <div class="modal fade" id="declineModal{{ $request->id }}" tabindex="-1" aria-labelledby="declineModalLabel{{ $request->id }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="declineModalLabel{{ $request->id }}">Decline Request #{{ $request->id }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="POST" action="{{ route('requests.decline', $request) }}" id="declineForm{{ $request->id }}">
+                        @csrf
+                        <div class="modal-body">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Warning:</strong> This action cannot be undone. The request will be permanently declined.
+                            </div>
+                            <div class="mb-3">
+                                <label for="reason{{ $request->id }}" class="form-label">Reason for declining <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="reason{{ $request->id }}" name="reason" rows="4" placeholder="Please provide a detailed reason for declining this request..." required></textarea>
+                                <div class="form-text">This reason will be visible to the requestor.</div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </button>
+                            <button type="submit" class="btn btn-danger" id="declineSubmitBtn{{ $request->id }}">
+                                <i class="fas fa-ban me-2"></i>Decline Request
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+@endforeach
 
 @endsection

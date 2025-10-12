@@ -52,10 +52,10 @@ it('loads the item edit form with correct fields', function () {
     $response->assertStatus(200);
 
     // Assert form contains correct field names
-    $response->assertSee('name="quantity"', false);
     $response->assertSee('name="min_stock"', false);
     $response->assertSee('name="max_stock"', false);
     $response->assertSee('name="unit"', false);
+    $response->assertSee('name="add_quantity"', false);
 
     // Assert old field names are not present
     $response->assertDontSee('name="current_stock"', false);

@@ -26,12 +26,12 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'username' => fake()->unique()->userName(),
-            'office_id' => \App\Models\Office::inRandomOrder()->first()?->id ?? 1,
+            'office_id' => null, // Will be set by seeder or manually
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
-            'role' => fake()->randomElement(['admin', 'faculty']),
+            'must_set_password' => false,
         ];
     }
 

@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
 class AppServiceProvider extends ServiceProvider
@@ -42,5 +43,10 @@ class AppServiceProvider extends ServiceProvider
             'consumable' => \App\Models\Consumable::class,
             'non_consumable' => \App\Models\NonConsumable::class,
         ]);
+
+        // Explicit route model binding
+        Route::bind('request', function ($value) {
+            return \App\Models\Request::findOrFail($value);
+        });
     }
 }

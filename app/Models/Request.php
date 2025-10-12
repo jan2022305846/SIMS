@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @property int $id
@@ -98,6 +99,9 @@ class Request extends Model
             'status' => 'approved_by_admin',
             'approved_by_admin_id' => $user->id,
         ]);
+
+        // Notify the faculty user
+        \App\Services\NotificationService::notifyRequestApproved($this);
     }
 
     public function generateClaimSlip()
@@ -145,14 +149,34 @@ class Request extends Model
         $this->update([
             'status' => 'claimed',
         ]);
+
+        // Notify the faculty user
+        \App\Services\NotificationService::notifyRequestClaimed($this);
     }
 
     public function decline(User $user, ?string $reason = null)
     {
-        $this->update([
+        \Illuminate\Support\Facades\Log::info('Request decline method called', [
+            'request_id' => $this->id,
+            'current_status' => $this->status,
+            'reason' => $reason,
+            'user_id' => $user->id
+        ]);
+
+        $result = $this->update([
             'status' => 'declined',
             'notes' => $reason,
         ]);
+
+        \Illuminate\Support\Facades\Log::info('Request update result', [
+            'request_id' => $this->id,
+            'update_result' => $result,
+            'new_status' => $this->status,
+            'new_notes' => $this->notes
+        ]);
+
+        // Notify the faculty user
+        \App\Services\NotificationService::notifyRequestDeclined($this, $reason ?? 'No reason provided');
     }
 
     // Status Helper Methods

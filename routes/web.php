@@ -10,6 +10,7 @@ use App\Http\Controllers\Web\ItemController;
 use App\Http\Controllers\Web\RequestController;
 use App\Http\Controllers\Web\ReportsController;
 use App\Http\Controllers\Web\HelpController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\QRCodeController;
 use App\Http\Controllers\Auth\PasswordController;
 
@@ -33,6 +34,15 @@ Route::get('/', function () {
 
 // Protected routes
 Route::middleware(['auth'])->group(function () {
+    // Notification routes
+    Route::get('/notifications', [NotificationController::class, 'showIndex'])->name('notifications.index');
+    Route::get('/notifications/data', [NotificationController::class, 'index'])->name('notifications.data');
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread-count');
+    Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
+    Route::patch('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+    Route::delete('/notifications', [NotificationController::class, 'deleteAll'])->name('notifications.delete-all');
+    
     // Enhanced Dashboard Routes
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/dashboard/scan-qr', [DashboardController::class, 'scanQR'])->name('dashboard.scan-qr');
@@ -73,7 +83,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('items/bulk-restore', [ItemController::class, 'bulkRestore'])->name('items.bulk-restore');
         Route::delete('items/{id}/force-delete', [ItemController::class, 'forceDelete'])->name('items.force-delete');
         Route::post('items/bulk-force-delete', [ItemController::class, 'bulkForceDelete'])->name('items.bulk-force-delete');
-        
+        Route::post('items/import',[ItemController::class,'import'])->name('items.import');
+        Route::get('items/download-template', [ItemController::class, 'downloadTemplate'])->name('items.download-template');
+
         // Item Assignment Management
         Route::get('items/{id}/assign', [ItemController::class, 'showAssignForm'])->name('items.assign');
         Route::post('items/{id}/assign', [ItemController::class, 'assign'])->name('items.assign.store');

@@ -1035,8 +1035,120 @@ html[data-theme="dark"] {
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
 }
 
-// Custom utility classes for consistency
-.fw-medium {
-    font-weight: 500 !important;
+/* ===========================================
+   NOTIFICATION BELL STYLES - Theme Aware
+   =========================================== */
+
+.notification-bell-btn {
+    color: var(--text-primary) !important;
+    border: none !important;
+    background: none !important;
+    transition: all 0.2s ease !important;
 }
-/* FORCE RELOAD */
+
+.notification-bell-btn:hover {
+    color: var(--accent-primary) !important;
+    background: var(--accent-light) !important;
+    transform: scale(1.05);
+}
+
+.notification-bell-btn:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 2px var(--accent-primary) !important;
+}
+
+.notification-badge {
+    background-color: var(--danger-color) !important;
+    color: white !important;
+    font-size: 0.7rem !important;
+    font-weight: 600 !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Notification Dropdown - Theme Aware */
+.notification-dropdown {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 4px 20px var(--shadow-md) !important;
+}
+
+.notification-header {
+    background: var(--bg-secondary) !important;
+    border-bottom-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.notification-header h6 {
+    color: var(--text-primary) !important;
+}
+
+.notification-footer {
+    background: var(--bg-secondary) !important;
+    border-top-color: var(--border-color) !important;
+    color: var(--text-secondary) !important;
+}
+
+.notification-footer a {
+    color: var(--accent-primary) !important;
+}
+
+.notification-footer a:hover {
+    color: var(--accent-secondary) !important;
+}
+
+/* Notification Items */
+.notification-item {
+    border-bottom-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+    transition: background-color 0.2s ease !important;
+}
+
+.notification-item:hover {
+    background: var(--bg-tertiary) !important;
+}
+
+.notification-item.bg-light {
+    background: var(--bg-secondary) !important;
+}
+
+.notification-item h6 {
+    color: var(--text-primary) !important;
+}
+
+.notification-item .text-muted {
+    color: var(--text-muted) !important;
+}
+
+.notification-item .btn-link {
+    color: var(--accent-primary) !important;
+}
+
+.notification-item .btn-link:hover {
+    color: var(--accent-secondary) !important;
+}
+
+.notification-item .btn-outline-primary {
+    border-color: var(--accent-primary) !important;
+    color: var(--accent-primary) !important;
+}
+
+.notification-item .btn-outline-primary:hover {
+    background: var(--accent-primary) !important;
+    border-color: var(--accent-primary) !important;
+    color: white !important;
+}
+
+/* No notifications state */
+#no-notifications {
+    color: var(--text-muted) !important;
+}
+
+#no-notifications i {
+    color: var(--text-muted) !important;
+    opacity: 0.6;
+}

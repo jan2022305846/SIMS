@@ -1171,4 +1171,87 @@ class ItemController extends Controller
                 ->with('error', 'An error occurred during permanent deletion. No items were deleted.');
         }
     }
+
+    public function import(Request $request){
+        $request->validate([
+            'csv_file' => 'required|file|mime:csv,txt|max:2048'
+        ]);
+
+        $file = $request->file('csv_file');
+        $data = array_map('str_getcsv', file($file->getRealPath()));
+        $header = array_shift($data);
+
+        $errors = [];
+        $rowNumber = 1; // Start from 1 since header is already shifted
+
+        foreach ($data as $row){
+            $rowNumber++;
+            $rowData = array_combine($header, $row);
+
+            // Validate required fields
+            if (!isset($rowData['name']) || empty($rowData['name'])) {
+                $errors[] = "Row $rowNumber: Name is required";
+                continue;
+            }
+            if (!isset($rowData['item_type']) || !in_array($rowData['item_type'], ['consumable', 'non_consumable'])) {
+                $errors[] = "Row $rowNumber: Item type must be 'consumable' or 'non_consumable'";
+                continue;
+            }
+
+            try{
+                $itemData = [
+                    'name' => $rowData['name'],
+                    'category_id' => $rowData['category_id'] ?? null,
+                    'description' => $rowData['description'] ?? null,
+                    'quantity' => (int)($rowData['quantity'] ?? 1),
+                    'unit' => $rowData['unit'] ?? null,
+                    'brand' => $rowData['brand'] ?? null,
+                    'min_stock' => (int)($rowData['min_stock'] ?? 0),
+                    'max_stock' => (int)($rowData['max_stock'] ?? 0),
+                ];
+
+                if ($rowData['item_type'] === 'consumable') {
+                    // Check if consumable already exists
+                    $item = Consumable::where('name', $rowData['name'])->first();
+                    if($item){
+                        $item->increment('quantity', $itemData['quantity']);
+                    }else{
+                        Consumable::create($itemData);
+                    }
+                } else { // non_consumable
+                    $itemData['location'] = $rowData['location'] ?? null;
+                    $itemData['condition'] = $rowData['condition'] ?? null;
+
+                    // Check if non-consumable already exists
+                    $item = NonConsumable::where('name', $rowData['name'])->first();
+                    if($item){
+                        $item->increment('quantity', $itemData['quantity']);
+                    }else{
+                        NonConsumable::create($itemData);
+                    }
+                }
+            }catch(\Exception $e){
+                $errors[] = "Row $rowNumber: " . $e->getMessage();
+            }
+        }
+
+        if ($errors){
+            return back()->withErrors($errors);
+        }
+
+        return back()->with('success','Items imported Successfully');
+    }
+
+    public function downloadTemplate()
+    {
+        $headers = ['name', 'item_type', 'category_id', 'quantity', 'unit', 'brand', 'min_stock', 'max_stock', 'description', 'location', 'condition'];
+        $content = implode(',', $headers) . "\n";
+        // Add sample row for consumable
+        $sampleConsumable = ['Sample Consumable Item', 'consumable', '1', '10', 'pieces', 'Brand A', '5', '50', 'Sample description', '', ''];
+        $content .= implode(',', $sampleConsumable) . "\n";
+        // Add sample row for non-consumable
+        $sampleNonConsumable = ['Sample Non-Consumable Item', 'non_consumable', '1', '1', 'unit', 'Brand B', '0', '1', 'Sample description', 'Office A', 'Good'];
+        $content .= implode(',', $sampleNonConsumable) . "\n";
+        return response($content)->header('Content-Type', 'text/csv')->header('Content-Disposition', 'attachment; filename="items_template.csv"');
+    }
 }

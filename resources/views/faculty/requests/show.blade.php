@@ -26,8 +26,9 @@
 <div class="container-fluid py-4">
     <div class="container">
         <div class="row">
-            <!-- Main Request Details -->
+            <!-- Request Information and Actions in Flex Layout -->
             <div class="col-lg-8 mb-4">
+                <!-- Main Request Details -->
                 <div class="card shadow-sm">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">
@@ -160,7 +161,7 @@
                 </div>
             </div>
 
-            <!-- Actions & Timeline -->
+            <!-- Actions Sidebar -->
             <div class="col-lg-4">
                 <!-- Actions Card -->
                 <div class="card shadow-sm mb-4">
@@ -241,78 +242,262 @@
                         @endif
                     </div>
                 </div>
+            </div>
 
-                <!-- Workflow Timeline -->
+            <!-- Workflow Timeline - Full Width Below -->
+            <div class="col-12">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-info text-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-history me-2"></i>Request Timeline
-                        </h5>
+                    <div class="card-header bg-info text-white d-flex align-items-center">
+                        <i class="fas fa-route me-2"></i>
+                        <h5 class="mb-0">Request Workflow Progress</h5>
+                        <div class="ms-auto">
+                            <small class="text-white-50">
+                                <i class="fas fa-clock me-1"></i>
+                                @if($request->status === 'claimed')
+                                    Completed in {{ $request->created_at->diffInDays($request->updated_at) + 1 }} days
+                                @elseif(in_array($request->status, ['fulfilled', 'ready_for_pickup']))
+                                    In Progress
+                                @else
+                                    Pending
+                                @endif
+                            </small>
+                        </div>
                     </div>
                     <div class="card-body">
-                        <div class="timeline">
-                            <!-- Request Submitted -->
-                            <div class="timeline-item completed">
-                                <div class="timeline-marker bg-success">
-                                    <i class="fas fa-paper-plane text-white"></i>
+                        <div class="workflow-timeline">
+                            <!-- Step 1: Request Submitted -->
+                            <div class="workflow-step completed">
+                                <div class="workflow-marker bg-success">
+                                    <div class="step-number">1</div>
+                                    <i class="fas fa-paper-plane step-icon"></i>
                                 </div>
-                                <div class="timeline-content">
-                                    <h6 class="mb-1">Request Submitted</h6>
-                                    <p class="mb-1 text-muted small">{{ $request->created_at ? $request->created_at->format('M j, Y g:i A') : 'N/A' }}</p>
-                                    <p class="mb-0 small">Request created successfully</p>
+                                <div class="workflow-content">
+                                    <div class="step-header">
+                                        <h6 class="step-title mb-1">Request Submitted</h6>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                            <i class="fas fa-check-circle me-1"></i>Completed
+                                        </span>
+                                    </div>
+                                    <div class="step-details">
+                                        <div class="row g-2">
+                                            <div class="col-sm-6">
+                                                <small class="text-muted d-block">
+                                                    <i class="fas fa-calendar me-1"></i>
+                                                    {{ $request->created_at ? $request->created_at->format('M j, Y g:i A') : 'N/A' }}
+                                                </small>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <small class="text-muted d-block">
+                                                    <i class="fas fa-user me-1"></i>
+                                                    {{ $request->user ? $request->user->name : 'Unknown User' }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="step-description mt-2">
+                                            <small class="text-muted">
+                                                Faculty member submitted a request for {{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }} of {{ $request->item ? $request->item->name : 'Unknown Item' }}
+                                            </small>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Admin Approval -->
-                            <div class="timeline-item {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->status === 'declined' ? 'declined' : '') }}">
-                                <div class="timeline-marker {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->status === 'declined' ? 'bg-danger' : 'bg-secondary') }}">
-                                    <i class="fas {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->status === 'declined' ? 'fa-times' : 'fa-shield-alt') }} text-white"></i>
+                            <!-- Step 2: Admin Approval -->
+                            <div class="workflow-step {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->status === 'declined' ? 'declined' : 'current') }}">
+                                <div class="workflow-marker {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->status === 'declined' ? 'bg-danger' : 'bg-primary') }}">
+                                    <div class="step-number">2</div>
+                                    <i class="fas {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->status === 'declined' ? 'fa-times' : 'fa-shield-alt') }} step-icon"></i>
                                 </div>
-                                <div class="timeline-content">
-                                    <h6 class="mb-1">Admin Approval</h6>
-                                    @if($request->approved_by_admin_id)
-                                        <p class="mb-1 text-success small">{{ $request->updated_at->format('M j, Y g:i A') }}</p>
-                                        <p class="mb-0 small">Approved by {{ $request->adminApprover->name ?? 'Administrator' }}</p>
-                                    @elseif($request->status === 'declined')
-                                        <p class="mb-1 text-danger small">Declined</p>
-                                        @if($request->notes)
-                                            <p class="mb-0 small text-muted">"{{ $request->notes }}"</p>
+                                <div class="workflow-content">
+                                    <div class="step-header">
+                                        <h6 class="step-title mb-1">Admin Approval</h6>
+                                        @if(in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']))
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="fas fa-check-circle me-1"></i>Approved
+                                            </span>
+                                        @elseif($request->status === 'declined')
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                                <i class="fas fa-times-circle me-1"></i>Declined
+                                            </span>
+                                        @else
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                                <i class="fas fa-clock me-1"></i>Pending
+                                            </span>
                                         @endif
-                                    @else
-                                        <p class="mb-0 text-muted small">Waiting for admin approval</p>
-                                    @endif
+                                    </div>
+                                    <div class="step-details">
+                                        @if($request->approved_by_admin_id)
+                                            <div class="row g-2">
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-calendar-check me-1"></i>
+                                                        {{ $request->updated_at->format('M j, Y g:i A') }}
+                                                    </small>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-user-shield me-1"></i>
+                                                        {{ $request->adminApprover->name ?? 'Administrator' }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <div class="step-description mt-2">
+                                                <small class="text-muted">
+                                                    Request approved and ready for fulfillment
+                                                </small>
+                                            </div>
+                                        @elseif($request->status === 'declined')
+                                            <div class="row g-2">
+                                                <div class="col-12">
+                                                    <small class="text-danger d-block">
+                                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                                        <strong>Declined:</strong> {{ $request->notes ?? 'No reason provided' }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="step-description">
+                                                <small class="text-muted">
+                                                    Waiting for administrator review and approval
+                                                </small>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Claim Slip Generation -->
-                            <div class="timeline-item {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : '' }}">
-                                <div class="timeline-marker {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : 'bg-secondary' }}">
-                                    <i class="fas {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-ticket-alt' : 'fa-ticket-alt' }} text-white"></i>
+                            <!-- Step 3: Claim Slip Generation -->
+                            <div class="workflow-step {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : (in_array($request->status, ['approved_by_admin']) ? 'current' : '') }}">
+                                <div class="workflow-marker {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : (in_array($request->status, ['approved_by_admin']) ? 'bg-primary' : 'bg-secondary') }}">
+                                    <div class="step-number">3</div>
+                                    <i class="fas fa-ticket-alt step-icon"></i>
                                 </div>
-                                <div class="timeline-content">
-                                    <h6 class="mb-1">Claim Slip Generation</h6>
-                                    @if($request->claim_slip_number && $request->status !== 'approved_by_admin')
-                                        <p class="mb-1 text-success small">Generated</p>
-                                        <p class="mb-0 small">Claim slip: <code>{{ $request->claim_slip_number }}</code></p>
-                                    @else
-                                        <p class="mb-0 text-muted small">Waiting for claim slip generation</p>
-                                    @endif
+                                <div class="workflow-content">
+                                    <div class="step-header">
+                                        <h6 class="step-title mb-1">Claim Slip Generation</h6>
+                                        @if(in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']))
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="fas fa-check-circle me-1"></i>Generated
+                                            </span>
+                                        @elseif(in_array($request->status, ['approved_by_admin']))
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                                <i class="fas fa-clock me-1"></i>Pending
+                                            </span>
+                                        @else
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                                <i class="fas fa-pause me-1"></i>Waiting
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="step-details">
+                                        @if($request->claim_slip_number && $request->status !== 'approved_by_admin')
+                                            <div class="row g-2">
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-hashtag me-1"></i>
+                                                        <code class="bg-light px-1 rounded">{{ $request->claim_slip_number }}</code>
+                                                    </small>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-qrcode me-1"></i>
+                                                        QR Code Generated
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <div class="step-description mt-2">
+                                                <small class="text-muted">
+                                                    Faculty generated claim slip with QR code for pickup verification
+                                                </small>
+                                            </div>
+                                        @elseif(in_array($request->status, ['approved_by_admin']))
+                                            <div class="step-description">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    Faculty needs to generate a claim slip to proceed with pickup
+                                                </small>
+                                            </div>
+                                        @else
+                                            <div class="step-description">
+                                                <small class="text-muted">
+                                                    Claim slip generation will be available after admin approval
+                                                </small>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Item Pickup -->
-                            <div class="timeline-item {{ $request->status === 'claimed' ? 'completed' : '' }}">
-                                <div class="timeline-marker {{ $request->status === 'claimed' ? 'bg-success' : 'bg-secondary' }}">
-                                    <i class="fas {{ $request->status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} text-white"></i>
+                            <!-- Step 4: Item Claimed -->
+                            <div class="workflow-step {{ $request->status === 'claimed' ? 'completed' : ($request->status === 'ready_for_pickup' ? 'current' : '') }}">
+                                <div class="workflow-marker {{ $request->status === 'claimed' ? 'bg-success' : ($request->status === 'ready_for_pickup' ? 'bg-primary' : 'bg-secondary') }}">
+                                    <div class="step-number">4</div>
+                                    <i class="fas {{ $request->status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} step-icon"></i>
                                 </div>
-                                <div class="timeline-content">
-                                    <h6 class="mb-1">Item Pickup & Claim</h6>
-                                    @if($request->status === 'claimed')
-                                        <p class="mb-1 text-success small">{{ $request->updated_at->format('M j, Y g:i A') }}</p>
-                                        <p class="mb-0 small">Items claimed and stock updated</p>
-                                    @else
-                                        <p class="mb-0 text-muted small">Visit supply office with printed claim slip</p>
-                                    @endif
+                                <div class="workflow-content">
+                                    <div class="step-header">
+                                        <h6 class="step-title mb-1">Item Pickup & Claim</h6>
+                                        @if($request->status === 'claimed')
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="fas fa-check-circle me-1"></i>Completed
+                                            </span>
+                                        @elseif($request->status === 'ready_for_pickup')
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                                <i class="fas fa-clock me-1"></i>Ready for Pickup
+                                            </span>
+                                        @else
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                                <i class="fas fa-pause me-1"></i>Waiting
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="step-details">
+                                        @if($request->status === 'claimed')
+                                            <div class="row g-2">
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-calendar-check me-1"></i>
+                                                        {{ $request->updated_at->format('M j, Y g:i A') }}
+                                                    </small>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <small class="text-muted d-block">
+                                                        <i class="fas fa-user-check me-1"></i>
+                                                        {{ $request->claimedBy->name ?? 'Administrator' }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <div class="step-description mt-2">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-check-double me-1"></i>
+                                                    Dual verification completed: Claim slip QR code + Item barcode scanned successfully
+                                                </small>
+                                            </div>
+                                        @elseif($request->status === 'ready_for_pickup')
+                                            <div class="step-description">
+                                                <small class="text-primary">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    Ready for faculty pickup at supply office with claim slip
+                                                </small>
+                                            </div>
+                                            <div class="mt-2">
+                                                <small class="text-muted d-block">
+                                                    <strong>Next Steps:</strong>
+                                                </small>
+                                                <ul class="mb-0 mt-1 small text-muted">
+                                                    <li><strong>Step 1:</strong> Faculty presents claim slip QR code for verification</li>
+                                                    <li><strong>Step 2:</strong> Admin scans the actual item barcode for item verification</li>
+                                                    <li><strong>Step 3:</strong> Items are handed over and marked as claimed</li>
+                                                </ul>
+                                            </div>
+                                        @else
+                                            <div class="step-description">
+                                                <small class="text-muted">
+                                                    Item pickup will be available after claim slip generation
+                                                </small>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -329,57 +514,309 @@
         background-color: #8b5cf6 !important;
     }
 
-    .timeline {
+    /* Enhanced Workflow Timeline Styles - Landscape Layout */
+    .workflow-timeline {
         position: relative;
-        padding-left: 30px;
+        padding-left: 80px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 30px;
+        justify-content: space-between;
     }
 
-    .timeline::before {
-        content: '';
-        position: absolute;
-        left: 18px;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background: #e9ecef;
-    }
-
-    .timeline-item {
+    .workflow-step {
         position: relative;
-        margin-bottom: 30px;
+        flex: 0 0 calc(25% - 22.5px); /* 4 steps per row with gap */
+        min-width: 220px;
+        margin-bottom: 40px;
+        opacity: 0.8;
+        transition: all 0.3s ease;
     }
 
-    .timeline-item:last-child {
-        margin-bottom: 0;
+    .workflow-step.completed {
+        opacity: 1;
     }
 
-    .timeline-marker {
+    .workflow-step.current {
+        opacity: 1;
+        animation: pulse 2s infinite;
+    }
+
+    .workflow-step.declined {
+        opacity: 1;
+    }
+
+    .workflow-marker {
         position: absolute;
-        left: -42px;
+        left: -52px;
         top: 0;
-        width: 36px;
-        height: 36px;
+        width: 56px;
+        height: 56px;
         border-radius: 50%;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        border: 3px solid #fff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 4px solid #fff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        transition: all 0.3s ease;
+        z-index: 2;
     }
 
-    .timeline-content {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        border-left: 3px solid #dee2e6;
+    /* Dark mode support for markers */
+    [data-bs-theme="dark"] .workflow-marker {
+        border-color: #212529;
+        background: linear-gradient(135deg, #495057 0%, #343a40 100%);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
-    .timeline-item.completed .timeline-content {
-        border-left-color: #28a745;
+    .workflow-step.completed .workflow-marker {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
     }
 
-    .timeline-item.declined .timeline-content {
-        border-left-color: #dc3545;
-        background: #f8d7da;
+    .workflow-step.current .workflow-marker {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
+        animation: pulse-ring 2s infinite;
+    }
+
+    .workflow-step.declined .workflow-marker {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(220, 53, 69, 0.3);
+    }
+
+    .step-number {
+        font-size: 12px;
+        font-weight: bold;
+        line-height: 1;
+        margin-bottom: 2px;
+        color: inherit;
+    }
+
+    .step-icon {
+        font-size: 16px;
+        line-height: 1;
+        color: inherit;
+    }
+
+    .workflow-content {
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 12px;
+        border: 2px solid #f1f3f4;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        position: relative;
+        height: 100%;
+        min-height: 180px;
+    }
+
+    /* Dark mode support for content cards */
+    [data-bs-theme="dark"] .workflow-content {
+        background: #343a40;
+        border-color: #495057;
+        color: #ffffff;
+    }
+
+    .workflow-step.completed .workflow-content {
+        border-color: #d4edda;
+        background: linear-gradient(135deg, #f8fff9 0%, #ffffff 100%);
+        box-shadow: 0 4px 16px rgba(40, 167, 69, 0.1);
+    }
+
+    [data-bs-theme="dark"] .workflow-step.completed .workflow-content {
+        border-color: #155724;
+        background: linear-gradient(135deg, #1e3a1f 0%, #343a40 100%);
+    }
+
+    .workflow-step.current .workflow-content {
+        border-color: #cce7ff;
+        background: linear-gradient(135deg, #f0f8ff 0%, #ffffff 100%);
+        box-shadow: 0 4px 16px rgba(0, 123, 255, 0.15);
+        transform: translateY(-2px);
+    }
+
+    [data-bs-theme="dark"] .workflow-step.current .workflow-content {
+        border-color: #004085;
+        background: linear-gradient(135deg, #1a252f 0%, #343a40 100%);
+    }
+
+    .workflow-step.declined .workflow-content {
+        border-color: #f5c6cb;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+        box-shadow: 0 4px 16px rgba(220, 53, 69, 0.1);
+    }
+
+    [data-bs-theme="dark"] .workflow-step.declined .workflow-content {
+        border-color: #721c24;
+        background: linear-gradient(135deg, #3a1f1f 0%, #343a40 100%);
+    }
+
+    .step-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .step-title {
+        margin: 0;
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 1.1rem;
+    }
+
+    [data-bs-theme="dark"] .step-title {
+        color: #ffffff;
+    }
+
+    .step-details {
+        color: #6c757d;
+        flex-grow: 1;
+    }
+
+    [data-bs-theme="dark"] .step-details {
+        color: #adb5bd;
+    }
+
+    .step-description {
+        font-style: italic;
+        line-height: 1.4;
+        margin-top: auto;
+        padding-top: 10px;
+    }
+
+    /* Badge improvements */
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 4px 8px;
+        border-radius: 6px;
+    }
+
+    /* Dark mode badge support */
+    [data-bs-theme="dark"] .badge.bg-success-subtle {
+        background-color: rgba(25, 135, 84, 0.2) !important;
+        color: #75b798 !important;
+    }
+
+    [data-bs-theme="dark"] .badge.bg-danger-subtle {
+        background-color: rgba(220, 53, 69, 0.2) !important;
+        color: #ea868f !important;
+    }
+
+    [data-bs-theme="dark"] .badge.bg-warning-subtle {
+        background-color: rgba(255, 193, 7, 0.2) !important;
+        color: #ffda6a !important;
+    }
+
+    [data-bs-theme="dark"] .badge.bg-primary-subtle {
+        background-color: rgba(13, 110, 253, 0.2) !important;
+        color: #6ea8fe !important;
+    }
+
+    [data-bs-theme="dark"] .badge.bg-secondary-subtle {
+        background-color: rgba(108, 117, 125, 0.2) !important;
+        color: #a7aeb1 !important;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1200px) {
+        .workflow-step {
+            flex: 0 0 calc(50% - 15px); /* 2 steps per row on medium screens */
+        }
+    }
+
+    @media (max-width: 768px) {
+        .workflow-timeline {
+            padding-left: 60px;
+            gap: 20px;
+        }
+
+        .workflow-step {
+            flex: 0 0 100%; /* 1 step per row on small screens */
+            min-width: unset;
+        }
+
+        .workflow-marker {
+            left: -42px;
+            width: 48px;
+            height: 48px;
+        }
+
+        .workflow-content {
+            padding: 16px;
+            min-height: 160px;
+        }
+
+        .step-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .step-title {
+            font-size: 1rem;
+        }
+    }
+
+    /* Pulse animations */
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.8;
+        }
+    }
+
+    @keyframes pulse-ring {
+        0% {
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3), 0 0 0 0 rgba(0, 123, 255, 0.7);
+        }
+        70% {
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3), 0 0 0 10px rgba(0, 123, 255, 0);
+        }
+        100% {
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3), 0 0 0 0 rgba(0, 123, 255, 0);
+        }
+    }
+
+    /* Progress line styling - removed for horizontal layout */
+
+    /* Enhanced card styling for dark mode */
+    [data-bs-theme="dark"] .card {
+        background-color: #343a40;
+        border-color: #495057;
+    }
+
+    [data-bs-theme="dark"] .card-header {
+        background-color: #495057;
+        border-color: #6c757d;
+    }
+
+    [data-bs-theme="dark"] .text-muted {
+        color: #adb5bd !important;
+    }
+
+    [data-bs-theme="dark"] .bg-light {
+        background-color: #495057 !important;
+    }
+
+    [data-bs-theme="dark"] .list-group-item {
+        background-color: #495057;
+        border-color: #6c757d;
+        color: #ffffff;
+    }
+
+    [data-bs-theme="dark"] .list-group-item.bg-light {
+        background-color: #6c757d !important;
     }
 </style>

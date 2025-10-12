@@ -1,5 +1,119 @@
 @extends('layouts.app')
 
+@section('styles')
+<style>
+/* Modal improvements - ensure proper z-index stacking */
+.modal-backdrop {
+    z-index: 1040 !important;
+}
+.modal {
+    z-index: 1055 !important; /* Higher than backdrop */
+}
+
+/* Ensure modal content is above backdrop */
+.modal-content,
+.modal-header,
+.modal-body,
+.modal-footer {
+    z-index: 1060 !important; /* Even higher */
+    position: relative !important;
+}
+
+/* Ensure modal dialog is properly positioned */
+.modal-dialog {
+    z-index: 1056 !important;
+    position: relative !important;
+}
+
+/* Remove display none from modal - let Bootstrap handle it */
+#importCsvModal {
+    /* display: none; */ /* Remove this - Bootstrap handles visibility */
+}
+#importCsvModal.show {
+    display: block;
+}
+
+/* Ensure modal is clickable and not blocked */
+.modal-backdrop.show {
+    opacity: 0.5 !important;
+    pointer-events: none !important; /* Allow clicks to pass through to modal */
+}
+
+/* Make sure modal content receives pointer events */
+.modal-content {
+    pointer-events: auto !important;
+}
+
+/* Additional modal fixes */
+.modal.show .modal-dialog {
+    transform: none !important;
+    z-index: 1056 !important;
+}
+
+.modal.show {
+    z-index: 1055 !important;
+    display: block !important;
+}
+
+/* Ensure buttons and inputs are clickable */
+.modal button,
+.modal input,
+.modal label,
+.modal a {
+    pointer-events: auto !important;
+    position: relative !important;
+    z-index: 1060 !important;
+}
+
+/* Force modal content to be fully interactive */
+#importCsvModal.modal.show .modal-content {
+    z-index: 1060 !important;
+    pointer-events: auto !important;
+    position: relative !important;
+}
+
+#importCsvModal.modal.show .modal-backdrop {
+    z-index: 1050 !important;
+}
+
+/* Ensure form elements are clickable */
+#importCsvModal input,
+#importCsvModal button,
+#importCsvModal label {
+    pointer-events: auto !important;
+    position: relative !important;
+    z-index: 1070 !important;
+}
+
+/* File input styling */
+.form-control[type="file"] {
+    padding: 0.375rem 0.75rem;
+}
+
+.form-control[type="file"]:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Loading states */
+.btn:disabled {
+    opacity: 0.65;
+}
+
+/* Toast positioning */
+.toast-container {
+    z-index: 1070; /* Above modals */
+}
+
+/* Ensure modal content is properly styled */
+.modal-content {
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    position: relative; /* Ensure proper positioning */
+}
+</style>
+@endsection
 @section('content')
 <div class="container-fluid py-4">
     <div class="row">
@@ -16,6 +130,10 @@
                         <i class="fas fa-plus me-1"></i>
                         Add New Item
                     </a>
+                    <button type="button" class="btn btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#importCsvModal">
+                        <i class="fas fa-upload me-1"></i>
+                        Import CSV
+                    </button>
                     <a href="{{ route('items.trashed') }}" 
                        class="btn btn-secondary fw-bold">
                         <i class="fas fa-trash me-1"></i>
@@ -229,6 +347,36 @@
     </div>
 </div>
 
+<!-- Add Modal for CSV Upload -->
+<div class="modal fade" id="importCsvModal" tabindex="-1" style="position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 1060 !important;">
+    <div class="modal-dialog" style="position: absolute !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; z-index: 1070 !important; margin: 0 !important; pointer-events: auto !important; width: 90% !important; max-width: 500px !important;">
+        <div class="modal-content" style="border: none !important; border-radius: 20px !important; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3) !important; pointer-events: auto !important; position: relative !important; z-index: 1080 !important; background-color: white !important;">
+            <div class="modal-header">
+                <h5 class="modal-title">Import Items from CSV</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ route('items.import') }}" method="POST" enctype="multipart/form-data" id="importForm">
+                @csrf
+                <div class="modal-body">
+                    <p>Upload a CSV file to bulk add or update items. <a href="{{ route('items.download-template') }}" target="_blank" rel="noopener noreferrer">Download template</a>.</p>
+                    <div class="mb-3">
+                        <label for="csv_file" class="form-label">CSV File</label>
+                        <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv,.txt" required>
+                        <div class="form-text">Select a CSV file containing item data to import.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="importBtn">
+                        <span class="spinner-border spinner-border-sm d-none me-2" role="status" id="importSpinner"></span>
+                        <span id="importText">Import Items</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @if(session('success'))
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -367,8 +515,136 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', function(e) {
             showLoading();
             form.submit();
+        });
+    }
+
+    // Handle CSV import form submission
+    const importForm = document.getElementById('importForm');
+    const importBtn = document.getElementById('importBtn');
+    const importModal = document.getElementById('importCsvModal');
+
+    // Initialize modal with proper positioning
+    let modalInstance = null;
+    if (importModal) {
+        modalInstance = new bootstrap.Modal(importModal, {
+            backdrop: 'static',
+            keyboard: false
+        });
+
+        // Ensure modal is properly positioned when shown
+        importModal.addEventListener('shown.bs.modal', function() {
+            // Move modal to body for proper positioning
+            if (importModal.parentNode !== document.body) {
+                document.body.appendChild(importModal);
+            }
+
+            // Create backdrop if it doesn't exist
+            let backdrop = document.querySelector('.modal-backdrop');
+            if (!backdrop) {
+                backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop fade show';
+                backdrop.style.zIndex = '1050';
+                document.body.appendChild(backdrop);
+            }
+
+            // Apply proper modal positioning
+            importModal.style.position = 'fixed';
+            importModal.style.top = '0';
+            importModal.style.left = '0';
+            importModal.style.width = '100%';
+            importModal.style.height = '100%';
+            importModal.style.zIndex = '1060';
+            importModal.style.display = 'block';
+            importModal.style.overflow = 'hidden';
+            importModal.style.outline = '0';
+
+            const modalDialog = importModal.querySelector('.modal-dialog');
+            const modalContent = importModal.querySelector('.modal-content');
+
+            if (modalDialog) {
+                modalDialog.style.position = 'absolute';
+                modalDialog.style.top = '50%';
+                modalDialog.style.left = '50%';
+                modalDialog.style.transform = 'translate(-50%, -50%)';
+                modalDialog.style.width = '90%';
+                modalDialog.style.maxWidth = '500px';
+                modalDialog.style.margin = '0';
+                modalDialog.style.pointerEvents = 'auto';
+                modalDialog.style.zIndex = '1070';
+            }
+
+            if (modalContent) {
+                modalContent.style.position = 'relative';
+                modalContent.style.display = 'flex';
+                modalContent.style.flexDirection = 'column';
+                modalContent.style.width = '100%';
+                modalContent.style.pointerEvents = 'auto';
+                modalContent.style.backgroundColor = 'white';
+                modalContent.style.backgroundClip = 'padding-box';
+                modalContent.style.border = '1px solid rgba(0, 0, 0, 0.2)';
+                modalContent.style.borderRadius = '0.3rem';
+                modalContent.style.outline = '0';
+                modalContent.style.boxShadow = '0 0.125rem 0.25rem rgba(0, 0, 0, 0.075), 0 0.5rem 1rem rgba(0, 0, 0, 0.15)';
+                modalContent.style.zIndex = '1080';
+            }
+        });
+    }
+
+    if (importForm && importBtn) {
+        importForm.addEventListener('submit', function(e) {
+            // Show loading state
+            importBtn.disabled = true;
+            document.getElementById('importSpinner').classList.remove('d-none');
+            document.getElementById('importText').textContent = 'Importing...';
+
+            // Close modal after a short delay to show loading state
+            setTimeout(() => {
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            }, 500);
+        });
+
+        // Reset form when modal is hidden
+        if (importModal) {
+            importModal.addEventListener('hidden.bs.modal', function() {
+                importForm.reset();
+                importBtn.disabled = false;
+                document.getElementById('importSpinner').classList.add('d-none');
+                document.getElementById('importText').textContent = 'Import Items';
+
+                // Move modal back to original position if needed
+                const originalContainer = document.querySelector('.main-content') || document.body;
+                if (importModal.parentNode === document.body && originalContainer !== document.body) {
+                    originalContainer.appendChild(importModal);
+                }
+            });
         }
-    });
+    }
+
+    // File input validation
+    const csvFileInput = document.getElementById('csv_file');
+    if (csvFileInput) {
+        csvFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Check file size (2MB limit)
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('File size must be less than 2MB');
+                    e.target.value = '';
+                    return;
+                }
+                
+                // Check file type
+                const allowedTypes = ['text/csv', 'text/plain', 'application/vnd.ms-excel'];
+                if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.csv')) {
+                    alert('Please select a valid CSV file');
+                    e.target.value = '';
+                    return;
+                }
+            }
+        });
+    }
 });
 </script>
 @endsection

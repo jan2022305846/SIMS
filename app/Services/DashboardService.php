@@ -93,4 +93,233 @@ class DashboardService
             Cache::flush();
         }
     }
+
+    /**
+     * Get low stock items
+     */
+    public function getLowStockItems(): Collection
+    {
+        $lowStockConsumables = Consumable::whereRaw('quantity <= min_stock')
+            ->select('id', 'name', 'quantity', 'min_stock', 'product_code')
+            ->get()
+            ->map(function ($item) {
+                $item->stock_status = $item->quantity === 0 ? 'critical' : 'low';
+                $item->item_type = 'consumable';
+                return $item;
+            });
+
+        $lowStockNonConsumables = NonConsumable::whereRaw('quantity <= min_stock')
+            ->select('id', 'name', 'quantity', 'min_stock', 'product_code')
+            ->get()
+            ->map(function ($item) {
+                $item->stock_status = $item->quantity === 0 ? 'critical' : 'low';
+                $item->item_type = 'non_consumable';
+                return $item;
+            });
+
+        return $lowStockConsumables->merge($lowStockNonConsumables);
+    }
+
+    /**
+     * Get pending requests
+     */
+    public function getPendingRequests($user): Collection
+    {
+        $query = SupplyRequest::with(['user', 'item'])
+            ->where('status', 'pending');
+
+        // If not admin, only show user's own requests
+        if (!$user->isAdmin()) {
+            $query->where('user_id', $user->id);
+        }
+
+        return $query->latest()->get();
+    }
+
+    /**
+     * Get recent activities
+     */
+    public function getRecentActivities($user, $limit = 10, $filter = 'all'): Collection
+    {
+        $query = ItemScanLog::with(['user', 'item'])
+            ->latest();
+
+        // Filter based on user role and filter type
+        if (!$user->isAdmin()) {
+            if ($filter === 'mine') {
+                $query->where('user_id', $user->id);
+            }
+        }
+
+        return $query->limit($limit)->get();
+    }
+
+    /**
+     * Get quick actions based on user role
+     */
+    public function getQuickActions($user): array
+    {
+        if ($user->isAdmin()) {
+            return [
+                [
+                    'title' => 'Add New Item',
+                    'description' => 'Add consumable or non-consumable items',
+                    'icon' => 'fas fa-plus',
+                    'url' => route('items.create'),
+                    'color' => 'primary'
+                ],
+                [
+                    'title' => 'Manage Requests',
+                    'description' => 'Review and approve pending requests',
+                    'icon' => 'fas fa-clipboard-list',
+                    'url' => route('requests.manage'),
+                    'color' => 'warning'
+                ],
+                [
+                    'title' => 'Generate Reports',
+                    'description' => 'View inventory and usage reports',
+                    'icon' => 'fas fa-chart-bar',
+                    'url' => route('reports.index'),
+                    'color' => 'info'
+                ],
+                [
+                    'title' => 'Scan QR Code',
+                    'description' => 'Verify item details with QR scanner',
+                    'icon' => 'fas fa-qrcode',
+                    'url' => route('qr.scanner'),
+                    'color' => 'success'
+                ]
+            ];
+        } else {
+            return [
+                [
+                    'title' => 'Request Item',
+                    'description' => 'Submit a new item request',
+                    'icon' => 'fas fa-plus',
+                    'url' => route('faculty.requests.create'),
+                    'color' => 'primary'
+                ],
+                [
+                    'title' => 'My Requests',
+                    'description' => 'View your request history',
+                    'icon' => 'fas fa-list',
+                    'url' => route('faculty.requests.index'),
+                    'color' => 'info'
+                ],
+                [
+                    'title' => 'Browse Items',
+                    'description' => 'Explore available items',
+                    'icon' => 'fas fa-search',
+                    'url' => route('faculty.items.index'),
+                    'color' => 'success'
+                ],
+                [
+                    'title' => 'Scan QR Code',
+                    'description' => 'Check item details',
+                    'icon' => 'fas fa-qrcode',
+                    'url' => route('qr.scanner'),
+                    'color' => 'warning'
+                ]
+            ];
+        }
+    }
+
+    /**
+     * Get system health status (admin only)
+     */
+    public function getSystemHealth(): array
+    {
+        $totalItems = Consumable::count() + NonConsumable::count();
+        $lowStockItems = $this->getLowStockItems()->count();
+        $pendingRequests = SupplyRequest::where('status', 'pending')->count();
+        $totalUsers = User::count();
+
+        // Calculate health score (0-100)
+        $healthScore = 100;
+        if ($lowStockItems > 0) $healthScore -= min(20, $lowStockItems * 2);
+        if ($pendingRequests > 10) $healthScore -= min(20, ($pendingRequests - 10));
+        if ($totalItems < 10) $healthScore -= 10;
+
+        return [
+            'score' => max(0, $healthScore),
+            'status' => $healthScore >= 80 ? 'healthy' : ($healthScore >= 60 ? 'warning' : 'critical'),
+            'metrics' => [
+                'total_items' => $totalItems,
+                'low_stock_items' => $lowStockItems,
+                'pending_requests' => $pendingRequests,
+                'total_users' => $totalUsers,
+                'database_size' => 'N/A', // Would need DB query
+                'last_backup' => 'N/A' // Would need backup tracking
+            ]
+        ];
+    }
+
+    /**
+     * Get stock overview by category
+     */
+    public function getStockOverview(): array
+    {
+        $categories = Category::with(['consumables', 'nonConsumables'])->get();
+
+        $overview = $categories->map(function ($category) {
+            $consumables = $category->consumables;
+            $nonConsumables = $category->nonConsumables;
+
+            $totalItems = $consumables->count() + $nonConsumables->count();
+            $lowStockItems = $consumables->where('quantity', '<=', DB::raw('min_stock'))->count() +
+                           $nonConsumables->where('quantity', '<=', DB::raw('min_stock'))->count();
+            $outOfStockItems = $consumables->where('quantity', 0)->count() +
+                             $nonConsumables->where('quantity', 0)->count();
+
+            return [
+                'category' => $category->name,
+                'total_items' => $totalItems,
+                'in_stock' => $totalItems - $outOfStockItems,
+                'low_stock' => $lowStockItems,
+                'out_of_stock' => $outOfStockItems,
+                'stock_percentage' => $totalItems > 0 ? round((($totalItems - $outOfStockItems) / $totalItems) * 100, 1) : 0
+            ];
+        });
+
+        return [
+            'categories' => $overview,
+            'summary' => [
+                'total_categories' => $categories->count(),
+                'total_items' => $overview->sum('total_items'),
+                'healthy_stock' => $overview->sum('in_stock'),
+                'needs_attention' => $overview->sum('low_stock') + $overview->sum('out_of_stock')
+            ]
+        ];
+    }
+
+    /**
+     * Get notifications for user
+     */
+    public function getNotifications($user): array
+    {
+        $unreadCount = $user->unreadNotificationsCount();
+        $recentNotifications = $user->notifications()
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'title' => $notification->title,
+                    'message' => $notification->message,
+                    'type' => $notification->type,
+                    'read_at' => $notification->read_at,
+                    'created_at' => $notification->created_at,
+                    'icon' => $notification->icon,
+                    'color' => $notification->color,
+                    'url' => $notification->url
+                ];
+            });
+
+        return [
+            'unread_count' => $unreadCount,
+            'notifications' => $recentNotifications,
+            'has_more' => $user->notifications()->count() > 5
+        ];
+    }
 }

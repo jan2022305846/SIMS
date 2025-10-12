@@ -135,7 +135,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div>  
                 </div>
 
                 <!-- Number of Users Card -->

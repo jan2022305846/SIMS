@@ -25,6 +25,9 @@ use Laravel\Sanctum\HasApiTokens;
  * @method bool canRequestForOffice()
  * @method bool canApproveRequests()
  * @method bool canScanQR()
+ * @method \Illuminate\Database\Eloquent\Relations\HasMany|\Illuminate\Database\Eloquent\Builder notifications()
+ * @method \Illuminate\Database\Eloquent\Relations\HasMany|\Illuminate\Database\Eloquent\Builder unreadNotifications()
+ * @method int unreadNotificationsCount()
  * 
  * Note: Single admin system - only user ID 6 is admin
  */
@@ -140,6 +143,30 @@ class User extends Authenticatable
     public function scanLogs()
     {
         return $this->hasMany(ItemScanLog::class);
+    }
+
+    /**
+     * Get the user's notifications.
+     */
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    /**
+     * Get the user's unread notifications.
+     */
+    public function unreadNotifications()
+    {
+        return $this->hasMany(Notification::class)->unread()->latest();
+    }
+
+    /**
+     * Get the count of unread notifications.
+     */
+    public function unreadNotificationsCount(): int
+    {
+        return $this->unreadNotifications()->count();
     }    
     /**
      * Mark that user has set their password
