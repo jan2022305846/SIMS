@@ -30,7 +30,17 @@ class ReportsController extends Controller
         $recentScans = \App\Models\ItemScanLog::with(['item', 'user'])
             ->orderBy('created_at', 'desc')
             ->take(10)
-            ->get();
+            ->get()
+            ->map(function ($scan) {
+                return [
+                    'id' => $scan->id,
+                    'item_name' => optional($scan->item)->name ?? 'Unknown Item',
+                    'user_name' => optional($scan->user)->name ?? 'Unknown User',
+                    'action' => $scan->action,
+                    'created_at' => $scan->created_at,
+                    'item_type' => $scan->item_type,
+                ];
+            });
 
         // Get QR scan statistics
         $qrStats = [
@@ -906,11 +916,12 @@ class ReportsController extends Controller
     {
         return $scans->groupBy('item_id')
             ->map(function($itemScans) {
+                $firstScan = $itemScans->first();
                 return [
-                    'item' => $itemScans->first()->item,
+                    'item' => $firstScan->item ?? null,
                     'total_scans' => $itemScans->count(),
                     'unique_users' => $itemScans->pluck('user_id')->unique()->filter()->count(),
-                    'last_scan' => $itemScans->first()->created_at
+                    'last_scan' => $firstScan->created_at
                 ];
             })
             ->sortByDesc('total_scans')

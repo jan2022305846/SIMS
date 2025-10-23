@@ -43,7 +43,8 @@ class ItemScanLog extends Model
         } elseif ($this->item_type === 'non_consumable') {
             return $this->belongsTo(\App\Models\NonConsumable::class, 'item_id');
         }
-        return null;
+        // Return a relationship that will never match anything for invalid item_types
+        return $this->belongsTo(\App\Models\Consumable::class, 'item_id')->whereRaw('1 = 0');
     }
 
     /**
