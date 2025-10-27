@@ -66,9 +66,15 @@ class RequestController extends Controller
             $query->where('priority', $request->priority);
         }
 
-        $requests = $query->paginate(15);
+        // Apply office filter
+        if ($request->has('office') && $request->office) {
+            $query->where('office_id', $request->office);
+        }
 
-        return view('admin.requests.index', compact('requests'));
+        $requests = $query->paginate(15);
+        $offices = \App\Models\Office::orderBy('name')->get();
+
+        return view('admin.requests.index', compact('requests', 'offices'));
     }
 
     public function create()
@@ -223,10 +229,10 @@ class RequestController extends Controller
 
         // Return appropriate view based on user role
         if (!$user->isAdmin()) {
-            return view('faculty.requests.show', compact('supplyRequest'));
+            return view('faculty.requests.show', ['request' => $supplyRequest]);
         }
 
-        return view('admin.requests.show', ['supplyRequest' => $supplyRequest]);
+        return view('admin.requests.show', ['request' => $supplyRequest]);
     }
 
     public function edit(SupplyRequest $supplyRequest)
@@ -243,7 +249,7 @@ class RequestController extends Controller
         $items = $consumables->concat($nonConsumables);
         $offices = \App\Models\Office::all();
 
-        return view('admin.requests.edit', compact('supplyRequest', 'items', 'offices'));
+        return view('admin.requests.edit', ['request' => $supplyRequest, 'items' => $items, 'offices' => $offices]);
     }
 
     public function update(Request $updateRequest, SupplyRequest $supplyRequest)
@@ -314,6 +320,7 @@ class RequestController extends Controller
 
     public function fulfill(Request $httpRequest, SupplyRequest $supplyRequest)
     {
+        /** @var \App\Models\Request $supplyRequest */
         /** @var User $user */
         $user = Auth::user();
         if (!$user || !$user->isAdmin()) {
@@ -374,6 +381,7 @@ class RequestController extends Controller
             return back()->withErrors(['error' => 'Request not found.']);
         }
 
+        /** @var \App\Models\Request $supplyRequest */
         /** @var User $user */
         $user = Auth::user();
         if (!$user || !$user->isAdmin()) {
@@ -430,6 +438,7 @@ class RequestController extends Controller
 
     public function completeAndClaim(Request $httpRequest, SupplyRequest $supplyRequest)
     {
+        /** @var \App\Models\Request $supplyRequest */
         /** @var User $user */
         $user = Auth::user();
         if (!$user || !$user->isAdmin()) {
@@ -494,12 +503,13 @@ class RequestController extends Controller
         }
     }
 
-    public function decline(Request $request, SupplyRequest $supplyRequest)
+    public function decline(Request $httpRequest, SupplyRequest $supplyRequest)
     {
+        /** @var \App\Models\Request $supplyRequest */
         Log::info('Decline method called', [
             'request_id' => $supplyRequest->id,
             'user_id' => Auth::id(),
-            'form_data' => $request->all()
+            'form_data' => $httpRequest->all()
         ]);
 
         /** @var User $user */
@@ -514,7 +524,7 @@ class RequestController extends Controller
             return back()->withErrors(['error' => 'This request cannot be declined at this stage.']);
         }
 
-        $validatedData = $request->validate([
+        $validatedData = $httpRequest->validate([
             'reason' => 'required|string|max:500',
         ]);
 
@@ -547,6 +557,7 @@ class RequestController extends Controller
             return back()->withErrors(['error' => 'Request not found.']);
         }
 
+        /** @var \App\Models\Request $supplyRequest */
         /** @var User $user */
         $user = Auth::user();
         
@@ -574,6 +585,7 @@ class RequestController extends Controller
 
     public function printClaimSlip(SupplyRequest $supplyRequest)
     {
+        /** @var \App\Models\Request $supplyRequest */
         /** @var User $user */
         $user = Auth::user();
 
@@ -591,7 +603,7 @@ class RequestController extends Controller
         $qrCodeData = $supplyRequest->claim_slip_number;
         $qrCodeImage = $qrCode->render($qrCodeData);
 
-        return view('admin.requests.claim-slip', compact('supplyRequest', 'qrCodeImage'));
+        return view('admin.requests.claim-slip', ['request' => $supplyRequest, 'qrCodeImage' => $qrCodeImage]);
     }
 
     // Legacy methods for backwards compatibility
@@ -636,6 +648,7 @@ class RequestController extends Controller
 
     public function generateClaimSlip(SupplyRequest $supplyRequest)
     {
+        /** @var \App\Models\Request $supplyRequest */
         /** @var User $user */
         $user = Auth::user();
         
@@ -656,6 +669,7 @@ class RequestController extends Controller
 
     public function downloadClaimSlip(SupplyRequest $supplyRequest)
     {
+        /** @var \App\Models\Request $supplyRequest */
         /** @var User $user */
         $user = Auth::user();
 
@@ -674,7 +688,7 @@ class RequestController extends Controller
         $qrCodeImage = $qrCode->render($qrCodeData);
 
         // Generate PDF with QR code
-        $pdf = Pdf::loadView('admin.requests.claim-slip-pdf', compact('supplyRequest', 'qrCodeImage'))
+        $pdf = Pdf::loadView('admin.requests.claim-slip-pdf', ['request' => $supplyRequest, 'qrCodeImage' => $qrCodeImage])
             ->setPaper('a4', 'portrait');
 
         return $pdf->download('claim-slip-' . $supplyRequest->claim_slip_number . '.pdf');

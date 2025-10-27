@@ -63,6 +63,16 @@
                 </div>
 
                 <div class="card-body">
+                    @if($errors->any())
+                        <div class="alert alert-danger">
+                            <strong>Validation Errors:</strong>
+                            <ul>
+                                @foreach($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                     <form method="POST" action="{{ route('users.store') }}" id="user-form">
                         @csrf
 
@@ -145,17 +155,17 @@
                                 </label>
                                 <div class="password-input-wrapper">
                                     <input type="password" 
-                                           id="password" 
-                                           name="password" 
-                                           required
-                                           class="form-control @error('password') is-invalid @enderror">
+                                        id="password" 
+                                        name="password" 
+                                        required
+                                        class="form-control @if($errors->has('password')) is-invalid @endif">
                                     <button type="button" class="password-toggle" id="password-toggle">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </div>
-                                @error('password')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
+                                @if($errors->has('password'))
+                                    <div class="invalid-feedback">{{ $errors->first('password') }}</div>
+                                @endif
                             </div>
 
                             <!-- Confirm Password -->
@@ -165,14 +175,17 @@
                                 </label>
                                 <div class="password-input-wrapper">
                                     <input type="password" 
-                                           id="password_confirmation" 
-                                           name="password_confirmation" 
-                                           required
-                                           class="form-control">
+                                        id="password_confirmation" 
+                                        name="password_confirmation" 
+                                        required
+                                        class="form-control @if($errors->has('password')) is-invalid @endif">
                                     <button type="button" class="password-toggle" id="password-confirm-toggle">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </div>
+                                @if($errors->has('password'))
+                                    <div class="invalid-feedback">{{ $errors->first('password') }}</div>
+                                @endif
                             </div>
                         </div>
                     </form>

@@ -55,24 +55,18 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users',
             'email' => 'required|string|email|max:255|unique:users',
+            'password' =>  'required|string|min:8|confirmed', // password validation
             'office_id' => 'nullable|exists:offices,id',
         ]);
-
-        // Generate a random password that no one knows
-        $randomPassword = Str::random(60);
 
         $user = User::create([
             'name' => $request->name,
             'username' => $request->username,
             'email' => $request->email,
-            'password' => Hash::make($randomPassword),
+            'password' => Hash::make($request->password),
             'office_id' => $request->office_id,
-            'must_set_password' => true,
+            'must_set_password' => false,
         ]);
-
-        // Generate password reset token and send email
-        $token = Password::createToken($user);
-        $user->notify(new SetPasswordNotification($token, true));
 
         return redirect()->route('users.index')
             ->with('success', 'User created successfully. A password setup email has been sent to the user.');

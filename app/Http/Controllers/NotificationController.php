@@ -140,9 +140,7 @@ class NotificationController extends Controller
         ]);
     }
 
-    /**
-     * Delete all notifications for the authenticated user.
-     */
+
     public function deleteAll(): JsonResponse
     {
         $user = Auth::user();
@@ -154,9 +152,6 @@ class NotificationController extends Controller
         ]);
     }
 
-    /**
-     * Show the notifications index page for web view.
-     */
     public function showIndex(Request $request)
     {
         /** @var User $user */

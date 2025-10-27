@@ -153,4 +153,30 @@
         </div>
     </div>
 </div>
+
+<!-- Success Toast -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header bg-success text-white">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong class="me-auto">Success</strong>
+            <small class="text-white-50">just now</small>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            {{ session('success') }}
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+@if(session('success'))
+    document.addEventListener('DOMContentLoaded', function() {
+        var toast = new bootstrap.Toast(document.getElementById('successToast'));
+        toast.show();
+    });
+@endif
+</script>
+@endpush
 @endsection

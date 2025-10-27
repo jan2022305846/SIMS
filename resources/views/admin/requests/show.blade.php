@@ -19,7 +19,7 @@
                                         <i class="fas fa-clipboard-list me-1"></i>Requests
                                     </a>
                                 </li>
-                                <li class="breadcrumb-item active">Request #{{ $supplyRequest->id }}</li>
+                                <li class="breadcrumb-item active">Request #{{ $request->id }}</li>
                             </ol>
                         </nav>
                     </div>
@@ -49,9 +49,9 @@
                                             <i class="fas fa-user text-white fa-lg"></i>
                                         </div>
                                         <div>
-                                            <h5 class="mb-0">{{ $supplyRequest->user ? $supplyRequest->user->name : 'Unknown User' }}</h5>
-                                            <p class="text-muted mb-0">{{ $supplyRequest->user ? $supplyRequest->user->email : 'N/A' }}</p>
-                                            <small class="text-muted">{{ $supplyRequest->user ? ($supplyRequest->user->isAdmin() ? 'Admin' : 'Faculty') : 'N/A' }}</small>
+                                            <h5 class="mb-0">{{ $request->user ? $request->user->name : 'Unknown User' }}</h5>
+                                            <p class="text-muted mb-0">{{ $request->user ? $request->user->email : 'N/A' }}</p>
+                                            <small class="text-muted">{{ $request->user ? ($request->user->isAdmin() ? 'Admin' : 'Faculty') : 'N/A' }}</small>
                                         </div>
                                     </div>
                                 </div>
@@ -60,7 +60,7 @@
                                 <h6 class="text-muted mb-2">Request Status</h6>
                                 <div class="mb-3">
                                     <span class="badge fs-6 px-3 py-2
-                                        @switch($supplyRequest->status)
+                                        @switch($request->status)
                                             @case('pending') bg-warning @break
                                             @case('approved_by_admin') bg-success @break
                                             @case('ready_for_pickup') bg-info text-white @break
@@ -68,17 +68,17 @@
                                             @case('claimed') bg-secondary @break
                                             @default bg-danger @break
                                         @endswitch">
-                                        {{ $supplyRequest->getStatusDisplayName() }}
+                                        {{ $request->getStatusDisplayName() }}
                                     </span>
                                     <div class="mt-2">
                                         <span class="badge
-                                            @switch($supplyRequest->priority)
+                                            @switch($request->priority)
                                                 @case('low') bg-success @break
                                                 @case('normal') bg-primary @break
                                                 @case('high') bg-warning @break
                                                 @case('urgent') bg-danger @break
                                             @endswitch">
-                                            {{ ucfirst($supplyRequest->priority) }} Priority
+                                            {{ ucfirst($request->priority) }} Priority
                                         </span>
                                     </div>
                                 </div>
@@ -92,16 +92,16 @@
                                 <h6 class="text-muted mb-2">Item Details</h6>
                                 <div class="card bg-light border-0 mb-3">
                                     <div class="card-body">
-                                        <h5 class="mb-2">{{ $supplyRequest->item ? $supplyRequest->item->name : 'Item Not Found' }}</h5>
+                                        <h5 class="mb-2">{{ $request->item ? $request->item->name : 'Item Not Found' }}</h5>
                                         <div class="row">
                                             <div class="col-6">
                                                 <small class="text-muted">Requested Quantity</small>
-                                                <div class="fw-bold fs-5">{{ $supplyRequest->quantity }} {{ $supplyRequest->item && $supplyRequest->item->unit ? $supplyRequest->item->unit : 'pcs' }}</div>
+                                                <div class="fw-bold fs-5">{{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}</div>
                                             </div>
                                             <div class="col-6">
                                                 <small class="text-muted">Available Stock</small>
-                                                <div class="fw-bold fs-5 {{ $supplyRequest->item && $supplyRequest->item->current_stock < $supplyRequest->quantity ? 'text-danger' : 'text-success' }}">
-                                                    {{ $supplyRequest->item ? $supplyRequest->item->current_stock : 'N/A' }} {{ $supplyRequest->item && $supplyRequest->item->unit ? $supplyRequest->item->unit : 'pcs' }}
+                                                <div class="fw-bold fs-5 {{ $request->item && $request->item->current_stock < $request->quantity ? 'text-danger' : 'text-success' }}">
+                                                    {{ $request->item ? $request->item->current_stock : 'N/A' }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}
                                                 </div>
                                             </div>
                                         </div>
@@ -113,26 +113,26 @@
                                 <div class="mb-3">
                                     <div class="row mb-2">
                                         <div class="col-5"><strong>Department:</strong></div>
-                                        <div class="col-7">{{ $supplyRequest->department }}</div>
+                                        <div class="col-7">{{ $request->department }}</div>
                                     </div>
                                     <div class="row mb-2">
                                         <div class="col-5"><strong>Request Date:</strong></div>
-                                        <div class="col-7">{{ $supplyRequest->request_date ? $supplyRequest->request_date->format('M j, Y g:i A') : 'N/A' }}</div>
+                                        <div class="col-7">{{ $request->request_date ? $request->request_date->format('M j, Y g:i A') : 'N/A' }}</div>
                                     </div>
                                     <div class="row mb-2">
                                         <div class="col-5"><strong>Needed Date:</strong></div>
                                         <div class="col-7">
-                                            {{ $supplyRequest->needed_date ? $supplyRequest->needed_date->format('M j, Y') : 'N/A' }}
-                                            @if($supplyRequest->needed_date && $supplyRequest->needed_date->isPast() && !$supplyRequest->isClaimed())
+                                            {{ $request->needed_date ? $request->needed_date->format('M j, Y') : 'N/A' }}
+                                            @if($request->needed_date && $request->needed_date->isPast() && !$request->isClaimed())
                                                 <span class="badge bg-warning ms-1">Overdue</span>
                                             @endif
                                         </div>
                                     </div>
-                                    @if($supplyRequest->claim_slip_number)
+                                    @if($request->claim_slip_number)
                                         <div class="row mb-2">
                                             <div class="col-5"><strong>Claim Slip:</strong></div>
                                             <div class="col-7">
-                                                <code>{{ $supplyRequest->claim_slip_number }}</code>
+                                                <code>{{ $request->claim_slip_number }}</code>
                                             </div>
                                         </div>
                                     @endif
@@ -146,18 +146,18 @@
                             <div class="col-12">
                                 <h6 class="text-muted mb-2">Purpose</h6>
                                 <div class="bg-light p-3 rounded">
-                                    {{ $supplyRequest->purpose }}
+                                    {{ $request->purpose }}
                                 </div>
                             </div>
                         </div>
 
-                        @if($supplyRequest->attachments && count($supplyRequest->attachments) > 0)
+                        @if($request->attachments && count($request->attachments) > 0)
                             <hr>
                             <div class="row">
                                 <div class="col-12">
                                     <h6 class="text-muted mb-2">Attachments</h6>
                                     <div class="list-group list-group-flush">
-                                        @foreach($supplyRequest->attachments as $attachment)
+                                        @foreach($request->attachments as $attachment)
                                             <div class="list-group-item bg-light d-flex justify-content-between align-items-center">
                                                 <div>
                                                     <i class="fas fa-paperclip me-2"></i>
@@ -188,28 +188,28 @@
                                 </div>
                                 <div class="card-body">
                             <!-- Admin Actions -->
-                            @if($supplyRequest->canBeApprovedByAdmin())
-                                <form method="POST" action="{{ route('requests.approve-admin', $supplyRequest) }}" class="mb-2">
+                            @if($request->canBeApprovedByAdmin())
+                                <form method="POST" action="{{ route('requests.approve-admin', $request) }}" class="mb-2">
                                     @csrf
                                     <button type="submit" class="btn btn-success w-100">
                                         <i class="fas fa-check me-2"></i>Approve Request
                                     </button>
                                 </form>
                             @else
-                                @if($supplyRequest->status === 'declined_by_admin')
+                                @if($request->status === 'declined_by_admin')
                                     <div class="alert alert-danger mb-2">
                                         <i class="fas fa-ban me-2"></i>
                                         <strong>This request was declined</strong>
-                                        @if($supplyRequest->admin_notes)
-                                            <br><small>Reason: {{ $supplyRequest->admin_notes }}</small>
+                                        @if($request->admin_notes)
+                                            <br><small>Reason: {{ $request->admin_notes }}</small>
                                         @endif
                                     </div>
-                                @elseif($supplyRequest->status === 'approved_by_admin')
+                                @elseif($request->status === 'approved_by_admin')
                                     <div class="alert alert-success mb-2">
                                         <i class="fas fa-check-circle me-2"></i>
                                         <strong>This request has already been approved</strong>
                                     </div>
-                                @elseif(in_array($supplyRequest->status, ['fulfilled', 'claimed']))
+                                @elseif(in_array($request->status, ['fulfilled', 'claimed']))
                                     <div class="alert alert-info mb-2">
                                         <i class="fas fa-check-double me-2"></i>
                                         <strong>This request has been completed</strong>
@@ -222,7 +222,7 @@
                                 @endif
                             @endif
 
-                            @if($supplyRequest->canBeFulfilled())
+                            @if($request->canBeFulfilled())
                                 <div class="mb-3">
                                     <label for="item_barcode" class="form-label fw-medium">Scan Item Barcode</label>
                                     <div class="input-group">
@@ -258,7 +258,7 @@
                                     </div>
                                 </div>
 
-                                <form method="POST" action="{{ route('requests.fulfill', $supplyRequest) }}" class="mb-2">
+                                <form method="POST" action="{{ route('requests.fulfill', $request) }}" class="mb-2">
                                     @csrf
                                     <input type="hidden" name="scanned_barcode" id="scanned_barcode_input">
                                     <button type="submit" class="btn btn-primary w-100" id="fulfill-btn" disabled>
@@ -267,7 +267,7 @@
                                 </form>
                             @endif
 
-                            @if($supplyRequest->status === 'approved_by_admin')
+                            @if($request->status === 'approved_by_admin')
                                 <div class="mb-3">
                                     <label for="complete_barcode" class="form-label fw-medium">Scan Item Barcode to Complete Request</label>
                                     <div class="input-group">
@@ -303,7 +303,7 @@
                                     </div>
                                 </div>
 
-                                <form method="POST" action="{{ route('requests.complete', $supplyRequest) }}" class="mb-2">
+                                <form method="POST" action="{{ route('requests.complete', $request) }}" class="mb-2">
                                     @csrf
                                     <input type="hidden" name="scanned_barcode" id="scanned_complete_barcode_input">
                                     <button type="submit" class="btn btn-success w-100" id="complete-btn" disabled>
@@ -312,7 +312,7 @@
                                 </form>
                             @endif
 
-                            @if($supplyRequest->canBeClaimed())
+                            @if($request->canBeClaimed())
                                 <div class="mb-3">
                                     <label for="claim_barcode" class="form-label fw-medium">
                                         <i class="fas fa-ticket-alt text-primary me-1"></i>
@@ -383,7 +383,7 @@
                                     </div>
                                 </div>
 
-                                <form method="POST" action="{{ route('requests.claim', $supplyRequest) }}" class="mb-2">
+                                <form method="POST" action="{{ route('requests.claim', $request) }}" class="mb-2">
                                     @csrf
                                     <input type="hidden" name="scanned_barcode" id="scanned_claim_barcode_input">
                                     <button type="submit" class="btn btn-secondary w-100" id="claim-btn" disabled>
@@ -391,18 +391,18 @@
                                     </button>
                                 </form>
                             @else
-                                @if($supplyRequest->status === 'claimed')
+                                @if($request->status === 'claimed')
                                     <div class="alert alert-success mb-2">
                                         <i class="fas fa-check-circle me-2"></i>
                                         <strong>This request has already been claimed</strong>
                                     </div>
-                                @elseif($supplyRequest->status === 'approved_by_admin')
+                                @elseif($request->status === 'approved_by_admin')
                                     <div class="alert alert-info mb-2">
                                         <i class="fas fa-clock me-2"></i>
                                         <strong>Waiting for faculty to generate claim slip</strong>
                                         <br><small>Faculty will generate a claim slip and visit the supply office to pick up items.</small>
                                     </div>
-                                @elseif($supplyRequest->status !== 'ready_for_pickup')
+                                @elseif($request->status !== 'ready_for_pickup')
                                     <div class="alert alert-warning mb-2">
                                         <i class="fas fa-exclamation-triangle me-2"></i>
                                         <strong>This request cannot be claimed yet</strong>
@@ -411,7 +411,7 @@
                                 @endif
                             @endif
 
-                            @if($supplyRequest->isPending())
+                            @if($request->isPending())
                                 <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#declineModal" id="declineBtn">
                                     <i class="fas fa-times me-2"></i>Decline Request
                                 </button>
@@ -432,9 +432,9 @@
                         <div class="ms-auto">
                             <small class="text-white-50">
                                 <i class="fas fa-clock me-1"></i>
-                                @if($supplyRequest->claimed_date)
-                                    Completed in {{ $supplyRequest->request_date->diffInDays($supplyRequest->claimed_date) + 1 }} days
-                                @elseif($supplyRequest->status === 'claimed')
+                                @if($request->claimed_date)
+                                    Completed in {{ $request->request_date->diffInDays($request->claimed_date) + 1 }} days
+                                @elseif($request->status === 'claimed')
                                     Completed
                                 @else
                                     In Progress
@@ -462,19 +462,19 @@
                                             <div class="col-sm-6">
                                                 <small class="text-muted d-block">
                                                     <i class="fas fa-calendar me-1"></i>
-                                                    {{ $supplyRequest->request_date ? $supplyRequest->request_date->format('M j, Y g:i A') : 'N/A' }}
+                                                    {{ $request->request_date ? $request->request_date->format('M j, Y g:i A') : 'N/A' }}
                                                 </small>
                                             </div>
                                             <div class="col-sm-6">
                                                 <small class="text-muted d-block">
                                                     <i class="fas fa-user me-1"></i>
-                                                    {{ $supplyRequest->user ? $supplyRequest->user->name : 'Unknown User' }}
+                                                    {{ $request->user ? $request->user->name : 'Unknown User' }}
                                                 </small>
                                             </div>
                                         </div>
                                         <div class="step-description mt-2">
                                             <small class="text-muted">
-                                                Faculty member submitted a request for {{ $supplyRequest->quantity }} {{ $supplyRequest->item && $supplyRequest->item->unit ? $supplyRequest->item->unit : 'pcs' }} of {{ $supplyRequest->item ? $supplyRequest->item->name : 'Unknown Item' }}
+                                                Faculty member submitted a request for {{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }} of {{ $request->item ? $request->item->name : 'Unknown Item' }}
                                             </small>
                                         </div>
                                     </div>
@@ -482,19 +482,19 @@
                             </div>
 
                             <!-- Step 2: Admin Approval -->
-                            <div class="workflow-step {{ in_array($supplyRequest->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($supplyRequest->status === 'declined_by_admin' ? 'declined' : 'current') }}">
-                                <div class="workflow-marker {{ in_array($supplyRequest->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : ($supplyRequest->status === 'declined_by_admin' ? 'bg-danger' : 'bg-primary') }}">
+                            <div class="workflow-step {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->status === 'declined_by_admin' ? 'declined' : 'current') }}">
+                                <div class="workflow-marker {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->status === 'declined_by_admin' ? 'bg-danger' : 'bg-primary') }}">
                                     <div class="step-number">2</div>
-                                    <i class="fas {{ in_array($supplyRequest->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($supplyRequest->status === 'declined_by_admin' ? 'fa-times' : 'fa-shield-alt') }} step-icon"></i>
+                                    <i class="fas {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->status === 'declined_by_admin' ? 'fa-times' : 'fa-shield-alt') }} step-icon"></i>
                                 </div>
                                 <div class="workflow-content">
                                     <div class="step-header">
                                         <h6 class="step-title mb-1">Admin Approval</h6>
-                                        @if(in_array($supplyRequest->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']))
+                                        @if(in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']))
                                             <span class="badge bg-success-subtle text-success border border-success-subtle">
                                                 <i class="fas fa-check-circle me-1"></i>Approved
                                             </span>
-                                        @elseif($supplyRequest->status === 'declined_by_admin')
+                                        @elseif($request->status === 'declined_by_admin')
                                             <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
                                                 <i class="fas fa-times-circle me-1"></i>Declined
                                             </span>
@@ -505,18 +505,18 @@
                                         @endif
                                     </div>
                                     <div class="step-details">
-                                        @if($supplyRequest->admin_approval_date)
+                                        @if($request->admin_approval_date)
                                             <div class="row g-2">
                                                 <div class="col-sm-6">
                                                     <small class="text-muted d-block">
                                                         <i class="fas fa-calendar-check me-1"></i>
-                                                        {{ $supplyRequest->admin_approval_date->format('M j, Y g:i A') }}
+                                                        {{ $request->admin_approval_date->format('M j, Y g:i A') }}
                                                     </small>
                                                 </div>
                                                 <div class="col-sm-6">
                                                     <small class="text-muted d-block">
                                                         <i class="fas fa-user-shield me-1"></i>
-                                                        {{ $supplyRequest->adminApprover->name ?? 'Administrator' }}
+                                                        {{ $request->adminApprover->name ?? 'Administrator' }}
                                                     </small>
                                                 </div>
                                             </div>
@@ -525,12 +525,12 @@
                                                     Request approved and ready for fulfillment
                                                 </small>
                                             </div>
-                                        @elseif($supplyRequest->status === 'declined_by_admin')
+                                        @elseif($request->status === 'declined_by_admin')
                                             <div class="row g-2">
                                                 <div class="col-12">
                                                     <small class="text-danger d-block">
                                                         <i class="fas fa-exclamation-triangle me-1"></i>
-                                                        <strong>Declined:</strong> {{ $supplyRequest->admin_notes ?? 'No reason provided' }}
+                                                        <strong>Declined:</strong> {{ $request->admin_notes ?? 'No reason provided' }}
                                                     </small>
                                                 </div>
                                             </div>
@@ -546,19 +546,19 @@
                             </div>
 
                             <!-- Step 3: Claim Slip Generation -->
-                            <div class="workflow-step {{ in_array($supplyRequest->status, ['ready_for_pickup', 'claimed']) ? 'completed' : (in_array($supplyRequest->status, ['approved_by_admin', 'fulfilled']) ? 'current' : '') }}">
-                                <div class="workflow-marker {{ in_array($supplyRequest->status, ['ready_for_pickup', 'claimed']) ? 'bg-success' : (in_array($supplyRequest->status, ['approved_by_admin', 'fulfilled']) ? 'bg-primary' : 'bg-secondary') }}">
+                            <div class="workflow-step {{ in_array($request->status, ['ready_for_pickup', 'claimed']) ? 'completed' : (in_array($request->status, ['approved_by_admin', 'fulfilled']) ? 'current' : '') }}">
+                                <div class="workflow-marker {{ in_array($request->status, ['ready_for_pickup', 'claimed']) ? 'bg-success' : (in_array($request->status, ['approved_by_admin', 'fulfilled']) ? 'bg-primary' : 'bg-secondary') }}">
                                     <div class="step-number">3</div>
                                     <i class="fas fa-ticket-alt step-icon"></i>
                                 </div>
                                 <div class="workflow-content">
                                     <div class="step-header">
                                         <h6 class="step-title mb-1">Claim Slip Generation</h6>
-                                        @if(in_array($supplyRequest->status, ['ready_for_pickup', 'claimed']))
+                                        @if(in_array($request->status, ['ready_for_pickup', 'claimed']))
                                             <span class="badge bg-success-subtle text-success border border-success-subtle">
                                                 <i class="fas fa-check-circle me-1"></i>Generated
                                             </span>
-                                        @elseif(in_array($supplyRequest->status, ['approved_by_admin', 'fulfilled']))
+                                        @elseif(in_array($request->status, ['approved_by_admin', 'fulfilled']))
                                             <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
                                                 <i class="fas fa-clock me-1"></i>Pending
                                             </span>
@@ -569,12 +569,12 @@
                                         @endif
                                     </div>
                                     <div class="step-details">
-                                        @if($supplyRequest->claim_slip_number && $supplyRequest->status !== 'approved_by_admin')
+                                        @if($request->claim_slip_number && $request->status !== 'approved_by_admin')
                                             <div class="row g-2">
                                                 <div class="col-sm-6">
                                                     <small class="text-muted d-block">
                                                         <i class="fas fa-hashtag me-1"></i>
-                                                        <code class="bg-light px-1 rounded">{{ $supplyRequest->claim_slip_number }}</code>
+                                                        <code class="bg-light px-1 rounded">{{ $request->claim_slip_number }}</code>
                                                     </small>
                                                 </div>
                                                 <div class="col-sm-6">
@@ -589,7 +589,7 @@
                                                     Faculty generated claim slip with QR code for pickup verification
                                                 </small>
                                             </div>
-                                        @elseif(in_array($supplyRequest->status, ['approved_by_admin', 'fulfilled']))
+                                        @elseif(in_array($request->status, ['approved_by_admin', 'fulfilled']))
                                             <div class="step-description">
                                                 <small class="text-muted">
                                                     <i class="fas fa-info-circle me-1"></i>
@@ -608,19 +608,19 @@
                             </div>
 
                             <!-- Step 4: Item Claimed -->
-                            <div class="workflow-step {{ $supplyRequest->status === 'claimed' ? 'completed' : ($supplyRequest->status === 'ready_for_pickup' ? 'current' : '') }}">
-                                <div class="workflow-marker {{ $supplyRequest->status === 'claimed' ? 'bg-success' : ($supplyRequest->status === 'ready_for_pickup' ? 'bg-primary' : 'bg-secondary') }}">
+                            <div class="workflow-step {{ $request->status === 'claimed' ? 'completed' : ($request->status === 'ready_for_pickup' ? 'current' : '') }}">
+                                <div class="workflow-marker {{ $request->status === 'claimed' ? 'bg-success' : ($request->status === 'ready_for_pickup' ? 'bg-primary' : 'bg-secondary') }}">
                                     <div class="step-number">4</div>
-                                    <i class="fas {{ $supplyRequest->status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} step-icon"></i>
+                                    <i class="fas {{ $request->status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} step-icon"></i>
                                 </div>
                                 <div class="workflow-content">
                                     <div class="step-header">
                                         <h6 class="step-title mb-1">Item Pickup & Claim</h6>
-                                        @if($supplyRequest->status === 'claimed')
+                                        @if($request->status === 'claimed')
                                             <span class="badge bg-success-subtle text-success border border-success-subtle">
                                                 <i class="fas fa-check-circle me-1"></i>Completed
                                             </span>
-                                        @elseif($supplyRequest->status === 'ready_for_pickup')
+                                        @elseif($request->status === 'ready_for_pickup')
                                             <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
                                                 <i class="fas fa-clock me-1"></i>Ready for Pickup
                                             </span>
@@ -631,18 +631,18 @@
                                         @endif
                                     </div>
                                     <div class="step-details">
-                                        @if($supplyRequest->claimed_date)
+                                        @if($request->claimed_date)
                                             <div class="row g-2">
                                                 <div class="col-sm-6">
                                                     <small class="text-muted d-block">
                                                         <i class="fas fa-calendar-check me-1"></i>
-                                                        {{ $supplyRequest->claimed_date->format('M j, Y g:i A') }}
+                                                        {{ $request->claimed_date->format('M j, Y g:i A') }}
                                                     </small>
                                                 </div>
                                                 <div class="col-sm-6">
                                                     <small class="text-muted d-block">
                                                         <i class="fas fa-user-check me-1"></i>
-                                                        {{ $supplyRequest->claimedBy->name ?? 'Administrator' }}
+                                                        {{ $request->claimedBy->name ?? 'Administrator' }}
                                                     </small>
                                                 </div>
                                             </div>
@@ -652,7 +652,7 @@
                                                     Dual verification completed: Claim slip QR code + Item barcode scanned successfully
                                                 </small>
                                             </div>
-                                        @elseif($supplyRequest->status === 'ready_for_pickup')
+                                        @elseif($request->status === 'ready_for_pickup')
                                             <div class="step-description">
                                                 <small class="text-primary">
                                                     <i class="fas fa-info-circle me-1"></i>
@@ -688,7 +688,7 @@
 </div>
 
 <!-- Decline Modal -->
-@if(!$supplyRequest->isDeclined() && !$supplyRequest->isClaimed() && auth()->user()->isAdmin())
+@if(!$request->isDeclined() && !$request->isClaimed() && auth()->user()->isAdmin())
     <div class="modal fade" id="declineModal" tabindex="-1" aria-labelledby="declineModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -696,7 +696,7 @@
                     <h5 class="modal-title" id="declineModalLabel">Decline Request</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" action="{{ route('requests.decline', $supplyRequest) }}" id="declineForm">
+                <form method="POST" action="{{ route('requests.decline', $request) }}" id="declineForm">
                     @csrf
                     <div class="modal-body">
                         <div class="alert alert-warning">
@@ -1589,7 +1589,7 @@ function initializeClaimBarcodeScanner() {
         claimDetailsDiv.style.display = 'block';
 
         // Check if the scanned claim slip matches this request
-        if (claimSlipNumber === '{{ $supplyRequest->claim_slip_number }}') {
+        if (claimSlipNumber === '{{ $request->claim_slip_number }}') {
             displayClaimDetails();
             checkClaimButtonState(); // Check if both verifications are complete
         } else {
@@ -1604,15 +1604,15 @@ function initializeClaimBarcodeScanner() {
             <div class="row">
                 <div class="col-md-6">
                     <h6 class="text-success mb-2"><i class="fas fa-ticket-alt me-1"></i>Claim Slip Details</h6>
-                    <p class="mb-1"><strong>Claim Slip Number:</strong> <code>{{ $supplyRequest->claim_slip_number }}</code></p>
-                    <p class="mb-1"><strong>Requester:</strong> {{ $supplyRequest->user ? $supplyRequest->user->name : 'Unknown User' }}</p>
-                    <p class="mb-1"><strong>Department:</strong> {{ $supplyRequest->department }}</p>
+                    <p class="mb-1"><strong>Claim Slip Number:</strong> <code>{{ $request->claim_slip_number }}</code></p>
+                    <p class="mb-1"><strong>Requester:</strong> {{ $request->user ? $request->user->name : 'Unknown User' }}</p>
+                    <p class="mb-1"><strong>Department:</strong> {{ $request->department }}</p>
                 </div>
                 <div class="col-md-6">
                     <h6 class="text-success mb-2"><i class="fas fa-box me-1"></i>Item Information</h6>
-                    <p class="mb-1"><strong>Item:</strong> {{ $supplyRequest->item ? $supplyRequest->item->name : 'Item Not Found' }}</p>
-                    <p class="mb-1"><strong>Quantity:</strong> {{ $supplyRequest->quantity }} {{ $supplyRequest->item && $supplyRequest->item->unit ? $supplyRequest->item->unit : 'pcs' }}</p>
-                    <p class="mb-1"><strong>Purpose:</strong> {{ Str::limit($supplyRequest->purpose, 30) }}</p>
+                    <p class="mb-1"><strong>Item:</strong> {{ $request->item ? $request->item->name : 'Item Not Found' }}</p>
+                    <p class="mb-1"><strong>Quantity:</strong> {{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}</p>
+                    <p class="mb-1"><strong>Purpose:</strong> {{ Str::limit($request->purpose, 30) }}</p>
                 </div>
             </div>
             <div class="mt-2">
@@ -1872,7 +1872,7 @@ function initializeClaimItemBarcodeScanner() {
         .then(data => {
             if (data.success) {
                 // Check if the scanned item matches the requested item
-                if (data.item.id == '{{ $supplyRequest->item->id }}') {
+                if (data.item.id == '{{ $request->item->id }}') {
                     displayClaimItemDetails(data.item);
                     // Set the hidden input to the verified item barcode
                     document.getElementById('scanned_claim_barcode_input').value = barcode;
