@@ -294,15 +294,8 @@ class RequestController extends Controller
             ->with('success', 'Request updated successfully!');
     }
 
-    public function approveByAdmin($requestId)
+    public function approveByAdmin(SupplyRequest $supplyRequest)
     {
-        // Manual model loading since route model binding had issues
-        $supplyRequest = SupplyRequest::find($requestId);
-
-        if (!$supplyRequest) {
-            return back()->withErrors(['error' => 'Request not found.']);
-        }
-
         /** @var User $user */
         $user = Auth::user();
         if (!$user || !$user->isAdmin()) {
@@ -372,15 +365,8 @@ class RequestController extends Controller
         }
     }
 
-    public function markAsClaimed(Request $httpRequest, $requestId)
+    public function markAsClaimed(Request $httpRequest, SupplyRequest $supplyRequest)
     {
-        // Manual model loading since route model binding had issues
-        $supplyRequest = SupplyRequest::find($requestId);
-
-        if (!$supplyRequest) {
-            return back()->withErrors(['error' => 'Request not found.']);
-        }
-
         /** @var \App\Models\Request $supplyRequest */
         /** @var User $user */
         $user = Auth::user();
@@ -548,19 +534,12 @@ class RequestController extends Controller
         return redirect()->route('requests.manage')->with('success', 'Request declined successfully!');
     }
 
-    public function destroy($requestId)
+    public function destroy(SupplyRequest $supplyRequest)
     {
-        // Manual model loading since route model binding had issues
-        $supplyRequest = SupplyRequest::find($requestId);
-
-        if (!$supplyRequest) {
-            return back()->withErrors(['error' => 'Request not found.']);
-        }
-
         /** @var \App\Models\Request $supplyRequest */
         /** @var User $user */
         $user = Auth::user();
-        
+
         // Only allow deletion if request is pending and user is the requester or admin
         if (!$user || !$supplyRequest->isPending() || (!$user->isAdmin() && $supplyRequest->user_id !== $user->id)) {
             abort(403, 'This request cannot be deleted.');
@@ -667,30 +646,96 @@ class RequestController extends Controller
         return redirect()->route('faculty.requests.show', $supplyRequest)->with('success', 'Claim slip generated successfully! You can now print it and pick up your items from the supply office.');
     }
 
-    public function downloadClaimSlip(SupplyRequest $supplyRequest)
+    public function editFaculty(SupplyRequest $supplyRequest)
     {
-        /** @var \App\Models\Request $supplyRequest */
+        // Only allow editing if request is still pending and belongs to the current faculty user
         /** @var User $user */
         $user = Auth::user();
-
-        // Only faculty and admin can download claim slips for fulfilled/claimed requests
-        if (!$user || !($user->isAdmin() || $supplyRequest->user_id === $user->id)) {
-            abort(403, 'You are not authorized to download claim slips for this request.');
+        if (!$user || !$supplyRequest->isPending() || $supplyRequest->user_id !== $user->id) {
+            abort(403, 'You can only edit your own pending requests.');
         }
 
-        if (!$supplyRequest->isApprovedByAdmin() && !$supplyRequest->isReadyForPickup() && !$supplyRequest->isFulfilled() && !$supplyRequest->isClaimed()) {
-            abort(404, 'Claim slip not available for this request.');
+        $consumables = Consumable::where('quantity', '>', 0)->get();
+        $nonConsumables = NonConsumable::where('quantity', '>', 0)->get();
+        $items = $consumables->concat($nonConsumables);
+
+        return view('faculty.requests.edit', ['request' => $supplyRequest, 'items' => $items]);
+    }
+
+    public function updateFaculty(Request $updateRequest, SupplyRequest $supplyRequest)
+    {
+        // Check permissions - only faculty can update their own pending requests
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user || !$supplyRequest->isPending() || $supplyRequest->user_id !== $user->id) {
+            abort(403, 'You can only update your own pending requests.');
         }
 
-        // Generate QR code for the claim slip number
-        $qrCode = new \chillerlan\QRCode\QRCode();
-        $qrCodeData = $supplyRequest->claim_slip_number;
-        $qrCodeImage = $qrCode->render($qrCodeData);
+        $validatedData = $updateRequest->validate([
+            'item_id' => 'required|integer',
+            'item_type' => 'required|in:consumable,non_consumable',
+            'quantity' => 'required|integer|min:1',
+            'purpose' => 'required|string|max:500',
+        ]);
 
-        // Generate PDF with QR code
-        $pdf = Pdf::loadView('admin.requests.claim-slip-pdf', ['request' => $supplyRequest, 'qrCodeImage' => $qrCodeImage])
-            ->setPaper('a4', 'portrait');
+        // Check stock availability
+        $item = null;
+        if ($validatedData['item_type'] === 'consumable') {
+            $item = Consumable::findOrFail($validatedData['item_id']);
+        } elseif ($validatedData['item_type'] === 'non_consumable') {
+            $item = NonConsumable::findOrFail($validatedData['item_id']);
+        }
 
-        return $pdf->download('claim-slip-' . $supplyRequest->claim_slip_number . '.pdf');
+        if (!$item) {
+            return back()->withErrors(['item_id' => 'Selected item not found.']);
+        }
+
+        // Check stock availability (only for consumables)
+        if ($validatedData['item_type'] === 'consumable' && $item->quantity < $validatedData['quantity']) {
+            return back()->withErrors(['quantity' => 'Requested quantity exceeds available stock (' . $item->quantity . ' available)']);
+        }
+
+        $supplyRequest->update([
+            'item_id' => $validatedData['item_id'],
+            'item_type' => $item instanceof Consumable ? 'consumable' : 'non_consumable',
+            'quantity' => $validatedData['quantity'],
+            'purpose' => $validatedData['purpose'],
+        ]);
+
+        return redirect()->route('faculty.requests.show', $supplyRequest)
+            ->with('success', 'Request updated successfully!');
+    }
+
+    public function cancelFaculty(Request $httpRequest, SupplyRequest $supplyRequest)
+    {
+        // Check permissions - only faculty can cancel their own pending requests
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user || !$supplyRequest->isPending() || $supplyRequest->user_id !== $user->id) {
+            abort(403, 'You can only cancel your own pending requests.');
+        }
+
+        $validatedData = $httpRequest->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        Log::info('Cancelling faculty request', [
+            'request_id' => $supplyRequest->id,
+            'current_status' => $supplyRequest->status,
+            'reason' => $validatedData['reason'] ?? null
+        ]);
+
+        $supplyRequest->load('user');
+        $supplyRequest->cancel($user, $validatedData['reason'] ?? null);
+
+        // Check if the status was actually updated
+        $supplyRequest->refresh();
+        Log::info('Request status after cancellation', [
+            'request_id' => $supplyRequest->id,
+            'new_status' => $supplyRequest->status,
+            'notes' => $supplyRequest->notes
+        ]);
+
+        return redirect()->route('faculty.requests.index')->with('success', 'Request cancelled successfully!');
     }
 }

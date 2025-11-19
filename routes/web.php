@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Auth\CustomLoginController;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\UserController;
 use App\Http\Controllers\Web\CategoryController;
@@ -15,11 +15,11 @@ use App\Http\Controllers\QRCodeController;
 use App\Http\Controllers\Auth\PasswordController;
 
 // Custom Authentication Routes
-Route::get('login', [CustomLoginController::class, 'showLoginForm'])->name('login');
-Route::post('login', [CustomLoginController::class, 'login']);
-Route::post('logout', [CustomLoginController::class, 'logout'])->name('logout');
+Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('login', [LoginController::class, 'login']);
+Route::post('logout', [LoginController::class, 'logout'])->name('logout');
 // Handle GET requests to logout (for bookmarks/direct access) - use same controller method
-Route::get('logout', [CustomLoginController::class, 'logout'])->name('logout.get');
+Route::get('logout', [LoginController::class, 'logout'])->name('logout.get');
 
 // Password Reset Routes
 Route::get('password/forgot', [PasswordController::class, 'showForgotForm'])->name('password.forgot');
@@ -70,6 +70,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['admin'])->group(function () {
         // Users
         Route::resource('users', UserController::class);
+        Route::get('users/{user}/export/fulfilled', [UserController::class, 'exportFulfilledRequests'])->name('admin.users.export.fulfilled');
         
         // Categories
         Route::resource('categories', CategoryController::class);
@@ -155,6 +156,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('faculty/requests/create', [RequestController::class, 'create'])->name('faculty.requests.create');
         Route::post('faculty/requests', [RequestController::class, 'store'])->name('faculty.requests.store');
         Route::get('faculty/requests/{request}', [RequestController::class, 'show'])->name('faculty.requests.show');
+        Route::get('faculty/requests/{request}/edit', [RequestController::class, 'editFaculty'])->name('faculty.requests.edit');
+        Route::put('faculty/requests/{request}', [RequestController::class, 'updateFaculty'])->name('faculty.requests.update');
+        Route::post('faculty/requests/{request}/cancel', [RequestController::class, 'cancelFaculty'])->name('faculty.requests.cancel');
         Route::post('faculty/requests/{request}/generate-claim-slip', [RequestController::class, 'generateClaimSlip'])->name('faculty.requests.generate-claim-slip');
         Route::get('faculty/requests/{request}/download-claim-slip', [RequestController::class, 'downloadClaimSlip'])->name('faculty.requests.download-claim-slip');
         Route::delete('faculty/requests/{request}', [RequestController::class, 'destroy'])->name('faculty.requests.destroy');

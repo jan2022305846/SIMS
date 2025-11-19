@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'USTP Supply Office') }}</title>
+    <title>{{ config('app.name')}}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('logos/USTP Logo against Light Background.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('logos/USTP Logo against Light Background.png') }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -47,6 +51,7 @@
 
         <!-- Main Content Area -->
         <main class="main-content">
+            @yield('header')
             @yield('content')
         </main>
 
@@ -62,6 +67,70 @@
 
     <!-- Bootstrap JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+    
+    @auth
+    <!-- Session Timeout Management -->
+    <script>
+        (function() {
+            let inactivityTimer;
+            let inactivityLimit = 2 * 60 * 1000; // Default: 2 minutes in milliseconds
+            let lastActivity = Date.now();
+            
+            // Function to get session lifetime from server or use default
+            function getSessionLifetime() {
+                // Check if we have a stored session lifetime from login
+                const storedLifetime = sessionStorage.getItem('session_lifetime');
+                if (storedLifetime) {
+                    return parseInt(storedLifetime) * 1000; // Convert to milliseconds
+                }
+                return inactivityLimit; // Default fallback
+            }
+            
+            // Function to reset inactivity timer
+            function resetInactivityTimer() {
+                lastActivity = Date.now();
+                inactivityLimit = getSessionLifetime();
+                
+                // Clear existing timers
+                clearTimeout(inactivityTimer);
+                clearTimeout(warningTimer);
+                
+                // Set new inactivity timer (logout directly without warning)
+                inactivityTimer = setTimeout(logoutNow, inactivityLimit);
+            }
+            
+            // Function to logout immediately
+            window.logoutNow = function() {
+                window.location.href = '/logout';
+            };
+            
+            // Activity event listeners
+            const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+            activityEvents.forEach(event => {
+                document.addEventListener(event, resetInactivityTimer, true);
+            });
+            
+            // Start the inactivity timer
+            resetInactivityTimer();
+            
+            // Periodic session refresh (every 30 seconds when active)
+            setInterval(() => {
+                if (Date.now() - lastActivity < inactivityLimit) {
+                    fetch('/dashboard', {
+                        method: 'GET',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        }
+                    }).catch(error => {
+                        console.log('Session refresh failed:', error);
+                    });
+                }
+            }, 30000); // 30 seconds
+            
+        })();
+    </script>
+    @endauth
     
     <!-- Page-specific scripts -->
     @stack('scripts')

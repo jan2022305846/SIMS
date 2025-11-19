@@ -84,7 +84,7 @@
                         <div class="d-flex align-items-center">
                             <div class="flex-grow-1">
                                 <h6 class="card-title mb-1">Completed</h6>
-                                <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'claimed')->count() }}</h3>
+                                <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'claimed')->count() + $requests->where('status', 'cancelled')->count() }}</h3>
                             </div>
                             <div class="ms-3">
                                 <i class="fas fa-handshake fa-2x opacity-75"></i>
@@ -115,6 +115,7 @@
                             <option value="fulfilled" {{ request('status') === 'fulfilled' ? 'selected' : '' }}>Ready for Pickup</option>
                             <option value="claimed" {{ request('status') === 'claimed' ? 'selected' : '' }}>Completed</option>
                             <option value="declined" {{ request('status') === 'declined' ? 'selected' : '' }}>Declined</option>
+                            <option value="cancelled" {{ request('status') === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -160,12 +161,13 @@
                                     <div class="mb-2">
                                         <span class="badge fs-6 px-3 py-2
                                             @switch($request->status)
-                                                @case('pending') bg-warning @break
+                                                @case('pending') bg-primary @break
                                                 @case('approved_by_admin') bg-success @break
                                                 @case('ready_for_pickup') bg-purple text-white @break
                                                 @case('fulfilled') bg-purple text-white @break
                                                 @case('claimed') bg-secondary @break
-                                                @case('declined_by_admin') bg-danger @break
+                                                @case('declined') bg-danger @break
+                                                @case('cancelled') bg-secondary @break
                                                 @default bg-secondary @break
                                             @endswitch">
                                             {{ $request->getStatusDisplayName() }}
@@ -187,7 +189,7 @@
                                 <!-- Dates -->
                                 <div class="col-md-3">
                                     <div class="small">
-                                        <div><strong>Requested:</strong> {{ $request->request_date ? $request->request_date->format('M j, Y') : 'N/A' }}</div>
+                                        <div><strong>Requested:</strong> {{ $request->created_at ? $request->created_at->format('M j, Y') : 'N/A' }}</div>
                                         <div><strong>Needed:</strong> {{ $request->needed_date ? $request->needed_date->format('M j, Y') : 'N/A' }}</div>
                                         @if($request->fulfilled_date)
                                             <div class="text-success"><strong>Ready:</strong> {{ $request->fulfilled_date->format('M j, Y') }}</div>
@@ -197,34 +199,10 @@
 
                                 <!-- Actions -->
                                 <div class="col-md-2 text-end">
-                                    <div class="btn-group" role="group">
-                                        <a href="{{ route('faculty.requests.show', $request) }}"
-                                           class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-
-                                        @if($request->isFulfilled() || $request->isClaimed())
-                                            <a href="{{ route('requests.claim-slip', $request) }}"
-                                               class="btn btn-outline-warning btn-sm"
-                                               target="_blank"
-                                               title="Print Claim Slip">
-                                                <i class="fas fa-print"></i>
-                                            </a>
-                                        @endif
-                                        
-                                        @if($request->isPending() && $request->user_id === Auth::id())
-                                            <form method="POST" action="{{ route('faculty.requests.destroy', $request) }}" class="d-inline" 
-                                                  onsubmit="return confirm('Are you sure you want to delete this request? This action cannot be undone.')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" 
-                                                        class="btn btn-outline-danger btn-sm"
-                                                        title="Delete Request">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
-                                        @endif
-                                    </div>
+                                    <a href="{{ route('faculty.requests.show', $request) }}"
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
                                 </div>
                             </div>
 

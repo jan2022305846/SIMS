@@ -102,7 +102,16 @@
                                     <i class="fas fa-history me-2"></i>
                                     Request History
                                 </h5>
-                                <span class="badge bg-info">{{ $requests->total() }} total requests</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-info">{{ $requests->total() }} total requests</span>
+                                    <a href="{{ route('admin.users.export.fulfilled', $user->id) }}" 
+                                       class="btn btn-success btn-sm" 
+                                       target="_blank"
+                                       title="Download fulfilled requests as DOCX">
+                                        <i class="fas fa-download me-1"></i>
+                                        Export DOCX
+                                    </a>
+                                </div>
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive">

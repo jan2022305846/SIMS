@@ -254,10 +254,10 @@
                                             <p class="text-muted mb-0 mt-2">Generating QR code...</p>
                                         </div>
                                     </div>
-                                    <button onclick="generateQRCode()" 
+                                    <button onclick="printQRCode()" 
                                             class="btn btn-primary w-100 mb-2">
-                                        <i class="fas fa-qrcode me-1"></i>
-                                        Regenerate QR Code
+                                        <i class="fas fa-print me-1"></i>
+                                        Print QR Code
                                     </button>
                                     <p class="text-muted small mb-2">Product Code: {{ $item->product_code }}</p>
                                     @can('admin')
@@ -409,9 +409,72 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+function printQRCode() {
+    const qrContainer = document.getElementById('qr-code-container');
+    const qrImage = qrContainer.querySelector('img');
+    
+    if (!qrImage) {
+        alert('Please generate the QR code first.');
+        return;
+    }
+    
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=400,height=400');
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>QR Code - {{ $item->name }}</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    padding: 20px;
+                }
+                .qr-code {
+                    max-width: 300px;
+                    margin: 20px auto;
+                }
+                .item-info {
+                    margin-top: 20px;
+                    font-size: 14px;
+                }
+                .product-code {
+                    font-weight: bold;
+                    color: #666;
+                }
+                @media print {
+                    body { margin: 0; }
+                }
+            </style>
+        </head>
+        <body>
+            <h3>QR Code</h3>
+            <div class="qr-code">
+                <img src="${qrImage.src}" alt="QR Code" style="width: 100%; height: auto;">
+            </div>
+            <div class="item-info">
+                <p><strong>Item:</strong> {{ $item->name }}</p>
+                <p class="product-code">Product Code: {{ $item->product_code }}</p>
+            </div>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.focus();
+    
+    // Wait a bit for the image to load, then print
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 500);
+}
+
 function generateQRCode() {
     const itemId = {{ $item->id }};
-    
+
     fetch(`/qr/generate/${itemId}`, {
         method: 'POST',
         headers: {
@@ -422,10 +485,10 @@ function generateQRCode() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            document.getElementById('qr-code-container').innerHTML = 
+            document.getElementById('qr-code-container').innerHTML =
                 `<img src="${data.qr_code}" alt="QR Code for {{ $item->name }}" class="img-fluid border rounded" style="max-width: 200px;">`;
         } else {
-            document.getElementById('qr-code-container').innerHTML = 
+            document.getElementById('qr-code-container').innerHTML =
                 `<div class="bg-light p-4 rounded mb-3 text-center">
                     <i class="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
                     <p class="text-muted mb-0">Failed to generate QR code</p>
@@ -434,7 +497,7 @@ function generateQRCode() {
         }
     })
     .catch(error => {
-        document.getElementById('qr-code-container').innerHTML = 
+        document.getElementById('qr-code-container').innerHTML =
             `<div class="bg-light p-4 rounded mb-3 text-center">
                 <i class="fas fa-exclamation-triangle text-danger fa-2x mb-2"></i>
                 <p class="text-muted mb-0">Error generating QR code</p>

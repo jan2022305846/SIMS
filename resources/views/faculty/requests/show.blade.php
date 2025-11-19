@@ -7,6 +7,14 @@
             Request Details
         </h2>
         <div class="d-flex gap-2">
+            @if($request->isPending())
+                <a href="{{ route('faculty.requests.edit', $request) }}" class="btn btn-primary fw-bold">
+                    <i class="fas fa-edit me-1"></i>Edit Request
+                </a>
+                <button type="button" class="btn btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                    <i class="fas fa-times me-1"></i>Cancel Request
+                </button>
+            @endif
             @if($request->isReadyForPickup() || $request->isFulfilled() || $request->isClaimed())
                 <a href="{{ route('requests.claim-slip', $request) }}" class="btn btn-warning fw-bold" target="_blank">
                     <i class="fas fa-print me-1"></i>Print Claim Slip
@@ -47,7 +55,8 @@
                                             @case('ready_for_pickup') bg-purple text-white @break
                                             @case('fulfilled') bg-purple text-white @break
                                             @case('claimed') bg-secondary @break
-                                            @case('declined_by_admin') bg-danger @break
+                                            @case('declined') bg-danger @break
+                                            @case('cancelled') bg-secondary @break
                                             @default bg-secondary @break
                                         @endswitch">
                                         {{ $request->getStatusDisplayName() }}
@@ -234,6 +243,14 @@
                                 <i class="fas fa-handshake me-2"></i>
                                 Request completed successfully.
                             </div>
+                        @elseif($request->isCancelled())
+                            <div class="alert alert-secondary border">
+                                <i class="fas fa-ban me-2 text-dark"></i>
+                                <strong class="text-dark">This request was cancelled.</strong>
+                                @if($request->notes)
+                                    <br><small class="text-muted"><strong>Reason:</strong> {{ $request->notes }}</small>
+                                @endif
+                            </div>
                         @elseif($request->isDeclined())
                             <div class="alert alert-danger">
                                 <i class="fas fa-times-circle me-2"></i>
@@ -257,6 +274,8 @@
                                     Completed in {{ $request->created_at->diffInDays($request->updated_at) + 1 }} days
                                 @elseif(in_array($request->status, ['fulfilled', 'ready_for_pickup']))
                                     In Progress
+                                @elseif(in_array($request->status, ['cancelled', 'declined']))
+                                    Terminated
                                 @else
                                     Pending
                                 @endif
@@ -303,10 +322,10 @@
                             </div>
 
                             <!-- Step 2: Admin Approval -->
-                            <div class="workflow-step {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->status === 'declined' ? 'declined' : 'current') }}">
-                                <div class="workflow-marker {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->status === 'declined' ? 'bg-danger' : 'bg-primary') }}">
+                            <div class="workflow-step {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : ($request->status === 'declined' ? 'declined' : ($request->status === 'cancelled' ? 'cancelled' : 'current')) }}">
+                                <div class="workflow-marker {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : ($request->status === 'declined' ? 'bg-danger' : ($request->status === 'cancelled' ? 'bg-secondary' : 'bg-primary')) }}">
                                     <div class="step-number">2</div>
-                                    <i class="fas {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->status === 'declined' ? 'fa-times' : 'fa-shield-alt') }} step-icon"></i>
+                                    <i class="fas {{ in_array($request->status, ['approved_by_admin', 'ready_for_pickup', 'fulfilled', 'claimed']) ? 'fa-shield-check' : ($request->status === 'declined' ? 'fa-times' : ($request->status === 'cancelled' ? 'fa-ban' : 'fa-shield-alt')) }} step-icon"></i>
                                 </div>
                                 <div class="workflow-content">
                                     <div class="step-header">
@@ -318,6 +337,10 @@
                                         @elseif($request->status === 'declined')
                                             <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
                                                 <i class="fas fa-times-circle me-1"></i>Declined
+                                            </span>
+                                        @elseif($request->status === 'cancelled')
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                                <i class="fas fa-ban me-1"></i>Cancelled
                                             </span>
                                         @else
                                             <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
@@ -355,6 +378,15 @@
                                                     </small>
                                                 </div>
                                             </div>
+                                        @elseif($request->status === 'cancelled')
+                                            <div class="row g-2">
+                                                <div class="col-12">
+                                                    <small class="text-dark d-block">
+                                                        <i class="fas fa-ban me-1 text-danger"></i>
+                                                        <strong class="text-dark">Cancelled by Faculty:</strong> {{ $request->notes ?? 'No reason provided' }}
+                                                    </small>
+                                                </div>
+                                            </div>
                                         @else
                                             <div class="step-description">
                                                 <small class="text-muted">
@@ -367,8 +399,8 @@
                             </div>
 
                             <!-- Step 3: Claim Slip Generation -->
-                            <div class="workflow-step {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : (in_array($request->status, ['approved_by_admin']) ? 'current' : '') }}">
-                                <div class="workflow-marker {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : (in_array($request->status, ['approved_by_admin']) ? 'bg-primary' : 'bg-secondary') }}">
+                            <div class="workflow-step {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'completed' : (in_array($request->status, ['approved_by_admin']) ? 'current' : (in_array($request->status, ['declined', 'cancelled']) ? 'terminated' : '')) }}">
+                                <div class="workflow-marker {{ in_array($request->status, ['ready_for_pickup', 'fulfilled', 'claimed']) ? 'bg-success' : (in_array($request->status, ['approved_by_admin']) ? 'bg-primary' : (in_array($request->status, ['declined', 'cancelled']) ? 'bg-secondary' : 'bg-secondary')) }}">
                                     <div class="step-number">3</div>
                                     <i class="fas fa-ticket-alt step-icon"></i>
                                 </div>
@@ -382,6 +414,10 @@
                                         @elseif(in_array($request->status, ['approved_by_admin']))
                                             <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
                                                 <i class="fas fa-clock me-1"></i>Pending
+                                            </span>
+                                        @elseif(in_array($request->status, ['declined', 'cancelled']))
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                                <i class="fas fa-minus-circle me-1"></i>Skipped
                                             </span>
                                         @else
                                             <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
@@ -417,6 +453,12 @@
                                                     Faculty needs to generate a claim slip to proceed with pickup
                                                 </small>
                                             </div>
+                                        @elseif(in_array($request->status, ['declined', 'cancelled']))
+                                            <div class="step-description">
+                                                <small class="text-muted">
+                                                    Claim slip generation not required due to {{ $request->status === 'declined' ? 'declined' : 'cancelled' }} request
+                                                </small>
+                                            </div>
                                         @else
                                             <div class="step-description">
                                                 <small class="text-muted">
@@ -429,10 +471,10 @@
                             </div>
 
                             <!-- Step 4: Item Claimed -->
-                            <div class="workflow-step {{ $request->status === 'claimed' ? 'completed' : ($request->status === 'ready_for_pickup' ? 'current' : '') }}">
-                                <div class="workflow-marker {{ $request->status === 'claimed' ? 'bg-success' : ($request->status === 'ready_for_pickup' ? 'bg-primary' : 'bg-secondary') }}">
+                            <div class="workflow-step {{ $request->status === 'claimed' ? 'completed' : ($request->status === 'ready_for_pickup' ? 'current' : (in_array($request->status, ['declined', 'cancelled']) ? 'terminated' : '')) }}">
+                                <div class="workflow-marker {{ $request->status === 'claimed' ? 'bg-success' : ($request->status === 'ready_for_pickup' ? 'bg-primary' : (in_array($request->status, ['declined', 'cancelled']) ? 'bg-secondary' : 'bg-secondary')) }}">
                                     <div class="step-number">4</div>
-                                    <i class="fas {{ $request->status === 'claimed' ? 'fa-handshake' : 'fa-hand-paper' }} step-icon"></i>
+                                    <i class="fas {{ $request->status === 'claimed' ? 'fa-handshake' : (in_array($request->status, ['declined', 'cancelled']) ? 'fa-times-circle' : 'fa-hand-paper') }} step-icon"></i>
                                 </div>
                                 <div class="workflow-content">
                                     <div class="step-header">
@@ -444,6 +486,10 @@
                                         @elseif($request->status === 'ready_for_pickup')
                                             <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
                                                 <i class="fas fa-clock me-1"></i>Ready for Pickup
+                                            </span>
+                                        @elseif(in_array($request->status, ['declined', 'cancelled']))
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                                <i class="fas fa-minus-circle me-1"></i>Cancelled
                                             </span>
                                         @else
                                             <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
@@ -490,6 +536,12 @@
                                                     <li><strong>Step 3:</strong> Items are handed over and marked as claimed</li>
                                                 </ul>
                                             </div>
+                                        @elseif(in_array($request->status, ['declined', 'cancelled']))
+                                            <div class="step-description">
+                                                <small class="text-muted">
+                                                    Item pickup not available due to {{ $request->status === 'declined' ? 'declined' : 'cancelled' }} request
+                                                </small>
+                                            </div>
                                         @else
                                             <div class="step-description">
                                                 <small class="text-muted">
@@ -508,6 +560,43 @@
     </div>
 </div>
 @endsection
+
+<!-- Cancel Modal -->
+@if($request->isPending())
+    <div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cancelModalLabel">Cancel Request</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{{ route('faculty.requests.cancel', $request) }}" id="cancelForm">
+                    @csrf
+                    @method('POST')
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Warning:</strong> This action cannot be undone. The request will be permanently cancelled.
+                        </div>
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Reason for cancelling <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="reason" name="reason" rows="4" placeholder="Please provide a reason for cancelling this request..." required></textarea>
+                            <div class="form-text">This reason will be recorded for reference.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>Keep Request
+                        </button>
+                        <button type="submit" class="btn btn-danger" id="cancelSubmitBtn">
+                            <i class="fas fa-ban me-2"></i>Cancel Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+@endif
 
 <style>
     .bg-purple {
@@ -544,6 +633,14 @@
 
     .workflow-step.declined {
         opacity: 1;
+    }
+
+    .workflow-step.cancelled {
+        opacity: 1;
+    }
+
+    .workflow-step.terminated {
+        opacity: 0.7;
     }
 
     .workflow-marker {
@@ -584,10 +681,16 @@
         animation: pulse-ring 2s infinite;
     }
 
-    .workflow-step.declined .workflow-marker {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    .workflow-step.cancelled .workflow-marker {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
         color: white;
-        box-shadow: 0 6px 20px rgba(220, 53, 69, 0.3);
+        box-shadow: 0 6px 20px rgba(108, 117, 125, 0.3);
+    }
+
+    .workflow-step.terminated .workflow-marker {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(108, 117, 125, 0.3);
     }
 
     .step-number {
@@ -655,6 +758,28 @@
     [data-bs-theme="dark"] .workflow-step.declined .workflow-content {
         border-color: #721c24;
         background: linear-gradient(135deg, #3a1f1f 0%, #343a40 100%);
+    }
+
+    .workflow-step.cancelled .workflow-content {
+        border-color: #d1d5db;
+        background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+        box-shadow: 0 4px 16px rgba(108, 117, 125, 0.1);
+    }
+
+    [data-bs-theme="dark"] .workflow-step.cancelled .workflow-content {
+        border-color: #495057;
+        background: linear-gradient(135deg, #2d3436 0%, #343a40 100%);
+    }
+
+    .workflow-step.terminated .workflow-content {
+        border-color: #d1d5db;
+        background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+        box-shadow: 0 4px 16px rgba(108, 117, 125, 0.1);
+    }
+
+    [data-bs-theme="dark"] .workflow-step.terminated .workflow-content {
+        border-color: #495057;
+        background: linear-gradient(135deg, #2d3436 0%, #343a40 100%);
     }
 
     .step-header {

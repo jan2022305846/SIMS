@@ -182,26 +182,18 @@
                                                 <div>
                                                     <div class="fw-semibold">{{ $request->item ? $request->item->name : 'Item Not Found' }}</div>
                                                     <div class="mb-1">
-                                                        <span class="badge bg-info">Qty: {{ $request->quantity }}</span>
+                                                        <span class="badge bg-primary">Qty: {{ $request->quantity }}</span>
                                                         @if($request->item && $request->item->unit)
                                                             <span class="text-muted small">{{ $request->item->unit }}</span>
                                                         @endif
                                                     </div>
                                                     <div class="text-muted small">
-                                                        Stock: {{ $request->item ? $request->item->current_stock : 'N/A' }}
+                                                        Stock: {{ $request->item ? $request->item->quantity : 'N/A' }}
                                                     </div>
                                                 </div>
                                             </td>
                                             <td>
-                                                <span class="badge 
-                                                    @switch($request->status)
-                                                        @case('pending') bg-warning @break
-                                                        @case('approved_by_admin') bg-success @break
-                                                        @case('fulfilled') bg-purple text-white @break
-                                                        @case('claimed') bg-secondary @break
-                                                        @default bg-danger @break
-                                                    @endswitch
-                                                    px-2 py-1">
+                                                <span class="badge {{ $request->getStatusColorClass() }} px-2 py-1">
                                                     {{ $request->getStatusDisplayName() }}
                                                 </span>
                                                 @if($request->status === 'declined_by_admin' && $request->admin_notes)
@@ -223,7 +215,7 @@
                                             </td>
                                             <td>
                                                 <div class="small">
-                                                    <div><strong>Requested:</strong> {{ $request->request_date ? $request->request_date->format('M j, Y') : 'N/A' }}</div>
+                                                    <div><strong>Requested:</strong> {{ $request->created_at ? $request->created_at->format('M j, Y') : 'N/A' }}</div>
                                                     <div><strong>Needed:</strong> {{ $request->needed_date ? $request->needed_date->format('M j, Y') : 'N/A' }}</div>
                                                     @if($request->fulfilled_date)
                                                         <div class="text-success"><strong>Ready:</strong> {{ $request->fulfilled_date->format('M j, Y') }}</div>

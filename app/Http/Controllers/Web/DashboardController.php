@@ -266,7 +266,7 @@ class DashboardController extends Controller
             // Extract statistics
             if (isset($dashboardData['statistics'])) {
                 $stats = $dashboardData['statistics'];
-                $flattened['totalItems'] = $stats['items']['total'] ?? 0;
+                $flattened['totalItems'] = $stats['items']['total_items'] ?? 0;
                 $flattened['totalUsers'] = $stats['users']['total'] ?? 0;
                 $flattened['totalCategories'] = Category::count(); // Fallback
                 $flattened['lowStockItems'] = $stats['items']['low_stock'] ?? 0;

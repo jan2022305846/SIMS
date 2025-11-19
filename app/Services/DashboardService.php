@@ -47,7 +47,10 @@ class DashboardService
     private function getFacultyDashboardData($user): array
     {
         return [
-            'statistics' => $this->getStatistics($user),
+            'my_statistics' => $this->getFacultyStatistics($user),
+            'my_requests' => $this->getMyRecentRequests($user, 5),
+            'available_items' => $this->getAvailableItemsCount(),
+            'quick_actions' => $this->getQuickActions($user),
         ];
     }
 
@@ -321,5 +324,45 @@ class DashboardService
             'notifications' => $recentNotifications,
             'has_more' => $user->notifications()->count() > 5
         ];
+    }
+
+    /**
+     * Get faculty-specific statistics
+     */
+    private function getFacultyStatistics($user): array
+    {
+        $userRequests = SupplyRequest::where('user_id', $user->id);
+
+        return [
+            'my_requests' => [
+                'total' => $userRequests->count(),
+                'pending' => (clone $userRequests)->where('status', 'pending')->count(),
+                'approved' => (clone $userRequests)->where('status', 'fulfilled')->count(), // Ready for pickup
+                'completed' => (clone $userRequests)->where('status', 'claimed')->count(),
+                'cancelled' => (clone $userRequests)->where('status', 'cancelled')->count(),
+                'declined' => (clone $userRequests)->where('status', 'declined')->count(),
+            ]
+        ];
+    }
+
+    /**
+     * Get user's recent requests
+     */
+    private function getMyRecentRequests($user, $limit = 5): Collection
+    {
+        return SupplyRequest::with(['item'])
+            ->where('user_id', $user->id)
+            ->latest()
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Get count of available items
+     */
+    private function getAvailableItemsCount(): int
+    {
+        return Consumable::where('quantity', '>', 0)->count() +
+               NonConsumable::where('quantity', '>', 0)->count();
     }
 }

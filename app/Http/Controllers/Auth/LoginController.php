@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
@@ -28,7 +29,7 @@ class LoginController extends Controller
      *
      * @var string
      */
-    protected $redirectTo = '/home';
+    protected $redirectTo = '/dashboard';
 
     /**
      * Create a new controller instance.
@@ -39,6 +40,16 @@ class LoginController extends Controller
     {
         $this->middleware('guest')->except('logout');
         $this->middleware('auth')->only('logout');
+    }
+
+    /**
+     * Show the application's login form.
+     *
+     * @return \Illuminate\View\View
+     */
+    public function showLoginForm()
+    {
+        return view('auth.login');
     }
 
     /**
@@ -80,6 +91,95 @@ class LoginController extends Controller
     }
 
     /**
+     * Attempt to log the user into the application.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return bool
+     */
+    protected function attemptLogin(Request $request)
+    {
+        return $this->guard()->attempt(
+            $this->credentials($request),
+            $request->filled('remember')
+        );
+    }
+
+    /**
+     * Send the response after the user was authenticated.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
+     */
+    protected function sendLoginResponse(Request $request)
+    {
+        $request->session()->regenerate();
+
+        $this->clearLoginAttempts($request);
+
+        // Set session lifetime based on remember me preference
+        if ($request->filled('remember')) {
+            // Remember me checked: 30 minutes session
+            $request->session()->put('session_lifetime', 30 * 60); // 30 minutes in seconds
+        } else {
+            // Remember me not checked: 2 minutes session
+            $request->session()->put('session_lifetime', 2 * 60); // 2 minutes in seconds
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => $this->redirectPath(),
+                'message' => 'Login successful',
+                'session_lifetime' => $request->session()->get('session_lifetime')
+            ]);
+        }
+
+        if ($response = $this->authenticated($request, $this->guard()->user())) {
+            return $response;
+        }
+
+        return $request->wantsJson()
+            ? response()->json(['success' => true, 'redirect' => $this->redirectPath()])
+            : redirect()->intended($this->redirectPath());
+    }
+
+    /**
+     * Log the user out of the application.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
+     */
+    public function logout(Request $request)
+    {
+        // Log the request method for debugging
+        Log::info('Logout request received', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'user_agent' => $request->userAgent(),
+            'ip' => $request->ip()
+        ]);
+
+        // Perform logout
+        $this->guard()->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        // If this was called from the loggedOut hook
+        if ($response = $this->loggedOut($request)) {
+            return $response;
+        }
+
+        // Handle JSON requests
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Logged out successfully'], 200);
+        }
+
+        // Redirect to login with success message
+        return redirect()->route('login')->with('success', 'You have been logged out successfully.');
+    }
+
+    /**
      * Get the failed login response instance.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -95,14 +195,26 @@ class LoginController extends Controller
         $user = \App\Models\User::where('username', $credentials['username'])->first();
 
         if (!$user) {
-            throw ValidationException::withMessages([
-                'username' => ['No account found with this Username.'],
-            ]);
+            $message = 'No account found with this Username.';
+            $field = 'username';
+        } else {
+            // User exists but password is wrong
+            $message = 'The password you entered is incorrect.';
+            $field = 'password';
         }
 
-        // User exists but password is wrong
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => [
+                    $field => [$message]
+                ]
+            ], 422);
+        }
+
         throw ValidationException::withMessages([
-            'password' => ['The password you entered is incorrect.'],
+            $field => [$message],
         ]);
     }
 

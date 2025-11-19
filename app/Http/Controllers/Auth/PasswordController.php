@@ -67,23 +67,15 @@ class PasswordController extends Controller
      */
     public function sendResetLink(Request $request)
     {
-        $request->validate(['username' => 'required|string']);
+        $request->validate(['email' => 'required|email']);
 
-        $user = User::where('username', $request->username)->first();
+        $user = User::where('email', $request->email)->first();
 
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'No account found with this username.'
+                'message' => 'No account found with this email address.'
             ], 404);
-        }
-
-        // Check if user has an email address
-        if (!$user->email) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No email address is associated with this account. Please contact your administrator.'
-            ], 400);
         }
 
         try {
@@ -97,7 +89,7 @@ class PasswordController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Password reset failed for user ' . $user->username . ': ' . $e->getMessage());
+            Log::error('Password reset failed for user ' . $user->email . ': ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,

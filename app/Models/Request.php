@@ -179,6 +179,31 @@ class Request extends Model
         \App\Services\NotificationService::notifyRequestDeclined($this, $reason ?? 'No reason provided');
     }
 
+    public function cancel(User $user, ?string $reason = null)
+    {
+        \Illuminate\Support\Facades\Log::info('Request cancel method called', [
+            'request_id' => $this->id,
+            'current_status' => $this->status,
+            'reason' => $reason,
+            'user_id' => $user->id
+        ]);
+
+        $result = $this->update([
+            'status' => 'cancelled',
+            'notes' => $reason,
+        ]);
+
+        \Illuminate\Support\Facades\Log::info('Request update result', [
+            'request_id' => $this->id,
+            'update_result' => $result,
+            'new_status' => $this->status,
+            'new_notes' => $this->notes
+        ]);
+
+        // Notify the faculty user (though they initiated it, might be useful for logging)
+        // \App\Services\NotificationService::notifyRequestCancelled($this, $reason ?? 'No reason provided');
+    }
+
     // Status Helper Methods
     public function isPending()
     {
@@ -210,27 +235,34 @@ class Request extends Model
         return $this->status === 'declined';
     }
 
+    public function isCancelled()
+    {
+        return $this->status === 'cancelled';
+    }
+
     public function getStatusColorClass()
     {
         return match($this->status) {
-            'pending' => 'bg-yellow-100 text-yellow-800',
-            'approved_by_admin' => 'bg-green-100 text-green-800',
-            'fulfilled' => 'bg-purple-100 text-purple-800',
-            'claimed' => 'bg-gray-100 text-gray-800',
-            'declined' => 'bg-red-100 text-red-800',
-            'returned' => 'bg-blue-100 text-blue-800',
-            default => 'bg-gray-100 text-gray-800',
+            'pending' => 'bg-primary text-white', // Light background with subtle blue text - visible but not saturated
+            'approved_by_admin' => 'bg-success text-white', // Green
+            'fulfilled' => 'bg-primary text-white', // Blue
+            'claimed' => 'bg-dark text-white', // Dark gray
+            'declined' => 'bg-danger text-white', // Red
+            'cancelled' => 'bg-secondary text-white', // Gray background - more visible
+            'returned' => 'bg-warning text-dark', // Yellow with dark text for returned
+            default => 'bg-light text-dark', // Light background with dark text
         };
     }
 
     public function getStatusDisplayName()
     {
         return match($this->status) {
-            'pending' => 'Pending Admin Review',
-            'approved_by_admin' => 'Admin Approved',
-            'fulfilled' => 'Ready for Pickup',
+            'pending' => 'Pending',
+            'approved_by_admin' => 'Approved',
+            'fulfilled' => 'Ready',
             'claimed' => 'Claimed',
-            'declined' => 'Declined by Admin',
+            'declined' => 'Declined',
+            'cancelled' => 'Cancelled',
             'returned' => 'Returned',
             default => ucfirst(str_replace('_', ' ', $this->status)),
         };

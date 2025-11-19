@@ -94,8 +94,14 @@
                         @enderror
                     </div>
 
-                    <div class="d-flex justify-content-end mb-3">
-                        <a href="#" class="forgot-password-link" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal">
+                    <div class="d-flex flex-column gap-2 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="remember" id="remember" value="1">
+                            <label class="form-check-label" for="remember">
+                                Remember me
+                            </label>
+                        </div>
+                        <a href="#" class="forgot-password-link text-sm" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal">
                             <i class="fas fa-question-circle me-1"></i>Forgot Password?
                         </a>
                     </div>
@@ -123,21 +129,21 @@
             <div class="modal-body">
                 <div id="forgot-password-form">
                     <p class="text-muted mb-4">
-                        Enter your school ID below and we'll send you a link to reset your password.
+                        Enter your email address below and we'll send you a link to reset your password.
                     </p>
 
                     <form id="forgot-password-form-element">
                         @csrf
                         <div class="form-group">
-                            <label for="forgot_username" class="form-label">
-                                <i class="fas fa-id-card me-2"></i>Username
+                            <label for="forgot_email" class="form-label">
+                                <i class="fas fa-envelope me-2"></i>Email Address
                             </label>
-                            <input type="text"
-                                   id="forgot_username"
-                                   name="username"
+                            <input type="email"
+                                   id="forgot_email"
+                                   name="email"
                                    required
                                    class="form-control"
-                                   placeholder="Enter your username">
+                                   placeholder="Enter your email address">
                         </div>
 
                         <div class="d-grid mt-4">
@@ -313,6 +319,11 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             // If we get here, login was successful
+            if (data.session_lifetime) {
+                // Store session lifetime for inactivity timeout management
+                sessionStorage.setItem('session_lifetime', data.session_lifetime);
+            }
+            
             if (data.redirect) {
                 window.location.href = data.redirect;
             } else {
@@ -362,10 +373,10 @@ document.addEventListener('DOMContentLoaded', function() {
     forgotPasswordForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const username = document.getElementById('forgot_username').value.trim();
+        const email = document.getElementById('forgot_email').value.trim();
 
-        if (!username) {
-            showForgotPasswordError('Please enter your username.');
+        if (!email) {
+            showForgotPasswordError('Please enter your email address.');
             return;
         }
 
@@ -385,7 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
-                username: username
+                email: email
             })
         })
         .then(response => {
@@ -426,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function() {
         forgotPasswordFormDiv.style.display = 'block';
         forgotPasswordSuccess.style.display = 'none';
         forgotPasswordError.style.display = 'none';
-        document.getElementById('forgot_username').value = '';
+        document.getElementById('forgot_email').value = '';
         forgotPasswordSubmit.disabled = false;
         forgotPasswordSubmit.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Reset Link';
 
