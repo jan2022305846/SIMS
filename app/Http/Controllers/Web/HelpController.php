@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class HelpController extends Controller
 {
@@ -67,65 +69,48 @@ class HelpController extends Controller
                     'navigation' => 'System Navigation',
                     'user-profile' => 'Managing Your Profile'
                 ]
+            ],
+            'feedback' => [
+                'title' => 'Feedback & Support',
+                'description' => 'Report bugs and provide feedback',
+                'icon' => 'fas fa-comments',
+                'topics' => [
+                    'report-bug' => 'Report a Bug',
+                    'feature-request' => 'Request a Feature'
+                ]
+            ],
+            'updates' => [
+                'title' => 'What\'s New',
+                'description' => 'Recent updates and improvements',
+                'icon' => 'fas fa-star',
+                'topics' => [
+                    'latest-updates' => 'Latest Updates',
+                    'version-history' => 'Version History'
+                ]
             ]
         ];
 
         if (in_array($user->role, ['admin', 'office_head'])) {
             $sections['inventory-management'] = [
                 'title' => 'Inventory Management',
-                'description' => 'Managing consumable and non-consumable items, stock levels, and categories',
+                'description' => 'Managing items, stock levels, and categories',
                 'icon' => 'fas fa-boxes',
                 'topics' => [
-                    'item-types' => 'Understanding Item Types (Consumable vs Non-Consumable)',
                     'add-item' => 'How to Add New Items',
                     'edit-item' => 'Editing Item Details',
                     'stock-management' => 'Managing Stock Levels',
-                    'item-assignment' => 'Assigning Non-Consumable Items',
-                    'categories' => 'Working with Categories',
-                    'bulk-operations' => 'Bulk Item Operations',
-                    'trash-restore' => 'Trash and Restore Items',
-                    'qr-codes' => 'Using QR Code System'
+                    'categories' => 'Working with Categories'
                 ]
             ];
 
             $sections['request-management'] = [
                 'title' => 'Request Management',
-                'description' => 'Handling supply requests, approvals, and fulfillment',
+                'description' => 'Handling supply requests and approvals',
                 'icon' => 'fas fa-clipboard-check',
                 'topics' => [
                     'view-requests' => 'Viewing and Managing Requests',
                     'process-requests' => 'How to Process Requests',
-                    'approval-workflow' => 'Understanding Approval Workflow',
-                    'fulfill-requests' => 'Fulfilling and Claiming Requests',
-                    'claim-slips' => 'Claim Slips and Documentation',
-                    'request-reports' => 'Request Reports and Analytics'
-                ]
-            ];
-
-            $sections['reports-analytics'] = [
-                'title' => 'Reports & Analytics',
-                'description' => 'Generating reports and viewing analytics',
-                'icon' => 'fas fa-chart-bar',
-                'topics' => [
-                    'dashboard-analytics' => 'Dashboard Analytics',
-                    'inventory-reports' => 'Inventory Reports',
-                    'request-analytics' => 'Request Analytics',
-                    'user-activity-reports' => 'User Activity Reports',
-                    'qr-scan-analytics' => 'QR Scan Analytics',
-                    'export-data' => 'Exporting Data'
-                ]
-            ];
-
-            $sections['system-administration'] = [
-                'title' => 'System Administration',
-                'description' => 'User management and system settings',
-                'icon' => 'fas fa-cogs',
-                'topics' => [
-                    'user-management' => 'Managing Users',
-                    'category-management' => 'Managing Categories',
-                    'system-settings' => 'System Configuration',
-                    'backup-restore' => 'Backup and Restore',
-                    'troubleshooting' => 'Common Issues and Solutions'
+                    'fulfill-requests' => 'Fulfilling and Claiming Requests'
                 ]
             ];
         }
@@ -137,21 +122,7 @@ class HelpController extends Controller
                 'icon' => 'fas fa-hand-paper',
                 'topics' => [
                     'create-request' => 'How to Create a Request',
-                    'track-request' => 'Tracking Your Requests',
-                    'request-status' => 'Understanding Request Status',
-                    'edit-request' => 'Editing Pending Requests'
-                ]
-            ];
-
-            $sections['browsing-inventory'] = [
-                'title' => 'Browsing Inventory',
-                'description' => 'Finding and viewing available items',
-                'icon' => 'fas fa-search',
-                'topics' => [
-                    'browse-items' => 'Browsing Available Items',
-                    'search-filters' => 'Using Search and Filters',
-                    'item-details' => 'Understanding Item Information',
-                    'qr-scanning' => 'QR Code Scanning'
+                    'track-request' => 'Tracking Your Requests'
                 ]
             ];
         }
@@ -264,6 +235,172 @@ class HelpController extends Controller
                     ]
                 ],
                 'tags' => ['profile', 'settings', 'account'],
+                'roles' => ['admin', 'office_head', 'faculty']
+            ],
+
+            'report-bug' => [
+                'title' => 'Report a Bug',
+                'description' => 'How to report bugs and technical issues',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'Found a bug or experiencing technical issues? Help us improve the system by reporting it with detailed information.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Reporting a Bug:',
+                        'steps' => [
+                            'Click the "Report Bug" button below',
+                            'Describe the issue in detail',
+                            'Include steps to reproduce the problem',
+                            'Attach screenshots if possible',
+                            'Specify your browser and device information',
+                            'Submit the report'
+                        ]
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'Your bug reports are sent directly to our development team at abuabujanny99@gmail.com for prompt resolution.'
+                    ],
+                    [
+                        'type' => 'tips',
+                        'title' => 'Helpful Information to Include:',
+                        'tips' => [
+                            'What were you trying to do when the issue occurred?',
+                            'What did you expect to happen vs. what actually happened?',
+                            'Include any error messages you received',
+                            'Mention if this is a new issue or has happened before',
+                            'Note your browser type and version'
+                        ]
+                    ]
+                ],
+                'tags' => ['bug', 'report', 'feedback', 'support'],
+                'roles' => ['admin', 'office_head', 'faculty']
+            ],
+
+            'feature-request' => [
+                'title' => 'Request a Feature',
+                'description' => 'Suggest new features and improvements',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'Have an idea to improve the Supply Office system? We welcome feature requests and suggestions from our users.'
+                    ],
+                    [
+                        'type' => 'steps',
+                        'title' => 'Submitting a Feature Request:',
+                        'steps' => [
+                            'Click the "Request Feature" button below',
+                            'Describe the feature you would like to see',
+                            'Explain how it would benefit your workflow',
+                            'Include any mockups or examples if available',
+                            'Specify priority level (nice-to-have, important, critical)',
+                            'Submit your request'
+                        ]
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'Feature requests are reviewed by our development team. Popular and high-impact suggestions are prioritized for implementation.'
+                    ],
+                    [
+                        'type' => 'tips',
+                        'title' => 'What Makes a Good Feature Request:',
+                        'tips' => [
+                            'Be specific about what you want and why',
+                            'Consider how it fits into existing workflows',
+                            'Think about impact on different user roles',
+                            'Include examples from similar systems you\'ve used',
+                            'Consider the technical feasibility'
+                        ]
+                    ]
+                ],
+                'tags' => ['feature', 'request', 'improvement', 'suggestion'],
+                'roles' => ['admin', 'office_head', 'faculty']
+            ],
+
+            'latest-updates' => [
+                'title' => 'Latest Updates',
+                'description' => 'Recent improvements and new features',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'Stay up-to-date with the latest improvements and new features in the Supply Office system.'
+                    ],
+                    [
+                        'type' => 'info',
+                        'title' => 'Version 2.5.0 - November 2025',
+                        'content' => 'Enhanced security features, improved QR code verification, and streamlined request processing.'
+                    ],
+                    [
+                        'type' => 'list',
+                        'title' => 'New Features:',
+                        'items' => [
+                            'Secure QR code verification for claim slips with cryptographic hashing',
+                            'Bulk request processing for multiple items',
+                            'Enhanced dashboard analytics and reporting',
+                            'Improved mobile responsiveness',
+                            'Advanced search and filtering capabilities'
+                        ]
+                    ],
+                    [
+                        'type' => 'list',
+                        'title' => 'Bug Fixes:',
+                        'items' => [
+                            'Fixed claim slip printing issues',
+                            'Resolved QR code scanning inconsistencies',
+                            'Improved request status notifications',
+                            'Fixed stock level calculation errors',
+                            'Enhanced error handling for failed operations'
+                        ]
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'For a complete changelog, visit our GitHub repository or contact the development team.'
+                    ]
+                ],
+                'tags' => ['updates', 'changelog', 'features', 'fixes'],
+                'roles' => ['admin', 'office_head', 'faculty']
+            ],
+
+            'version-history' => [
+                'title' => 'Version History',
+                'description' => 'Complete history of system updates and improvements',
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'content' => 'Track the evolution of the Supply Office system through our version history.'
+                    ],
+                    [
+                        'type' => 'info',
+                        'title' => 'Version 2.5.0 (Current) - November 23, 2025',
+                        'content' => 'Security enhancements, bulk request support, and performance improvements.'
+                    ],
+                    [
+                        'type' => 'info',
+                        'title' => 'Version 2.4.0 - October 2025',
+                        'content' => 'QR code integration, enhanced reporting, and user interface improvements.'
+                    ],
+                    [
+                        'type' => 'info',
+                        'title' => 'Version 2.3.0 - September 2025',
+                        'content' => 'Request workflow optimization, inventory management enhancements.'
+                    ],
+                    [
+                        'type' => 'info',
+                        'title' => 'Version 2.2.0 - August 2025',
+                        'content' => 'Multi-role user system, advanced analytics, and notification system.'
+                    ],
+                    [
+                        'type' => 'info',
+                        'title' => 'Version 2.1.0 - July 2025',
+                        'content' => 'Initial public release with core supply request functionality.'
+                    ],
+                    [
+                        'type' => 'info',
+                        'content' => 'Regular updates are released to improve functionality, security, and user experience. Check back regularly for new features.'
+                    ]
+                ],
+                'tags' => ['version', 'history', 'changelog', 'updates'],
                 'roles' => ['admin', 'office_head', 'faculty']
             ],
 
@@ -1675,5 +1812,69 @@ class HelpController extends Controller
         }
 
         return $results;
+    }
+
+    /**
+     * Submit feedback via email
+     */
+    public function submitFeedback(Request $request)
+    {
+        $validatedData = $request->validate([
+            'type' => 'required|in:bug,feature',
+            'subject' => 'required|string|max:255',
+            'message' => 'required|string|max:2000',
+            'screenshots.*' => 'nullable|image|max:5120', // 5MB max per image
+        ]);
+
+        try {
+            $user = Auth::user();
+            $type = $validatedData['type'] === 'bug' ? 'Bug Report' : 'Feature Request';
+
+            // Prepare email content
+            $subject = "[$type] " . $validatedData['subject'];
+            $body = "Type: $type\n";
+            $body .= "From: {$user->name} ({$user->email})\n";
+            $body .= "Role: " . ucfirst($user->role) . "\n";
+            $body .= "Date: " . now()->format('Y-m-d H:i:s') . "\n\n";
+            $body .= "Message:\n" . $validatedData['message'] . "\n\n";
+            $body .= "Browser: " . ($request->header('User-Agent') ?? 'Unknown') . "\n";
+            $body .= "URL: " . url()->current() . "\n";
+
+            // Handle file attachments
+            $attachments = [];
+            if ($request->hasFile('screenshots')) {
+                foreach ($request->file('screenshots') as $file) {
+                    $attachments[] = $file->getRealPath();
+                }
+            }
+
+            // Send email to abuabujanny99@gmail.com
+            Mail::raw($body, function ($message) use ($subject, $attachments) {
+                $message->to('abuabujanny99@gmail.com')
+                        ->subject($subject);
+
+                // Attach screenshots if any
+                foreach ($attachments as $attachment) {
+                    $message->attach($attachment);
+                }
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Feedback sent successfully! Thank you for helping us improve the system.'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Feedback submission error', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'data' => $validatedData
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send feedback. Please try again later.'
+            ], 500);
+        }
     }
 }

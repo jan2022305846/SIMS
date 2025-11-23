@@ -42,7 +42,7 @@ class Consumable extends Model
 
     public function scanLogs(): HasMany
     {
-        return $this->hasMany(ItemScanLog::class, 'item_id')->where('item_type', 'consumable');
+        return $this->hasMany(ItemScanLog::class, 'item_id');
     }
 
     /**

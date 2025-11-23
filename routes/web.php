@@ -113,6 +113,12 @@ Route::middleware(['auth'])->group(function () {
         // Add claim slip download route for admins
         Route::get('requests/{request}/download-claim-slip', [RequestController::class, 'downloadClaimSlip'])->name('admin.requests.download-claim-slip');
         
+        // Claim slip QR verification for admins
+        Route::post('requests/verify-claim-slip-qr', [RequestController::class, 'verifyClaimSlipQR'])->name('admin.requests.verify-claim-slip-qr');
+        
+        // Feedback submission
+        Route::post('feedback/submit', [HelpController::class, 'submitFeedback'])->name('feedback.submit');
+        
         // Admin Reports - Main Reports Dashboard and Analytics
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
@@ -136,6 +142,9 @@ Route::middleware(['auth'])->group(function () {
         // QR Scan Logs Downloads
         Route::get('reports/qr-scan-logs/download', [ReportsController::class, 'downloadQrScanLogs'])->name('reports.qr-scan-logs.download');
         Route::get('reports/qr-scan-logs/export', [ReportsController::class, 'exportQrScanLogs'])->name('reports.qr-scan-logs.export');
+        
+        // API endpoint for QR scan data (needs to be in web routes for session auth)
+        Route::get('api/reports/qr-scan-data', [ReportsController::class, 'getQrScanData'])->name('api.reports.qr-scan-data');
     });
     
     // Item verification (accessible to authenticated users for barcode scanning)

@@ -327,14 +327,14 @@ class ReportsController extends Controller
         $period = $request->get('period', 'monthly');
         $selection = $request->get('selection');
 
-        \Illuminate\Support\Facades\Log::info('getInventoryData called', ['period' => $period, 'selection' => $selection]);
+        Log::info('getInventoryData called', ['period' => $period, 'selection' => $selection]);
 
         // Get date range based on period and selection
         $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
         $dateFrom = $dateRange['from'];
         $dateTo = $dateRange['to'];
 
-        \Illuminate\Support\Facades\Log::info('Date range calculated', ['from' => $dateFrom, 'to' => $dateTo]);
+        Log::info('Date range calculated', ['from' => $dateFrom, 'to' => $dateTo]);
 
         // Get inventory statistics (consumables only for stock management)
         $consumables = \App\Models\Consumable::all();
@@ -361,6 +361,7 @@ class ReportsController extends Controller
 
     /**
      * Get QR scan data for reports dashboard (API endpoint)
+     * Only returns scans for non-consumable items for monitoring and tracking purposes
      */
     public function getQrScanData(Request $request)
     {
@@ -372,32 +373,45 @@ class ReportsController extends Controller
         $dateFrom = $dateRange['from'];
         $dateTo = $dateRange['to'];
 
-        // Get QR scan statistics
-        $scans = \App\Models\ItemScanLog::whereBetween('created_at', [$dateFrom, $dateTo])->get();
+        // Get QR scan statistics - only for non-consumable items
+        $scans = \App\Models\ItemScanLog::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->get();
 
         $summary = [
             'totalScans' => $scans->count(),
             'uniqueItems' => $scans->pluck('item_id')->unique()->count(),
             'activeUsers' => $scans->pluck('user_id')->unique()->filter()->count(),
-            'todayScans' => \App\Models\ItemScanLog::whereDate('created_at', today())->count(),
+            'todayScans' => \App\Models\ItemScanLog::whereDate('created_at', today())
+                ->count(),
         ];
 
-        // Get scan logs with relationships
+        // Get scan logs with relationships - only non-consumable items, limit to top 10 recent
         $scanLogs = \App\Models\ItemScanLog::with(['item', 'user', 'office'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
+            ->limit(10) // Top 10 recent scans only
             ->get()
             ->map(function($scan) {
                 $item = $scan->item;
+                // Get current location from the item itself (non-consumable items have location)
+                $currentLocation = 'N/A';
+                if ($item && $item instanceof \App\Models\NonConsumable) {
+                    $currentLocation = $item->location ?? 'N/A';
+                }
+
                 return [
                     'timestamp' => $scan->created_at->format('Y-m-d H:i:s'),
                     'item' => $item ? $item->name : 'Unknown Item',
                     'user' => $scan->user ? $scan->user->name : 'Unknown User',
                     'scanner_type' => 'webcam', // Default, could be enhanced
-                    'location' => $scan->office ? $scan->office->name : 'N/A',
+                    'location' => $currentLocation, // Current location of the scanned item
                     'ip_address' => 'N/A', // Not stored in current model
                     'item_id' => $scan->item_id,
                     'user_id' => $scan->user_id,
+                    'action' => $scan->action,
+                    'notes' => $scan->notes,
+                    'item_type' => 'non_consumable', // Since only non-consumables are scanned
+                    'id' => $scan->id,
                 ];
             });
 
@@ -1424,6 +1438,7 @@ class ReportsController extends Controller
     {
         $actionMap = [
             'inventory_check' => 'Inventory Check',
+            'updated' => 'Updated',
             'item_claim' => 'Item Claim',
             'item_fulfill' => 'Item Fulfill',
             'stock_adjustment' => 'Stock Adjustment'

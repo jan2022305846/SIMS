@@ -16,7 +16,7 @@
 <div class="container-fluid py-4">
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-lg-8">
+            <div class="col-lg-10">
                 <div class="card shadow-sm">
                     <div class="card-header bg-warning text-white">
                         <h5 class="mb-0">
@@ -24,72 +24,125 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        <form method="POST" action="{{ route('faculty.requests.store') }}" enctype="multipart/form-data">
+                        <form method="POST" action="{{ route('faculty.requests.store') }}" enctype="multipart/form-data" id="requestForm">
                             @csrf
 
-                            <!-- Pre-selected Item (if coming from browse page) -->
-                            @if(request('item_id'))
-                                @php
-                                    $preselectedItem = \App\Models\Consumable::find(request('item_id')) ?? \App\Models\NonConsumable::find(request('item_id'));
-                                @endphp
-                                @if($preselectedItem)
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        <strong>Pre-selected Item:</strong> {{ $preselectedItem->name }}
-                                        <input type="hidden" name="item_id" value="{{ $preselectedItem->id }}">
-                                        <input type="hidden" name="item_type" value="{{ $preselectedItem instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}">
+                            <!-- Request Type Selection -->
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">
+                                    Request Type <span class="text-danger">*</span>
+                                </label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="request_type" id="singleRequest" value="single" checked>
+                                            <label class="form-check-label" for="singleRequest">
+                                                <strong>Single Item Request</strong>
+                                                <br><small class="text-muted">Request one item at a time</small>
+                                            </label>
+                                        </div>
                                     </div>
-                                @endif
-                            @endif
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="request_type" id="bulkRequest" value="bulk">
+                                            <label class="form-check-label" for="bulkRequest">
+                                                <strong>Bulk Request</strong>
+                                                <br><small class="text-muted">Request multiple items in one request</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-                            <!-- Item Selection -->
-                            @if(!request('item_id'))
+                            <!-- Single Item Request Form -->
+                            <div id="singleItemForm">
+                                <!-- Pre-selected Item (if coming from browse page) -->
+                                @if(request('item_id'))
+                                    @php
+                                        $preselectedItem = \App\Models\Consumable::find(request('item_id')) ?? \App\Models\NonConsumable::find(request('item_id'));
+                                    @endphp
+                                    @if($preselectedItem)
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <strong>Pre-selected Item:</strong> {{ $preselectedItem->name }}
+                                            <input type="hidden" name="item_id" value="{{ $preselectedItem->id }}">
+                                            <input type="hidden" name="item_type" value="{{ $preselectedItem instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}">
+                                        </div>
+                                    @endif
+                                @endif
+
+                                <!-- Item Selection -->
+                                @if(!request('item_id'))
+                                    <div class="mb-4">
+                                        <label for="item_id" class="form-label fw-semibold">
+                                            Select Item <span class="text-danger">*</span>
+                                        </label>
+                                        <select name="item_id" id="item_id" class="form-select @error('item_id') is-invalid @enderror" required>
+                                            <option value="">Choose an item...</option>
+                                            @foreach($items as $item)
+                                                <option value="{{ $item->id }}"
+                                                        data-stock="{{ $item->quantity }}"
+                                                        data-unit="{{ $item->unit ?? 'pieces' }}"
+                                                        data-type="{{ $item instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}"
+                                                        {{ request('item_id') == $item->id ? 'selected' : '' }}>
+                                                    {{ $item->name }} ({{ $item->quantity }} {{ $item->unit ?? 'pieces' }} available)
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        @error('item_id')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <!-- Hidden input for item type -->
+                                    <input type="hidden" name="item_type" id="item_type" value="">
+                                @endif
+
+                                <!-- Quantity -->
                                 <div class="mb-4">
-                                    <label for="item_id" class="form-label fw-semibold">
-                                        Select Item <span class="text-danger">*</span>
+                                    <label for="quantity" class="form-label fw-semibold">
+                                        Quantity <span class="text-danger">*</span>
                                     </label>
-                                    <select name="item_id" id="item_id" class="form-select @error('item_id') is-invalid @enderror" required>
-                                        <option value="">Choose an item...</option>
-                                        @foreach($items as $item)
-                                            <option value="{{ $item->id }}"
-                                                    data-stock="{{ $item->quantity }}"
-                                                    data-unit="{{ $item->unit ?? 'pieces' }}"
-                                                    data-type="{{ $item instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}"
-                                                    {{ request('item_id') == $item->id ? 'selected' : '' }}>
-                                                {{ $item->name }} ({{ $item->quantity }} {{ $item->unit ?? 'pieces' }} available)
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('item_id')
+                                    <input type="number"
+                                           name="quantity"
+                                           id="quantity"
+                                           class="form-control @error('quantity') is-invalid @enderror"
+                                           min="1"
+                                           value="{{ old('quantity', 1) }}"
+                                           required>
+                                    <div class="form-text" id="stock-info">
+                                        @if(request('item_id') && $preselectedItem ?? null)
+                                            Available: {{ $preselectedItem->quantity }} {{ $preselectedItem->unit ?? 'pieces' }}
+                                        @else
+                                            Select an item to see available stock
+                                        @endif
+                                    </div>
+                                    @error('quantity')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                <!-- Hidden input for item type -->
-                                <input type="hidden" name="item_type" id="item_type" value="">
-                            @endif
+                            </div>
 
-                            <!-- Quantity -->
-                            <div class="mb-4">
-                                <label for="quantity" class="form-label fw-semibold">
-                                    Quantity <span class="text-danger">*</span>
-                                </label>
-                                <input type="number"
-                                       name="quantity"
-                                       id="quantity"
-                                       class="form-control @error('quantity') is-invalid @enderror"
-                                       min="1"
-                                       value="{{ old('quantity', 1) }}"
-                                       required>
-                                <div class="form-text" id="stock-info">
-                                    @if(request('item_id') && $preselectedItem ?? null)
-                                        Available: {{ $preselectedItem->quantity }} {{ $preselectedItem->unit ?? 'pieces' }}
-                                    @else
-                                        Select an item to see available stock
-                                    @endif
+                            <!-- Bulk Request Form -->
+                            <div id="bulkItemForm" style="display: none;">
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <label class="form-label fw-semibold mb-0">
+                                            Requested Items <span class="text-danger">*</span>
+                                        </label>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="addItemBtn">
+                                            <i class="fas fa-plus me-1"></i>Add Item
+                                        </button>
+                                    </div>
+
+                                    <div id="itemsContainer">
+                                        <!-- Items will be added here dynamically -->
+                                    </div>
+
+                                    <div class="text-muted small mt-2">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        You can request both consumable and non-consumable items in a single request.
+                                    </div>
                                 </div>
-                                @error('quantity')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
                             </div>
 
                             <!-- Department (Hidden - Auto-populated from user profile) -->
@@ -252,6 +305,152 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Request type switching
+    const singleRequestRadio = document.getElementById('singleRequest');
+    const bulkRequestRadio = document.getElementById('bulkRequest');
+    const singleItemForm = document.getElementById('singleItemForm');
+    const bulkItemForm = document.getElementById('bulkItemForm');
+    const requestForm = document.getElementById('requestForm');
+
+    // Toggle between single and bulk request forms
+    function toggleRequestType() {
+        if (singleRequestRadio.checked) {
+            singleItemForm.style.display = 'block';
+            bulkItemForm.style.display = 'none';
+            // Make bulk fields not required
+            document.querySelectorAll('#bulkItemForm input[required], #bulkItemForm select[required]').forEach(el => {
+                el.required = false;
+            });
+            // Make single fields required
+            document.querySelectorAll('#singleItemForm input[required], #singleItemForm select[required]').forEach(el => {
+                el.required = true;
+            });
+        } else {
+            singleItemForm.style.display = 'none';
+            bulkItemForm.style.display = 'block';
+            // Make single fields not required
+            document.querySelectorAll('#singleItemForm input[required], #singleItemForm select[required]').forEach(el => {
+                el.required = false;
+            });
+            // Make bulk fields required (handled by validation)
+        }
+    }
+
+    singleRequestRadio.addEventListener('change', toggleRequestType);
+    bulkRequestRadio.addEventListener('change', toggleRequestType);
+
+    // Bulk request functionality
+    const addItemBtn = document.getElementById('addItemBtn');
+    const itemsContainer = document.getElementById('itemsContainer');
+    let itemIndex = 0;
+
+    // Available items data
+    const availableItems = @json($items);
+
+    addItemBtn.addEventListener('click', function() {
+        addItemRow();
+    });
+
+    function addItemRow(itemData = null) {
+        const itemId = itemIndex++;
+        const row = document.createElement('div');
+        row.className = 'item-row border rounded p-3 mb-3 bg-light';
+        row.dataset.index = itemId;
+
+        row.innerHTML = `
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label fw-semibold">Item <span class="text-danger">*</span></label>
+                    <select name="items[${itemId}][item_id]" class="form-select item-select" required>
+                        <option value="">Choose an item...</option>
+                        ${availableItems.map(item => `
+                            <option value="${item.id}"
+                                    data-stock="${item.quantity}"
+                                    data-unit="${item.unit || 'pieces'}"
+                                    data-type="${item.constructor.name === 'Consumable' ? 'consumable' : 'non_consumable'}"
+                                    ${itemData && itemData.item_id == item.id ? 'selected' : ''}>
+                                ${item.name} (${item.quantity} ${item.unit || 'pieces'} available)
+                            </option>
+                        `).join('')}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Quantity <span class="text-danger">*</span></label>
+                    <input type="number" name="items[${itemId}][quantity]" class="form-control quantity-input"
+                           min="1" value="${itemData ? itemData.quantity : 1}" required>
+                    <input type="hidden" name="items[${itemId}][item_type]" class="item-type-input">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Stock Info</label>
+                    <div class="form-text stock-info">Select an item to see stock</div>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-item-btn d-block">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        itemsContainer.appendChild(row);
+
+        // Add event listeners
+        const itemSelect = row.querySelector('.item-select');
+        const quantityInput = row.querySelector('.quantity-input');
+        const stockInfo = row.querySelector('.stock-info');
+        const itemTypeInput = row.querySelector('.item-type-input');
+        const removeBtn = row.querySelector('.remove-item-btn');
+
+        itemSelect.addEventListener('change', function() {
+            updateItemInfo(this, stockInfo, itemTypeInput, quantityInput);
+        });
+
+        quantityInput.addEventListener('input', function() {
+            validateQuantity(this, itemSelect);
+        });
+
+        removeBtn.addEventListener('click', function() {
+            row.remove();
+            updateItemNumbers();
+        });
+
+        // Trigger initial update if item is pre-selected
+        if (itemSelect.value) {
+            updateItemInfo(itemSelect, stockInfo, itemTypeInput, quantityInput);
+        }
+    }
+
+    function updateItemInfo(selectEl, stockInfoEl, itemTypeInput, quantityInput) {
+        const selectedOption = selectEl.options[selectEl.selectedIndex];
+        if (selectedOption.value) {
+            const stock = selectedOption.getAttribute('data-stock');
+            const unit = selectedOption.getAttribute('data-unit') || 'pieces';
+            const itemType = selectedOption.getAttribute('data-type');
+
+            stockInfoEl.textContent = `Available: ${stock} ${unit}`;
+            itemTypeInput.value = itemType;
+            quantityInput.max = stock;
+            quantityInput.value = Math.min(quantityInput.value || 1, stock);
+        } else {
+            stockInfoEl.textContent = 'Select an item to see stock';
+            itemTypeInput.value = '';
+            quantityInput.removeAttribute('max');
+        }
+    }
+
+    function validateQuantity(quantityInput, itemSelect) {
+        const maxStock = parseInt(quantityInput.max);
+        if (maxStock && parseInt(quantityInput.value) > maxStock) {
+            quantityInput.value = maxStock;
+        }
+    }
+
+    function updateItemNumbers() {
+        // Optional: Update any numbering if needed
+    }
+
+    // Single item form functionality (existing code)
     const itemSelect = document.getElementById('item_id');
     const quantityInput = document.getElementById('quantity');
     const stockInfo = document.getElementById('stock-info');
@@ -262,7 +461,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedOption = this.options[this.selectedIndex];
         if (selectedOption.value) {
             const stock = selectedOption.getAttribute('data-stock');
-            const unit = selectedOption.getAttribute('data-unit') || 'pcs';
+            const unit = selectedOption.getAttribute('data-unit') || 'pieces';
             const itemType = selectedOption.getAttribute('data-type');
             stockInfo.textContent = `Available: ${stock} ${unit}`;
 
@@ -295,6 +494,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (itemSelect.value) {
         itemSelect.dispatchEvent(new Event('change'));
     }
+
+    // Form validation before submit
+    requestForm.addEventListener('submit', function(e) {
+        if (bulkRequestRadio.checked) {
+            const itemRows = itemsContainer.querySelectorAll('.item-row');
+            if (itemRows.length === 0) {
+                e.preventDefault();
+                alert('Please add at least one item to your bulk request.');
+                return false;
+            }
+        }
+    });
 });
 </script>
 @endpush

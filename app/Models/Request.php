@@ -9,8 +9,6 @@ use Illuminate\Support\Facades\Log;
 /**
  * @property int $id
  * @property int $user_id
- * @property int $item_id
- * @property int $quantity
  * @property string $status
  * @property \Carbon\Carbon|null $return_date
  * @property string|null $purpose
@@ -30,9 +28,6 @@ class Request extends Model
 
     protected $fillable = [
         'user_id',
-        'item_id',
-        'item_type',
-        'quantity',
         'status',
         'return_date',
         'purpose',
@@ -57,9 +52,15 @@ class Request extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function requestItems()
+    {
+        return $this->hasMany(RequestItem::class);
+    }
+
+    // Legacy relationship for backwards compatibility
     public function item()
     {
-        return $this->morphTo();
+        return $this->requestItems()->first()?->item();
     }
 
     public function adminApprover()
@@ -100,6 +101,9 @@ class Request extends Model
             'approved_by_admin_id' => $user->id,
         ]);
 
+        // Handle stock reservations for all request items
+        $this->reserveStockForItems();
+
         // Notify the faculty user
         \App\Services\NotificationService::notifyRequestApproved($this);
     }
@@ -125,25 +129,30 @@ class Request extends Model
             'claim_slip_number' => $claimSlipNumber,
         ]);
 
-        // Update item stock - only for consumables
-        if ($this->item_type === 'consumable') {
-            $this->item->quantity -= $this->quantity;
-            $this->item->save();
+        // Update item stock for all request items - only for consumables
+        foreach ($this->requestItems as $requestItem) {
+            if ($requestItem->isConsumable()) {
+                $requestItem->item->quantity -= $requestItem->quantity;
+                $requestItem->item->save();
+            }
         }
     }
 
     public function markAsClaimed(User $user)
     {
-        // Reduce stock for consumables
-        if ($this->item_type === 'consumable') {
-            $this->item->quantity -= $this->quantity;
-            $this->item->save();
-        }
+        // Process each request item
+        foreach ($this->requestItems as $requestItem) {
+            // Reduce stock for consumables
+            if ($requestItem->isConsumable()) {
+                $requestItem->item->quantity -= $requestItem->quantity;
+                $requestItem->item->save();
+            }
 
-        // For non-consumables, update the current holder
-        if ($this->item_type === 'non_consumable') {
-            $this->item->current_holder_id = $user->id;
-            $this->item->save();
+            // For non-consumables, update the current holder
+            if ($requestItem->isNonConsumable()) {
+                $requestItem->item->current_holder_id = $user->id;
+                $requestItem->item->save();
+            }
         }
 
         $this->update([
@@ -277,6 +286,84 @@ class Request extends Model
             'urgent' => 'bg-red-100 text-red-800',
             default => 'bg-gray-100 text-gray-800',
         };
+    }
+
+    // Helper methods for bulk requests
+    public function getTotalItems()
+    {
+        return $this->requestItems->sum('quantity');
+    }
+
+    public function getUniqueItemsCount()
+    {
+        return $this->requestItems->count();
+    }
+
+    public function hasSufficientStock()
+    {
+        foreach ($this->requestItems as $requestItem) {
+            if ($requestItem->isConsumable() && $requestItem->item->quantity < $requestItem->quantity) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public function getStockIssues()
+    {
+        $issues = [];
+        foreach ($this->requestItems as $requestItem) {
+            if ($requestItem->isConsumable() && $requestItem->item->quantity < $requestItem->quantity) {
+                $issues[] = [
+                    'item_name' => $requestItem->getItemName(),
+                    'requested' => $requestItem->quantity,
+                    'available' => $requestItem->item->quantity,
+                ];
+            }
+        }
+        return $issues;
+    }
+
+    public function reserveStockForItems()
+    {
+        foreach ($this->requestItems as $requestItem) {
+            if ($requestItem->hasSufficientStock()) {
+                // Reserve stock
+                \App\Models\StockReservation::create([
+                    'request_item_id' => $requestItem->id,
+                    'item_id' => $requestItem->item_id,
+                    'item_type' => $requestItem->item_type,
+                    'quantity_reserved' => $requestItem->quantity,
+                    'reserved_until' => now()->addDays(7), // 7 days reservation
+                    'status' => 'active',
+                ]);
+
+                // Deduct from available stock
+                if ($requestItem->isConsumable()) {
+                    $requestItem->item->decrement('quantity', $requestItem->quantity);
+                }
+
+                $requestItem->update(['status' => 'reserved']);
+            } else {
+                // Mark as unavailable
+                $requestItem->update(['status' => 'unavailable']);
+            }
+        }
+    }
+
+    public function getAvailableItems()
+    {
+        return $this->requestItems->where('status', 'reserved');
+    }
+
+    public function getUnavailableItems()
+    {
+        return $this->requestItems->where('status', 'unavailable');
+    }
+
+    public function hasPartialFulfillment()
+    {
+        return $this->getAvailableItems()->count() > 0 && $this->getUnavailableItems()->count() > 0;
     }
 
     // Scopes

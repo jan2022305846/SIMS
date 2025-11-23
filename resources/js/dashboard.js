@@ -268,31 +268,22 @@ function processScannedData(data, source) {
             // Auto-open modal with detailed information
             showItemDetailsModal();
         } else {
-            // Item not found
+            // Item not found - use Bootstrap alert (auto-dismiss only)
+            resultDiv.className = 'alert alert-warning fade show mt-3';
+            resultDiv.setAttribute('role', 'alert');
             resultDiv.innerHTML = `
-                <div class="alert alert-warning d-flex align-items-center mt-3 position-relative">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <div>
-                        <strong class="small">Item Not Found</strong>
-                        <div class="small">No item found with code: ${data}</div>
-                    </div>
-                    <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Close" id="closeNotFoundAlert"></button>
-                </div>
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Item Not Found</strong>
+                <div class="small">No item found with code: ${data}</div>
             `;
             resultDiv.style.display = 'block';
-            // Auto-close after 5 seconds
+
+            // Auto-hide after 3 seconds like other alerts
             setTimeout(() => {
-                resultDiv.style.display = 'none';
-            }, 5000);
-            // Manual close button
-            setTimeout(() => {
-                const closeBtn = document.getElementById('closeNotFoundAlert');
-                if (closeBtn) {
-                    closeBtn.addEventListener('click', function() {
-                        resultDiv.style.display = 'none';
-                    });
+                if (resultDiv.parentNode) {
+                    resultDiv.style.display = 'none';
                 }
-            }, 100);
+            }, 3000);
         }
     })
     .catch(error => {

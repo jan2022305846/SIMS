@@ -91,7 +91,7 @@ class RequestController extends Controller
         // Debug logging
         /** @var User $currentUser */
         $currentUser = Auth::user();
-        Log::info('Faculty request submission attempt', [
+        Log::info('Faculty bulk request submission attempt', [
             'user_id' => Auth::id(),
             'user_is_admin' => $currentUser->isAdmin(),
             'method' => $request->method(),
@@ -102,39 +102,23 @@ class RequestController extends Controller
         ]);
 
         $validatedData = $request->validate([
-            'item_id' => 'required|integer',
-            'item_type' => 'required|in:consumable,non_consumable',
-            'quantity' => 'required|integer|min:1',
+            'request_type' => 'required|in:single,bulk',
+            'items' => 'required_if:request_type,bulk|array|min:1',
+            'items.*.item_id' => 'required|integer',
+            'items.*.item_type' => 'required|in:consumable,non_consumable',
+            'items.*.quantity' => 'required|integer|min:1',
             'purpose' => 'required|string|max:500',
             'needed_date' => 'required|date|after_or_equal:today',
-            'office_id' => 'nullable|exists:offices,id', // Made nullable since it's auto-populated for faculty
+            'office_id' => 'nullable|exists:offices,id',
             'priority' => 'required|in:low,normal,high,urgent',
-            'attachments.*' => 'file|max:5120|mimes:pdf,jpg,jpeg,png,doc,docx', // 5MB max per file
+            'attachments.*' => 'file|max:5120|mimes:pdf,jpg,jpeg,png,doc,docx',
+            // Legacy single item fields for backward compatibility
+            'item_id' => 'required_if:request_type,single|integer',
+            'item_type' => 'required_if:request_type,single|in:consumable,non_consumable',
+            'quantity' => 'required_if:request_type,single|integer|min:1',
         ]);
 
         Log::info('Validation passed', ['validated_data' => $validatedData]);
-
-        // Check stock availability
-        $item = null;
-        if ($validatedData['item_type'] === 'consumable') {
-            $item = Consumable::findOrFail($validatedData['item_id']);
-        } elseif ($validatedData['item_type'] === 'non_consumable') {
-            $item = NonConsumable::findOrFail($validatedData['item_id']);
-        }
-
-        if (!$item) {
-            return back()->withErrors(['item_id' => 'Selected item not found.']);
-        }
-
-        // Check stock availability (only for consumables)
-        if ($validatedData['item_type'] === 'consumable' && $item->quantity < $validatedData['quantity']) {
-            Log::warning('Stock validation failed', [
-                'item_id' => $item->id,
-                'requested' => $validatedData['quantity'],
-                'available' => $item->quantity
-            ]);
-            return back()->withErrors(['quantity' => 'Requested quantity exceeds available stock (' . $item->quantity . ' available)']);
-        }
 
         DB::beginTransaction();
         try {
@@ -157,23 +141,66 @@ class RequestController extends Controller
                 Log::info('File uploads completed', ['attachments_count' => count($attachments)]);
             }
 
-            Log::info('Creating supply request record', [
-                'user_id' => Auth::id(),
-                'item_id' => $validatedData['item_id'],
-                'quantity' => $validatedData['quantity']
-            ]);
+            // Create the main request
             $supplyRequest = SupplyRequest::create([
                 'user_id' => Auth::id(),
-                'item_id' => $validatedData['item_id'],
-                'item_type' => $item instanceof Consumable ? 'consumable' : 'non_consumable',
-                'quantity' => $validatedData['quantity'],
+                'status' => 'pending',
                 'purpose' => $validatedData['purpose'],
                 'needed_date' => $validatedData['needed_date'],
                 'office_id' => $validatedData['office_id'] ?? Auth::user()->office_id,
                 'priority' => $validatedData['priority'],
-                'status' => 'pending',
                 'attachments' => $attachments,
             ]);
+
+            // Handle items based on request type
+            if ($validatedData['request_type'] === 'bulk') {
+                // Create request items for bulk request
+                foreach ($validatedData['items'] as $itemData) {
+                    // Validate stock availability for consumables
+                    $item = null;
+                    if ($itemData['item_type'] === 'consumable') {
+                        $item = Consumable::findOrFail($itemData['item_id']);
+                        if ($item->quantity < $itemData['quantity']) {
+                            throw new \Exception("Insufficient stock for {$item->name}. Available: {$item->quantity}, Requested: {$itemData['quantity']}");
+                        }
+                    } elseif ($itemData['item_type'] === 'non_consumable') {
+                        $item = NonConsumable::findOrFail($itemData['item_id']);
+                    }
+
+                    $supplyRequest->requestItems()->create([
+                        'item_id' => $itemData['item_id'],
+                        'item_type' => $itemData['item_type'],
+                        'quantity' => $itemData['quantity'],
+                        'status' => 'available',
+                    ]);
+                }
+            } else {
+                // Legacy single item request
+                $item = null;
+                if ($validatedData['item_type'] === 'consumable') {
+                    $item = Consumable::findOrFail($validatedData['item_id']);
+                } elseif ($validatedData['item_type'] === 'non_consumable') {
+                    $item = NonConsumable::findOrFail($validatedData['item_id']);
+                }
+
+                // Check stock availability (only for consumables)
+                if ($validatedData['item_type'] === 'consumable' && $item->quantity < $validatedData['quantity']) {
+                    Log::warning('Stock validation failed', [
+                        'item_id' => $item->id,
+                        'requested' => $validatedData['quantity'],
+                        'available' => $item->quantity
+                    ]);
+                    throw new \Exception("Requested quantity exceeds available stock ({$item->quantity} available)");
+                }
+
+                $supplyRequest->requestItems()->create([
+                    'item_id' => $validatedData['item_id'],
+                    'item_type' => $validatedData['item_type'],
+                    'quantity' => $validatedData['quantity'],
+                    'status' => 'available',
+                ]);
+            }
+
             Log::info('Supply request created successfully', ['request_id' => $supplyRequest->id]);
 
             DB::commit();
@@ -192,15 +219,6 @@ class RequestController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
             return back()->withErrors(['error' => 'Required data not found. Please try again.']);
-        } catch (\Illuminate\Database\QueryException $e) {
-            DB::rollback();
-            Log::error('Database query error during request creation', [
-                'error' => $e->getMessage(),
-                'sql' => $e->getSql(),
-                'bindings' => $e->getBindings(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return back()->withErrors(['error' => 'Database error occurred. Please try again.']);
         } catch (\Exception $e) {
             DB::rollback();
             Log::error('Unexpected error during request creation', [
@@ -210,13 +228,13 @@ class RequestController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'validated_data' => $validatedData
             ]);
-            return back()->withErrors(['error' => 'Failed to submit request: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
     public function show(SupplyRequest $supplyRequest)
     {
-        $supplyRequest->load(['user', 'item', 'adminApprover', 'office']);
+        $supplyRequest->load(['user', 'item', 'adminApprover', 'office', 'requestItems.itemable']);
 
         // Check permissions
         /** @var User $user */
@@ -577,10 +595,18 @@ class RequestController extends Controller
             abort(404, 'Claim slip not available for this request.');
         }
 
-        // Generate QR code for the claim slip number
+        // Generate secure QR code data with multiple verification points
+        $qrCodeData = [
+            'type' => 'claim_slip',
+            'claim_slip_number' => $supplyRequest->claim_slip_number,
+            'request_id' => $supplyRequest->id,
+            'user_id' => $supplyRequest->user_id,
+            'timestamp' => $supplyRequest->updated_at->timestamp,
+            'hash' => hash('sha256', $supplyRequest->claim_slip_number . $supplyRequest->id . $supplyRequest->user_id . config('app.key'))
+        ];
+
         $qrCode = new \chillerlan\QRCode\QRCode();
-        $qrCodeData = $supplyRequest->claim_slip_number;
-        $qrCodeImage = $qrCode->render($qrCodeData);
+        $qrCodeImage = $qrCode->render(json_encode($qrCodeData));
 
         return view('admin.requests.claim-slip', ['request' => $supplyRequest, 'qrCodeImage' => $qrCodeImage]);
     }
@@ -737,5 +763,106 @@ class RequestController extends Controller
         ]);
 
         return redirect()->route('faculty.requests.index')->with('success', 'Request cancelled successfully!');
+    }
+
+    public function verifyClaimSlipQR(Request $httpRequest)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user || !$user->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validatedData = $httpRequest->validate([
+            'qr_data' => 'required|string',
+            'request_id' => 'required|integer|exists:requests,id',
+        ]);
+
+        try {
+            // Parse QR code data
+            $qrData = json_decode($validatedData['qr_data'], true);
+            
+            if (!$qrData || !isset($qrData['type']) || $qrData['type'] !== 'claim_slip') {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Invalid QR code format'
+                ], 400);
+            }
+
+            // Verify required fields
+            $requiredFields = ['claim_slip_number', 'request_id', 'user_id', 'timestamp', 'hash'];
+            foreach ($requiredFields as $field) {
+                if (!isset($qrData[$field])) {
+                    return response()->json([
+                        'success' => false, 
+                        'message' => 'QR code missing required verification data'
+                    ], 400);
+                }
+            }
+
+            // Verify hash
+            $expectedHash = hash('sha256', 
+                $qrData['claim_slip_number'] . 
+                $qrData['request_id'] . 
+                $qrData['user_id'] . 
+                config('app.key')
+            );
+
+            if (!hash_equals($expectedHash, $qrData['hash'])) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'QR code verification failed - invalid or tampered data'
+                ], 400);
+            }
+
+            // Check if QR data matches the current request
+            $request = SupplyRequest::findOrFail($validatedData['request_id']);
+            
+            if ($qrData['claim_slip_number'] !== $request->claim_slip_number ||
+                $qrData['request_id'] != $request->id ||
+                $qrData['user_id'] != $request->user_id) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'QR code does not match this request'
+                ], 400);
+            }
+
+            // Check if QR code is not too old (optional - prevent replay attacks)
+            $qrTimestamp = $qrData['timestamp'];
+            $currentTimestamp = now()->timestamp;
+            $maxAge = 24 * 60 * 60; // 24 hours
+            
+            if (($currentTimestamp - $qrTimestamp) > $maxAge) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'QR code has expired. Please generate a new claim slip.'
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Claim slip verified successfully',
+                'data' => [
+                    'claim_slip_number' => $request->claim_slip_number,
+                    'request_id' => $request->id,
+                    'user_name' => $request->user->name ?? 'Unknown User',
+                    'department' => $request->department ?? 'N/A',
+                    'items_count' => $request->request_items ? $request->request_items->count() : 1,
+                    'total_quantity' => $request->request_items ? $request->request_items->sum('quantity') : $request->quantity,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('QR code verification error', [
+                'error' => $e->getMessage(),
+                'qr_data' => $validatedData['qr_data'],
+                'request_id' => $validatedData['request_id']
+            ]);
+
+            return response()->json([
+                'success' => false, 
+                'message' => 'Failed to verify QR code'
+            ], 500);
+        }
     }
 }

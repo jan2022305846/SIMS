@@ -40,9 +40,61 @@
     overflow-y: auto;
 }
 
+.changelog-content {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.changelog-content h3 {
+    color: #198754;
+    border-bottom: 2px solid #198754;
+    padding-bottom: 0.5rem;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.changelog-content h4 {
+    color: #0d6efd;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.changelog-content h5 {
+    color: #6c757d;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.changelog-content ul {
+    padding-left: 1.5rem;
+}
+
+.changelog-content li {
+    margin-bottom: 0.25rem;
+}
+
+.changelog-content code {
+    background-color: #f8f9fa;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+}
+
+.changelog-content pre {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    overflow-x: auto;
+}
+
 @media (max-width: 768px) {
     .search-container .input-group {
         width: 100% !important;
+    }
+
+    .changelog-content {
+        max-height: 300px;
     }
 }
 </style>
@@ -87,374 +139,135 @@
                 </div>
             </div>
 
-            <!-- Quick Start Guide -->
+            <!-- Help Section -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
-                        <i class="fas fa-rocket me-2"></i>
-                        Quick Start Guide
+                        <i class="fas fa-question-circle me-2"></i>
+                        Help Section
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        @if(auth()->user()->role === 'faculty')
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                    <span class="fw-bold">1</span>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold">Browse Items</h6>
-                                    <p class="text-muted small mb-0">Explore available supplies and learn about item details.</p>
-                                    <a href="{{ route('help.show', 'browse-items') }}" class="btn btn-sm btn-outline-primary mt-2">Learn More</a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                    <span class="fw-bold">2</span>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold">Create Request</h6>
-                                    <p class="text-muted small mb-0">Submit supply requests with clear requirements.</p>
-                                    <a href="{{ route('help.show', 'create-request') }}" class="btn btn-sm btn-outline-success mt-2">Learn More</a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                    <span class="fw-bold">3</span>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold">Track Status</h6>
-                                    <p class="text-muted small mb-0">Monitor request progress and approval status.</p>
-                                    <a href="{{ route('help.show', 'track-request') }}" class="btn btn-sm btn-outline-info mt-2">Learn More</a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                    <span class="fw-bold">4</span>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold">Use QR Codes</h6>
-                                    <p class="text-muted small mb-0">Scan QR codes for quick item verification.</p>
-                                    <a href="{{ route('help.show', 'qr-scanning') }}" class="btn btn-sm btn-outline-warning mt-2">Learn More</a>
-                                </div>
-                            </div>
-                        </div>
-                        @else
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                    <span class="fw-bold">1</span>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold">Manage Items</h6>
-                                    <p class="text-muted small mb-0">Add, edit, and organize inventory efficiently.</p>
-                                    <a href="{{ route('help.show', 'add-item') }}" class="btn btn-sm btn-outline-primary mt-2">Learn More</a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                    <span class="fw-bold">2</span>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold">Process Requests</h6>
-                                    <p class="text-muted small mb-0">Review, approve, and fulfill supply requests.</p>
-                                    <a href="{{ route('help.show', 'process-requests') }}" class="btn btn-sm btn-outline-success mt-2">Learn More</a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                    <span class="fw-bold">3</span>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold">View Reports</h6>
-                                    <p class="text-muted small mb-0">Access analytics and generate comprehensive reports.</p>
-                                    <a href="{{ route('help.show', 'dashboard-analytics') }}" class="btn btn-sm btn-outline-info mt-2">Learn More</a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                    <span class="fw-bold">4</span>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold">Monitor System</h6>
-                                    <p class="text-muted small mb-0">Track QR scans, user activity, and system health.</p>
-                                    <a href="{{ route('help.show', 'qr-scan-analytics') }}" class="btn btn-sm btn-outline-warning mt-2">Learn More</a>
-                                </div>
-                            </div>
-                        </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-            <!-- Popular Topics & Stats -->
-            <div class="row mb-4">
-                <div class="col-lg-8 mb-4">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-light">
-                            <h5 class="mb-0">
-                                <i class="fas fa-star me-2 text-warning"></i>
-                                Popular Topics
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                @if(auth()->user()->role === 'faculty')
-                                <div class="col-md-6 mb-3">
-                                    <a href="{{ route('help.show', 'create-request') }}" class="text-decoration-none">
-                                        <div class="d-flex align-items-center p-3 border rounded hover-bg-light">
-                                            <i class="fas fa-plus-circle text-success fs-4 me-3"></i>
-                                            <div>
-                                                <h6 class="mb-1">How to Create a Request</h6>
-                                                <small class="text-muted">Step-by-step guide to submitting requests</small>
-                                            </div>
+                        @foreach($helpSections as $sectionKey => $section)
+                        <div class="col-lg-6 col-xl-4 mb-4">
+                            <div class="card shadow-sm h-100 hover-lift">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                            <i class="{{ $section['icon'] }} text-primary fs-5"></i>
                                         </div>
-                                    </a>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <a href="{{ route('help.show', 'track-request') }}" class="text-decoration-none">
-                                        <div class="d-flex align-items-center p-3 border rounded hover-bg-light">
-                                            <i class="fas fa-eye text-info fs-4 me-3"></i>
-                                            <div>
-                                                <h6 class="mb-1">Tracking Your Requests</h6>
-                                                <small class="text-muted">Monitor request status and progress</small>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <h5 class="mb-1">{{ $section['title'] }}</h5>
+                                                <span class="badge bg-primary">{{ count($section['topics']) }}</span>
                                             </div>
+                                            <small class="text-muted">{{ $section['description'] }}</small>
                                         </div>
-                                    </a>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <a href="{{ route('help.show', 'qr-scanning') }}" class="text-decoration-none">
-                                        <div class="d-flex align-items-center p-3 border rounded hover-bg-light">
-                                            <i class="fas fa-qrcode text-primary fs-4 me-3"></i>
-                                            <div>
-                                                <h6 class="mb-1">QR Code Scanning</h6>
-                                                <small class="text-muted">Quick item verification and lookup</small>
-                                            </div>
-                                        </div>
-                                    </a>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <a href="{{ route('help.show', 'request-status') }}" class="text-decoration-none">
-                                        <div class="d-flex align-items-center p-3 border rounded hover-bg-light">
-                                            <i class="fas fa-info-circle text-warning fs-4 me-3"></i>
-                                            <div>
-                                                <h6 class="mb-1">Understanding Request Status</h6>
-                                                <small class="text-muted">What different statuses mean</small>
-                                            </div>
-                                        </div>
-                                    </a>
-                                </div>
-                                @else
-                                <div class="col-md-6 mb-3">
-                                    <a href="{{ route('help.show', 'process-requests') }}" class="text-decoration-none">
-                                        <div class="d-flex align-items-center p-3 border rounded hover-bg-light">
-                                            <i class="fas fa-tasks text-success fs-4 me-3"></i>
-                                            <div>
-                                                <h6 class="mb-1">Processing Requests</h6>
-                                                <small class="text-muted">Review and approve supply requests</small>
-                                            </div>
-                                        </div>
-                                    </a>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <a href="{{ route('help.show', 'dashboard-analytics') }}" class="text-decoration-none">
-                                        <div class="d-flex align-items-center p-3 border rounded hover-bg-light">
-                                            <i class="fas fa-chart-bar text-info fs-4 me-3"></i>
-                                            <div>
-                                                <h6 class="mb-1">Dashboard Analytics</h6>
-                                                <small class="text-muted">Understanding key metrics and insights</small>
-                                            </div>
-                                        </div>
-                                    </a>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <a href="{{ route('help.show', 'stock-management') }}" class="text-decoration-none">
-                                        <div class="d-flex align-items-center p-3 border rounded hover-bg-light">
-                                            <i class="fas fa-boxes text-primary fs-4 me-3"></i>
-                                            <div>
-                                                <h6 class="mb-1">Stock Management</h6>
-                                                <small class="text-muted">Monitor and maintain inventory levels</small>
-                                            </div>
-                                        </div>
-                                    </a>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <a href="{{ route('help.show', 'qr-scan-analytics') }}" class="text-decoration-none">
-                                        <div class="d-flex align-items-center p-3 border rounded hover-bg-light">
-                                            <i class="fas fa-chart-line text-warning fs-4 me-3"></i>
-                                            <div>
-                                                <h6 class="mb-1">QR Scan Analytics</h6>
-                                                <small class="text-muted">Monitor scanning activities and trends</small>
-                                            </div>
-                                        </div>
-                                    </a>
-                                </div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-4 mb-4">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-light">
-                            <h5 class="mb-0">
-                                <i class="fas fa-chart-pie me-2 text-info"></i>
-                                Help Statistics
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="text-center mb-3">
-                                <div class="display-4 text-primary fw-bold">{{ collect($helpSections)->sum(function($section) { return count($section['topics']); }) }}</div>
-                                <small class="text-muted">Total Help Topics</small>
-                            </div>
-                            <div class="row text-center">
-                                <div class="col-6">
-                                    <div class="border-end">
-                                        <div class="h4 text-success mb-0">{{ count($helpSections) }}</div>
-                                        <small class="text-muted">Sections</small>
+                                    </div>
+
+                                    <div class="list-group list-group-flush">
+                                        @foreach($section['topics'] as $topicKey => $topicTitle)
+                                        <a href="{{ route('help.show', $topicKey) }}" class="list-group-item list-group-item-action border-0 px-0 py-2 d-flex justify-content-between align-items-center">
+                                            <span>
+                                                <i class="fas fa-chevron-right me-2 text-muted small"></i>
+                                                {{ $topicTitle }}
+                                            </span>
+                                            <i class="fas fa-external-link-alt text-muted small"></i>
+                                        </a>
+                                        @endforeach
                                     </div>
                                 </div>
-                                <div class="col-6">
-                                    <div class="h4 text-info mb-0">{{ auth()->user()->role === 'faculty' ? '4' : '5' }}</div>
-                                    <small class="text-muted">For Your Role</small>
-                                </div>
-                            </div>
-                            <hr>
-                            <div class="small text-muted">
-                                <i class="fas fa-lightbulb me-1"></i>
-                                Use the search bar above to quickly find specific topics, or browse the sections below.
                             </div>
                         </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
-            <div class="row">
-                @foreach($helpSections as $sectionKey => $section)
-                <div class="col-lg-6 col-xl-4 mb-4">
-                    <div class="card shadow-sm h-100 hover-lift">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
-                                    <i class="{{ $section['icon'] }} text-primary fs-5"></i>
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <h5 class="mb-1">{{ $section['title'] }}</h5>
-                                        <span class="badge bg-primary">{{ count($section['topics']) }}</span>
-                                    </div>
-                                    <small class="text-muted">{{ $section['description'] }}</small>
-                                </div>
-                            </div>
 
-                            <div class="list-group list-group-flush">
-                                @foreach($section['topics'] as $topicKey => $topicTitle)
-                                <a href="{{ route('help.show', $topicKey) }}" class="list-group-item list-group-item-action border-0 px-0 py-2 d-flex justify-content-between align-items-center">
-                                    <span>
-                                        <i class="fas fa-chevron-right me-2 text-muted small"></i>
-                                        {{ $topicTitle }}
-                                    </span>
-                                    <i class="fas fa-external-link-alt text-muted small"></i>
-                                </a>
-                                @endforeach
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                @endforeach
-            </div>
-
-            <!-- Additional Resources -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-light">
+            <!-- What's New Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
                     <h5 class="mb-0">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Additional Resources & Support
+                        <i class="fas fa-star me-2"></i>
+                        What's New
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="changelogContent">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading changelog...</p>
+                        </div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="https://github.com/jan2022305846/SIMS/blob/main/CHANGELOG.md" target="_blank" class="btn btn-outline-success btn-sm">
+                            <i class="fab fa-github me-1"></i>View on GitHub
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feedback Section -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments me-2"></i>
+                        Feedback
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="text-center p-3 border rounded h-100">
-                                <i class="fas fa-video fs-2 text-primary mb-2"></i>
-                                <h6>Video Tutorials</h6>
-                                <p class="text-muted small mb-2">Coming soon - Watch step-by-step video guides</p>
-                                <span class="badge bg-secondary">Coming Soon</span>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="text-center p-3 border rounded h-100">
-                                <i class="fas fa-download fs-2 text-success mb-2"></i>
-                                <h6>Quick Reference</h6>
-                                <p class="text-muted small mb-2">Download printable quick reference guides</p>
-                                <button class="btn btn-sm btn-outline-success" onclick="window.print()">
-                                    <i class="fas fa-print me-1"></i>Print Guide
+                        <div class="col-lg-8">
+                            <h6 class="mb-3">Send us your feedback</h6>
+                            <p class="text-muted mb-4">Found a bug or have suggestions? Help us improve the system by sending us your feedback with screenshots.</p>
+
+                            <form id="feedbackForm" enctype="multipart/form-data">
+                                <input type="hidden" id="feedbackType" name="type" value="feedback">
+                                <div class="mb-3">
+                                    <label for="feedbackSubject" class="form-label">Subject</label>
+                                    <input type="text" class="form-control" id="feedbackSubject" name="subject" placeholder="Brief description of your feedback" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="feedbackMessage" class="form-label">Message</label>
+                                    <textarea class="form-control" id="feedbackMessage" name="message" rows="4" placeholder="Describe your feedback in detail..." required></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="feedbackScreenshots" class="form-label">Screenshots (Optional)</label>
+                                    <input type="file" class="form-control" id="feedbackScreenshots" name="screenshots[]" multiple accept="image/*">
+                                    <div class="form-text">You can attach multiple image files to help illustrate your feedback.</div>
+                                </div>
+                                <button type="submit" class="btn btn-primary" id="submitFeedbackBtn">
+                                    <i class="fas fa-paper-plane me-1"></i>Send Feedback
                                 </button>
-                            </div>
+                            </form>
                         </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="text-center p-3 border rounded h-100">
-                                <i class="fas fa-envelope fs-2 text-info mb-2"></i>
-                                <h6>Contact Support</h6>
-                                <p class="text-muted small mb-2">Need help? Contact the supply office team</p>
-                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#contactModal">
-                                    <i class="fas fa-envelope me-1"></i>Contact Us
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3 mb-3">
-                            <div class="text-center p-3 border rounded h-100">
-                                <i class="fas fa-keyboard fs-2 text-warning mb-2"></i>
-                                <h6>Keyboard Shortcuts</h6>
-                                <p class="text-muted small mb-2">Learn useful keyboard shortcuts</p>
-                                <a href="{{ route('help.show', 'navigation') }}" class="btn btn-sm btn-outline-warning">
-                                    <i class="fas fa-keyboard me-1"></i>View Shortcuts
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Contact Modal -->
-                    <div class="modal fade" id="contactModal" tabindex="-1">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Contact Support</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p>For technical support or questions about the Supply Office system:</p>
-                                    <div class="mb-3">
-                                        <strong>Supply Office:</strong><br>
-                                        Email: supply@ustp.edu.ph<br>
-                                        Phone: (088) 123-4567<br>
-                                        Office Hours: Mon-Fri, 8:00 AM - 5:00 PM
-                                    </div>
-                                    <div class="mb-3">
-                                        <strong>IT Support:</strong><br>
-                                        Email: it-support@ustp.edu.ph<br>
-                                        Phone: (088) 123-4568<br>
-                                        Emergency: (088) 123-4569
-                                    </div>
-                                    <div class="alert alert-info">
-                                        <small><i class="fas fa-info-circle me-1"></i>
-                                        For urgent issues, please call the emergency line. Response time: 1-2 hours during office hours.</small>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                </div>
+                        <div class="col-lg-4">
+                            <div class="bg-light rounded p-3">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-info-circle text-info me-2"></i>
+                                    What happens next?
+                                </h6>
+                                <ul class="list-unstyled mb-0 small">
+                                    <li class="mb-2">
+                                        <i class="fas fa-envelope text-primary me-2"></i>
+                                        Your feedback is sent directly to our development team
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-clock text-warning me-2"></i>
+                                        We typically respond within 24-48 hours
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-shield-alt text-success me-2"></i>
+                                        All information is kept confidential
+                                    </li>
+                                    <li class="mb-0">
+                                        <i class="fas fa-heart text-danger me-2"></i>
+                                        Your input helps us improve the system
+                                    </li>
+                                </ul>
                             </div>
                         </div>
                     </div>
@@ -471,6 +284,9 @@ document.addEventListener('DOMContentLoaded', function() {
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+
+    // Load changelog from GitHub
+    loadChangelog();
 
     // Help search functionality
     let searchTimeout;
@@ -568,6 +384,123 @@ document.addEventListener('DOMContentLoaded', function() {
             hideSearchResults();
         }
     });
+
+    // Load changelog from GitHub
+    function loadChangelog() {
+        const changelogContent = document.getElementById('changelogContent');
+
+        // GitHub raw URL for CHANGELOG.md
+        const changelogUrl = 'https://raw.githubusercontent.com/jan2022305846/SIMS/main/CHANGELOG.md';
+
+        fetch(changelogUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load changelog');
+                }
+                return response.text();
+            })
+            .then(markdown => {
+                // Convert markdown to HTML (simple conversion)
+                const html = markdownToHtml(markdown);
+                changelogContent.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading changelog:', error);
+                changelogContent.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Changelog not available</strong><br>
+                        Unable to load the changelog from GitHub. You can view it directly on GitHub.
+                    </div>
+                `;
+            });
+    }
+
+    // Simple markdown to HTML converter
+    function markdownToHtml(markdown) {
+        let html = markdown
+            // Headers
+            .replace(/^### (.*$)/gim, '<h5 class="mt-4 mb-2">$1</h5>')
+            .replace(/^## (.*$)/gim, '<h4 class="mt-4 mb-3">$1</h4>')
+            .replace(/^# (.*$)/gim, '<h3 class="mt-4 mb-3">$1</h3>')
+            // Bold
+            .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+            // Lists
+            .replace(/^\* (.*$)/gim, '<li>$1</li>')
+            .replace(/^- (.*$)/gim, '<li>$1</li>')
+            // Code blocks
+            .replace(/```([\s\S]*?)```/g, '<pre class="bg-light p-2 rounded"><code>$1</code></pre>')
+            // Inline code
+            .replace(/`([^`]+)`/g, '<code class="bg-light px-1 rounded">$1</code>')
+            // Links
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+            // Line breaks
+            .replace(/\n/g, '<br>');
+
+        // Wrap lists
+        html = html.replace(/(<li>.*<\/li>)+/g, '<ul class="mb-3">$&</ul>');
+
+        return `<div class="changelog-content">${html}</div>`;
+    }
+
+    // Handle feedback form submission
+    document.getElementById('feedbackForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('submitFeedbackBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Sending...';
+
+        const formData = new FormData(this);
+
+        // Add CSRF token
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+
+        fetch('/feedback/submit', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Feedback sent successfully!', 'success');
+                this.reset();
+            } else {
+                showToast(data.message || 'Failed to send feedback', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Feedback submission error:', error);
+            showToast('Failed to send feedback. Please try again.', 'error');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    });
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = `
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            min-width: 300px;
+        `;
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 3000);
+    }
 });
 </script>
 

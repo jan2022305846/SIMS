@@ -112,7 +112,6 @@
                             <select class="form-select form-select-sm" id="qrPeriodSelect" style="min-width: 150px;">
                                 <!-- Options will be populated by JavaScript -->
                             </select>
-                            <input type="text" class="form-control form-control-sm" id="searchQRTable" placeholder="Search scan logs..." style="width: 180px;">
                             <button class="btn btn-outline-success btn-sm" id="downloadQRBtn">
                                 <i class="fas fa-download me-1"></i>Download
                             </button>
@@ -128,12 +127,10 @@
                                         <th>Item Scanned</th>
                                         <th>Action</th>
                                         <th>Location</th>
-                                        <th>Notes</th>
-                                        <th class="text-center">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="qrTableBody">
-                                    <!-- Data will be populated by JavaScript -->
+                                <tbody id="qrScanTableBody">
+                                    <!-- Scan data will be populated here -->
                                 </tbody>
                             </table>
                         </div>
@@ -144,13 +141,6 @@
                             <h5 class="text-muted">No Scan Data</h5>
                             <p class="text-muted">No item scan logs found for the selected period.</p>
                         </div>
-                        
-                        <!-- QR Pagination -->
-                        <nav aria-label="QR Table pagination" class="mt-3">
-                            <ul class="pagination justify-content-center" id="qrTablePagination">
-                                <!-- Pagination will be populated by JavaScript -->
-                            </ul>
-                        </nav>
                     </div>
                 </div>
             </div>
@@ -202,8 +192,6 @@ let inventoryChart = null;
 let currentQRPeriod = 'monthly';
 let currentQRSelection = null;
 let currentQRData = [];
-let currentQRPage = 1;
-const qrItemsPerPage = 15;
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
@@ -236,14 +224,13 @@ function initializeEventListeners() {
     // QR Scan Analytics Event Listeners
     document.getElementById('qrPeriodSelect').addEventListener('change', function() {
         currentQRSelection = this.value;
+        // Parse the selection to get period and selection
+        const [period, selection] = this.value.split('_');
+        currentQRPeriod = period;
         loadQRData();
     });
     
     document.getElementById('downloadQRBtn').addEventListener('click', downloadQRReport);
-    
-    document.getElementById('searchQRTable').addEventListener('input', function() {
-        filterQRTable(this.value);
-    });
 }
 
 // Switch period type
@@ -500,36 +487,47 @@ function initializeQRPeriodDropdown() {
     
     const currentDate = new Date();
     
-    // Generate last 12 months for QR analytics
-    for (let i = 0; i < 12; i++) {
-        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-        const value = date.toISOString().substring(0, 7); // YYYY-MM
-        const text = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        const option = new Option(text, value);
-        if (i === 0) option.selected = true;
-        select.appendChild(option);
-    }
+    // Add monthly option - current month
+    const currentMonthValue = currentDate.toISOString().substring(0, 7); // YYYY-MM
+    const currentMonthText = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const monthOption = new Option(`Monthly - ${currentMonthText}`, `monthly_${currentMonthValue}`);
+    monthOption.selected = true; // Default to monthly
+    select.appendChild(monthOption);
     
-    currentQRSelection = select.value;
+    // Add annual option - current year
+    const currentYear = currentDate.getFullYear().toString();
+    const annualOption = new Option(`Annual - ${currentYear}`, `annual_${currentYear}`);
+    select.appendChild(annualOption);
+    
+    // Set current selection
+    currentQRSelection = `monthly_${currentMonthValue}`;
 }
 
 // Load QR scan data
 async function loadQRData() {
-    // Ensure we have a valid QR selection
-    if (!currentQRSelection) {
-        const currentDate = new Date();
-        currentQRSelection = currentDate.toISOString().substring(0, 7); // YYYY-MM
+    // Parse the current selection to get period and selection
+    let period = 'monthly';
+    let selection = '';
+    
+    if (currentQRSelection) {
+        const parts = currentQRSelection.split('_');
+        if (parts.length === 2) {
+            period = parts[0];
+            selection = parts[1];
+        }
     }
     
     try {
         // Use real API data instead of mock data
-        const url = `/api/reports/qr-scan-data?period=${currentQRPeriod}&selection=${currentQRSelection}`;
+        const url = `/api/reports/qr-scan-data?period=${period}&selection=${selection}`;
         
         const response = await fetch(url, {
             credentials: 'same-origin'
         });
         
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('QR API Error response:', errorText);
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
@@ -552,7 +550,7 @@ async function loadQRData() {
 // Update QR table
 function updateQRTable(filteredData = null) {
     const data = filteredData || currentQRData;
-    const tbody = document.getElementById('qrTableBody');
+    const tbody = document.getElementById('qrScanTableBody');
     const emptyState = document.getElementById('qrEmptyState');
     
     if (data.length === 0) {
@@ -563,12 +561,8 @@ function updateQRTable(filteredData = null) {
     
     emptyState.style.display = 'none';
     
-    // Pagination
-    const startIndex = (currentQRPage - 1) * qrItemsPerPage;
-    const endIndex = startIndex + qrItemsPerPage;
-    const paginatedData = data.slice(startIndex, endIndex);
-    
-    tbody.innerHTML = paginatedData.map(scan => `
+    // Show all data (limited to 10 from backend, no pagination)
+    tbody.innerHTML = data.map(scan => `
         <tr>
             <td>
                 <small class="fw-semibold">${formatTimestamp(scan.timestamp)}</small>
@@ -591,91 +585,23 @@ function updateQRTable(filteredData = null) {
                     ${scan.location || 'N/A'}
                 </small>
             </td>
-            <td>
-                <small class="text-muted">${scan.notes || 'No notes'}</small>
-            </td>
-            <td class="text-center">
-                <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-primary btn-sm" onclick="viewScanDetails(${JSON.stringify(scan).replace(/"/g, '&quot;')})">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="btn btn-outline-info btn-sm" onclick="viewItemHistory(${scan.item_id})">
-                        <i class="fas fa-history"></i>
-                    </button>
-                </div>
-            </td>
         </tr>
     `).join('');
-    
-    updateQRPagination(data.length);
 }
 
 // Update QR pagination
 function updateQRPagination(totalItems) {
-    const totalPages = Math.ceil(totalItems / qrItemsPerPage);
-    const pagination = document.getElementById('qrTablePagination');
-    
-    if (totalPages <= 1) {
-        pagination.innerHTML = '';
-        return;
-    }
-    
-    let paginationHTML = '';
-    
-    // Previous button
-    paginationHTML += `
-        <li class="page-item ${currentQRPage === 1 ? 'disabled' : ''}">
-            <button class="page-link" onclick="changeQRPage(${currentQRPage - 1})" ${currentQRPage === 1 ? 'disabled' : ''}>
-                <i class="fas fa-chevron-left"></i>
-            </button>
-        </li>
-    `;
-    
-    // Page numbers
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentQRPage - 2 && i <= currentQRPage + 2)) {
-            paginationHTML += `
-                <li class="page-item ${i === currentQRPage ? 'active' : ''}">
-                    <button class="page-link" onclick="changeQRPage(${i})">${i}</button>
-                </li>
-            `;
-        } else if (i === currentQRPage - 3 || i === currentQRPage + 3) {
-            paginationHTML += `
-                <li class="page-item disabled">
-                    <span class="page-link">...</span>
-                </li>
-            `;
-        }
-    }
-    
-    // Next button
-    paginationHTML += `
-        <li class="page-item ${currentQRPage === totalPages ? 'disabled' : ''}">
-            <button class="page-link" onclick="changeQRPage(${currentQRPage + 1})" ${currentQRPage === totalPages ? 'disabled' : ''}>
-                <i class="fas fa-chevron-right"></i>
-            </button>
-        </li>
-    `;
-    
-    pagination.innerHTML = paginationHTML;
+    // No pagination - showing all items (limited to 10 from backend)
 }
 
 // Change QR page
 function changeQRPage(page) {
-    currentQRPage = page;
-    updateQRTable();
+    // No pagination functionality
 }
 
 // Filter QR table
 function filterQRTable(searchTerm) {
-    const filteredData = currentQRData.filter(scan => 
-        scan.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        scan.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        scan.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (scan.notes && scan.notes.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    currentQRPage = 1;
-    updateQRTable(filteredData);
+    // No search functionality in current design
 }
 
 // Download QR report
@@ -705,6 +631,7 @@ function formatTimestamp(timestamp) {
 function formatAction(action) {
     const actionMap = {
         'inventory_check': 'Inventory Check',
+        'updated': 'Updated',
         'item_claim': 'Item Claim',
         'item_fulfill': 'Item Fulfill',
         'stock_adjustment': 'Stock Adjustment'
@@ -716,6 +643,7 @@ function formatAction(action) {
 function getActionBadgeClass(action) {
     const badgeMap = {
         'inventory_check': 'bg-info',
+        'updated': 'bg-warning',
         'item_claim': 'bg-success',
         'item_fulfill': 'bg-primary',
         'stock_adjustment': 'bg-warning'
@@ -727,6 +655,7 @@ function getActionBadgeClass(action) {
 function getActionIcon(action) {
     const iconMap = {
         'inventory_check': 'fa-search',
+        'updated': 'fa-edit',
         'item_claim': 'fa-hand-holding',
         'item_fulfill': 'fa-box-open',
         'stock_adjustment': 'fa-balance-scale'

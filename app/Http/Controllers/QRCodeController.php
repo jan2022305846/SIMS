@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class QRCodeController extends Controller
 {
@@ -123,38 +125,22 @@ class QRCodeController extends Controller
             // Then try to find in non-consumables
             $nonConsumableItem = NonConsumable::find($parsedData['id']);
 
-            // Determine which item to use based on availability
-            if ($consumableItem && $nonConsumableItem) {
-                // Both exist - prioritize based on most recently updated
-                $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
-                $itemType = $item instanceof Consumable ? 'consumable' : 'non_consumable';
-            } elseif ($consumableItem) {
-                $item = $consumableItem;
-                $itemType = 'consumable';
-            } elseif ($nonConsumableItem) {
-                $item = $nonConsumableItem;
-                $itemType = 'non_consumable';
-            } else {
+            // Only process non-consumable items for scanning (as per requirements)
+            // Non-consumable items are tracked and monitored for evidence and records
+            if (!$nonConsumableItem) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Item not found'
-                ], 404);
+                    'message' => 'Only non-consumable items can be scanned for monitoring purposes'
+                ], 400);
             }
 
-            // Log the scan in item_scan_logs table (as per ERD requirement)
-            ItemScanLog::logScan($item->id, $itemType, 'inventory_check', [
-                'location' => $request->input('location'), // Optional scan location
-                'notes' => json_encode([
-                    'scanner_type' => 'admin', // As per ERD, only admin can scan
-                    'scan_data' => [
-                        'raw_qr_data' => $qrData,
-                        'parsed_data' => $parsedData,
-                        'scan_method' => $request->input('scan_method', 'camera'), // camera or manual
-                    ]
-                ])
-            ]);
+            $item = $nonConsumableItem;
+            $itemType = 'non_consumable';
 
-            // Prepare enhanced item data with holder and assignment information
+            // Log the scan in item_scan_logs table (as per ERD requirement)
+            ItemScanLog::logScan($item->id, 'inventory_check', [
+                'location' => $item->location ?? 'Supply Office', // Use item's current location
+            ]);            // Prepare enhanced item data with holder and assignment information
             $itemData = $item->load('category', 'currentHolder');
             $enhancedData = [
                 'id' => $itemData->id,

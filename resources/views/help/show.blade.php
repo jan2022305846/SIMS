@@ -118,6 +118,19 @@
                                         @endforeach
                                     </div>
                                 </div>
+
+                                @elseif($section['type'] === 'list')
+                                <div class="mb-4">
+                                    <h5 class="mb-3">{{ $section['title'] }}</h5>
+                                    <ul class="list-group list-group-flush">
+                                        @foreach($section['items'] as $item)
+                                        <li class="list-group-item border-0 px-0">
+                                            <i class="fas fa-check text-success me-2"></i>
+                                            {{ $item }}
+                                        </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
                                 @endif
                             @endforeach
                         </div>

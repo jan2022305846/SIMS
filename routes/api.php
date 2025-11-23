@@ -29,9 +29,8 @@ Route::get('/items/verify-barcode/{barcode}', [ItemController::class, 'verifyBar
     ->name('api.items.verify-barcode');
 
 // Reports API endpoints
-Route::middleware(['auth:web', 'admin'])->group(function () {
+Route::middleware(['auth:web'])->group(function () {
     Route::get('/reports/inventory-data', [ReportsController::class, 'getInventoryData'])
         ->name('api.reports.inventory-data');
-    Route::get('/reports/qr-scan-data', [ReportsController::class, 'getQrScanData'])
-        ->name('api.reports.qr-scan-data');
 });
+// QR scan data moved to web routes for proper session auth

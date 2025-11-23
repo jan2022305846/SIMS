@@ -22,11 +22,9 @@ class ItemScanLog extends Model
 
     protected $fillable = [
         'item_id',
-        'item_type',
         'user_id',
         'action',
         'location_id',
-        'notes',
     ];
 
     protected $casts = [
@@ -34,17 +32,11 @@ class ItemScanLog extends Model
     ];
 
     /**
-     * Get the item that was scanned (polymorphic relationship)
+     * Get the item that was scanned (only non-consumable items are scanned)
      */
     public function item()
     {
-        if ($this->item_type === 'consumable') {
-            return $this->belongsTo(\App\Models\Consumable::class, 'item_id');
-        } elseif ($this->item_type === 'non_consumable') {
-            return $this->belongsTo(\App\Models\NonConsumable::class, 'item_id');
-        }
-        // Return a relationship that will never match anything for invalid item_types
-        return $this->belongsTo(\App\Models\Consumable::class, 'item_id')->whereRaw('1 = 0');
+        return $this->belongsTo(\App\Models\NonConsumable::class, 'item_id');
     }
 
     /**
@@ -66,7 +58,7 @@ class ItemScanLog extends Model
     /**
      * Create a scan log entry
      */
-    public static function logScan($itemId, string $itemType, string $action = 'inventory_check', array $data = []): self
+    public static function logScan($itemId, string $action = 'inventory_check', array $data = []): self
     {
         $locationId = null;
         if (isset($data['location_id'])) {
@@ -79,11 +71,9 @@ class ItemScanLog extends Model
 
         return self::create([
             'item_id' => $itemId,
-            'item_type' => $itemType,
             'user_id' => Auth::check() ? Auth::user()->id : null,
             'action' => $action,
             'location_id' => $locationId,
-            'notes' => $data['notes'] ?? null,
         ]);
     }
 
