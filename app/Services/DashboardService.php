@@ -128,7 +128,7 @@ class DashboardService
      */
     public function getPendingRequests($user): Collection
     {
-        $query = SupplyRequest::with(['user', 'item'])
+        $query = SupplyRequest::with(['user', 'requestItems.itemable'])
             ->where('status', 'pending');
 
         // If not admin, only show user's own requests
@@ -350,7 +350,7 @@ class DashboardService
      */
     private function getMyRecentRequests($user, $limit = 5): Collection
     {
-        return SupplyRequest::with(['item'])
+        return SupplyRequest::with(['requestItems.itemable'])
             ->where('user_id', $user->id)
             ->latest()
             ->limit($limit)

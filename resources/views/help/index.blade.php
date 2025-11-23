@@ -40,37 +40,137 @@
     overflow-y: auto;
 }
 
-.changelog-content {
-    max-height: 400px;
+/* Full height layout */
+.help-page-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.help-content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    overflow: hidden;
+}
+
+.help-section-compact {
+    flex: 0 0 auto;
+    max-height: 30vh;
     overflow-y: auto;
+}
+
+.help-section-compact::-webkit-scrollbar {
+    width: 4px;
+}
+
+.help-section-compact::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.help-section-compact::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 2px;
+}
+
+.help-section-compact::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.changelog-section {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.changelog-scrollable {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.changelog-scrollable::-webkit-scrollbar {
+    width: 6px;
+}
+
+.changelog-scrollable::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.changelog-scrollable::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.changelog-scrollable::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.feedback-compact {
+    flex: 0 0 auto;
+    max-height: 20vh;
+    overflow-y: auto;
+}
+
+.feedback-compact::-webkit-scrollbar {
+    width: 4px;
+}
+
+.feedback-compact::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.feedback-compact::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 2px;
+}
+
+.feedback-compact::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.changelog-content {
+    max-height: none;
+    overflow: visible;
 }
 
 .changelog-content h3 {
     color: #198754;
     border-bottom: 2px solid #198754;
     padding-bottom: 0.5rem;
-    margin-top: 2rem;
-    margin-bottom: 1rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.25rem;
 }
 
 .changelog-content h4 {
     color: #0d6efd;
-    margin-top: 1.5rem;
+    margin-top: 1.25rem;
     margin-bottom: 0.5rem;
+    font-size: 1.1rem;
 }
 
 .changelog-content h5 {
     color: #6c757d;
-    margin-top: 1rem;
+    margin-top: 0.75rem;
     margin-bottom: 0.5rem;
+    font-size: 1rem;
 }
 
 .changelog-content ul {
     padding-left: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .changelog-content li {
     margin-bottom: 0.25rem;
+    line-height: 1.4;
 }
 
 .changelog-content code {
@@ -86,6 +186,11 @@
     border-radius: 0.375rem;
     padding: 1rem;
     overflow-x: auto;
+    margin: 0.5rem 0;
+}
+
+.feedback-compact {
+    margin-top: 1rem;
 }
 
 @media (max-width: 768px) {
@@ -93,181 +198,205 @@
         width: 100% !important;
     }
 
-    .changelog-content {
-        max-height: 300px;
+    .help-page-container {
+        height: auto;
+        overflow: visible;
+    }
+
+    .help-content-wrapper {
+        flex-direction: column;
+        height: auto;
+        gap: 0.75rem;
+        padding: 0.25rem 0;
+    }
+
+    .help-section-compact {
+        height: auto;
+        max-height: 35vh;
+        overflow-y: auto;
+    }
+
+    .changelog-section {
+        height: auto;
+        max-height: 45vh;
+    }
+
+    .changelog-scrollable {
+        max-height: 35vh;
+    }
+
+    .feedback-compact {
+        height: auto;
+        max-height: 25vh;
+        overflow-y: auto;
     }
 }
 </style>
 @endsection
 
 @section('content')
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <!-- Header -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="h3 fw-semibold text-dark mb-0">
-                    <i class="fas fa-question-circle me-2 text-primary"></i>
-                    Help & Documentation
-                </h2>
-                <div class="d-flex gap-2 flex-wrap">
-                    <!-- Search Box -->
-                    <div class="search-container">
-                        <div class="input-group">
-                            <input type="text" id="helpSearch" class="form-control" placeholder="Search help topics...">
-                            <button class="btn btn-outline-secondary" type="button" onclick="searchHelp()">
-                                <i class="fas fa-search"></i>
-                            </button>
-                        </div>
-                        <div id="searchResultsDropdown" class="search-results d-none">
-                            <!-- Search results will be populated here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Search Results (Hidden initially) -->
-            <div id="searchResults" class="card border-0 shadow-sm mb-4" style="display: none;">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">
-                        <i class="fas fa-search me-2"></i>
-                        Search Results
-                    </h5>
-                </div>
-                <div class="card-body" id="searchResultsContent">
-                    <!-- Search results will be populated here -->
-                </div>
-            </div>
-
-            <!-- Help Section -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-question-circle me-2"></i>
-                        Help Section
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        @foreach($helpSections as $sectionKey => $section)
-                        <div class="col-lg-6 col-xl-4 mb-4">
-                            <div class="card shadow-sm h-100 hover-lift">
-                                <div class="card-body">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
-                                            <i class="{{ $section['icon'] }} text-primary fs-5"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <h5 class="mb-1">{{ $section['title'] }}</h5>
-                                                <span class="badge bg-primary">{{ count($section['topics']) }}</span>
-                                            </div>
-                                            <small class="text-muted">{{ $section['description'] }}</small>
-                                        </div>
-                                    </div>
-
-                                    <div class="list-group list-group-flush">
-                                        @foreach($section['topics'] as $topicKey => $topicTitle)
-                                        <a href="{{ route('help.show', $topicKey) }}" class="list-group-item list-group-item-action border-0 px-0 py-2 d-flex justify-content-between align-items-center">
-                                            <span>
-                                                <i class="fas fa-chevron-right me-2 text-muted small"></i>
-                                                {{ $topicTitle }}
-                                            </span>
-                                            <i class="fas fa-external-link-alt text-muted small"></i>
-                                        </a>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-
-            <!-- What's New Section -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-star me-2"></i>
-                        What's New
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div id="changelogContent">
-                        <div class="text-center py-4">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-2 text-muted">Loading changelog...</p>
-                        </div>
-                    </div>
-                    <div class="text-center mt-3">
-                        <a href="https://github.com/jan2022305846/SIMS/blob/main/CHANGELOG.md" target="_blank" class="btn btn-outline-success btn-sm">
-                            <i class="fab fa-github me-1"></i>View on GitHub
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Feedback Section -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-comments me-2"></i>
-                        Feedback
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-lg-8">
-                            <h6 class="mb-3">Send us your feedback</h6>
-                            <p class="text-muted mb-4">Found a bug or have suggestions? Help us improve the system by sending us your feedback with screenshots.</p>
-
-                            <form id="feedbackForm" enctype="multipart/form-data">
-                                <input type="hidden" id="feedbackType" name="type" value="feedback">
-                                <div class="mb-3">
-                                    <label for="feedbackSubject" class="form-label">Subject</label>
-                                    <input type="text" class="form-control" id="feedbackSubject" name="subject" placeholder="Brief description of your feedback" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="feedbackMessage" class="form-label">Message</label>
-                                    <textarea class="form-control" id="feedbackMessage" name="message" rows="4" placeholder="Describe your feedback in detail..." required></textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="feedbackScreenshots" class="form-label">Screenshots (Optional)</label>
-                                    <input type="file" class="form-control" id="feedbackScreenshots" name="screenshots[]" multiple accept="image/*">
-                                    <div class="form-text">You can attach multiple image files to help illustrate your feedback.</div>
-                                </div>
-                                <button type="submit" class="btn btn-primary" id="submitFeedbackBtn">
-                                    <i class="fas fa-paper-plane me-1"></i>Send Feedback
+<div class="help-page-container">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <!-- Header -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h4 fw-semibold text-dark mb-0">
+                        <i class="fas fa-question-circle me-2 text-primary"></i>
+                        Help & Documentation
+                    </h2>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <!-- Search Box -->
+                        <div class="search-container">
+                            <div class="input-group">
+                                <input type="text" id="helpSearch" class="form-control form-control-sm" placeholder="Search help topics...">
+                                <button class="btn btn-outline-secondary btn-sm" type="button" onclick="searchHelp()">
+                                    <i class="fas fa-search"></i>
                                 </button>
-                            </form>
+                            </div>
+                            <div id="searchResultsDropdown" class="search-results d-none">
+                                <!-- Search results will be populated here -->
+                            </div>
                         </div>
-                        <div class="col-lg-4">
-                            <div class="bg-light rounded p-3">
-                                <h6 class="mb-3">
-                                    <i class="fas fa-info-circle text-info me-2"></i>
-                                    What happens next?
-                                </h6>
-                                <ul class="list-unstyled mb-0 small">
-                                    <li class="mb-2">
-                                        <i class="fas fa-envelope text-primary me-2"></i>
-                                        Your feedback is sent directly to our development team
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="fas fa-clock text-warning me-2"></i>
-                                        We typically respond within 24-48 hours
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="fas fa-shield-alt text-success me-2"></i>
-                                        All information is kept confidential
-                                    </li>
-                                    <li class="mb-0">
-                                        <i class="fas fa-heart text-danger me-2"></i>
-                                        Your input helps us improve the system
-                                    </li>
-                                </ul>
+                    </div>
+                </div>
+
+                <!-- Search Results (Hidden initially) -->
+                <div id="searchResults" class="card border-0 shadow-sm mb-3" style="display: none;">
+                    <div class="card-header bg-light py-2">
+                        <h6 class="mb-0">
+                            <i class="fas fa-search me-2"></i>
+                            Search Results
+                        </h6>
+                    </div>
+                    <div class="card-body p-2" id="searchResultsContent">
+                        <!-- Search results will be populated here -->
+                    </div>
+                </div>
+
+                <div class="help-content-wrapper">
+                    <!-- Help Section -->
+                    <div class="card shadow-sm help-section-compact">
+                        <div class="card-header bg-primary text-white py-2">
+                            <h6 class="mb-0">
+                                <i class="fas fa-question-circle me-2"></i>
+                                Help Section
+                            </h6>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="row">
+                                @foreach($helpSections as $sectionKey => $section)
+                                <div class="col-lg-6 col-xl-4 mb-3">
+                                    <div class="card shadow-sm h-100 hover-lift">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 40px; height: 40px;">
+                                                    <i class="{{ $section['icon'] }} text-primary fs-6"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <h6 class="mb-1">{{ $section['title'] }}</h6>
+                                                        <span class="badge bg-primary">{{ count($section['topics']) }}</span>
+                                                    </div>
+                                                    <small class="text-muted">{{ $section['description'] }}</small>
+                                                </div>
+                                            </div>
+
+                                            <div class="list-group list-group-flush">
+                                                @foreach($section['topics'] as $topicKey => $topicTitle)
+                                                <a href="{{ route('help.show', $topicKey) }}" class="list-group-item list-group-item-action border-0 px-0 py-1 d-flex justify-content-between align-items-center">
+                                                    <span>
+                                                        <i class="fas fa-chevron-right me-2 text-muted small"></i>
+                                                        <small>{{ $topicTitle }}</small>
+                                                    </span>
+                                                    <i class="fas fa-external-link-alt text-muted small"></i>
+                                                </a>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- What's New Section -->
+                    <div class="card shadow-sm changelog-section">
+                        <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="fas fa-star me-2"></i>
+                                What's New
+                            </h6>
+                            <a href="https://github.com/jan2022305846/SIMS/blob/main/CHANGELOG.md" target="_blank" class="btn btn-outline-light btn-sm">
+                                <i class="fab fa-github me-1"></i>View on GitHub
+                            </a>
+                        </div>
+                        <div class="card-body p-3 flex-fill d-flex flex-column">
+                            <div id="changelogContent" class="changelog-scrollable">
+                                <div class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2 text-muted">Loading changelog...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Feedback Section -->
+                    <div class="card shadow-sm feedback-compact">
+                        <div class="card-header bg-info text-white py-2">
+                            <h6 class="mb-0">
+                                <i class="fas fa-comments me-2"></i>
+                                Feedback
+                            </h6>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="row">
+                                <div class="col-lg-8">
+                                    <p class="text-muted mb-3 small">Found a bug or have suggestions? Help us improve the system by sending us your feedback with screenshots.</p>
+
+                                    <form id="feedbackForm" enctype="multipart/form-data">
+                                        <input type="hidden" id="feedbackType" name="type" value="feedback">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-2">
+                                                <input type="text" class="form-control form-control-sm" id="feedbackSubject" name="subject" placeholder="Subject" required>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <input type="file" class="form-control form-control-sm" id="feedbackScreenshots" name="screenshots[]" multiple accept="image/*">
+                                            </div>
+                                        </div>
+                                        <div class="mb-2">
+                                            <textarea class="form-control form-control-sm" id="feedbackMessage" name="message" rows="2" placeholder="Describe your feedback..." required></textarea>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-sm" id="submitFeedbackBtn">
+                                            <i class="fas fa-paper-plane me-1"></i>Send Feedback
+                                        </button>
+                                    </form>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="bg-light rounded p-2">
+                                        <h6 class="mb-2 small">
+                                            <i class="fas fa-info-circle text-info me-1"></i>
+                                            What happens next?
+                                        </h6>
+                                        <ul class="list-unstyled mb-0 small">
+                                            <li class="mb-1">
+                                                <i class="fas fa-envelope text-primary me-1"></i>
+                                                Sent to development team
+                                            </li>
+                                            <li class="mb-1">
+                                                <i class="fas fa-clock text-warning me-1"></i>
+                                                Response within 24-48 hours
+                                            </li>
+                                            <li class="mb-0">
+                                                <i class="fas fa-shield-alt text-success me-1"></i>
+                                                All information confidential
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

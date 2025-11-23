@@ -159,7 +159,7 @@ class ReportsController extends Controller
         $dateTo = $dateRange['to'];
 
         // Get request data
-        $requests = \App\Models\Request::with(['user', 'items'])
+        $requests = \App\Models\Request::with(['user', 'requestItems.itemable'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();

@@ -79,7 +79,7 @@ class UserController extends Controller
     {
         // Paginate user's requests instead of showing just 5
         $requests = $user->requests()
-            ->with(['item'])
+            ->with(['requestItems.itemable'])
             ->latest()
             ->paginate(10)
             ->appends($request->query());
@@ -150,7 +150,7 @@ class UserController extends Controller
         // Get fulfilled requests for this user
         $fulfilledRequests = $user->requests()
             ->whereIn('status', ['fulfilled', 'claimed'])
-            ->with(['item'])
+            ->with(['requestItems.itemable'])
             ->orderBy('updated_at', 'desc')
             ->get();
 

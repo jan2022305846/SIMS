@@ -60,7 +60,28 @@ class Request extends Model
     // Legacy relationship for backwards compatibility
     public function item()
     {
-        return $this->requestItems()->first()?->item();
+        // This method should return a relationship instance, but for legacy compatibility
+        // we'll handle it with __get instead
+        return null;
+    }
+
+    // Override __get to handle the item property
+    public function __get($key)
+    {
+        if ($key === 'item') {
+            // Return the first item from requestItems
+            // Check if requestItems relationship is loaded
+            if ($this->relationLoaded('requestItems')) {
+                $firstRequestItem = $this->requestItems->first();
+                return $firstRequestItem ? $firstRequestItem->itemable : null;
+            } else {
+                // Load the first request item with its itemable relationship
+                $firstRequestItem = $this->requestItems()->with('itemable')->first();
+                return $firstRequestItem ? $firstRequestItem->itemable : null;
+            }
+        }
+
+        return parent::__get($key);
     }
 
     public function adminApprover()

@@ -25,7 +25,7 @@ class RequestController extends Controller
 {
     public function index(Request $request)
     {
-        $query = SupplyRequest::with(['user', 'item', 'adminApprover'])
+        $query = SupplyRequest::with(['user', 'adminApprover', 'requestItems.itemable'])
             ->latest();
 
         // Filter based on user role
@@ -45,7 +45,7 @@ class RequestController extends Controller
                     $userQuery->where('name', 'like', "%{$searchTerm}%")
                              ->orWhere('email', 'like', "%{$searchTerm}%");
                 })
-                ->orWhereHas('item', function($itemQuery) use ($searchTerm) {
+                ->orWhereHas('requestItems.itemable', function($itemQuery) use ($searchTerm) {
                     $itemQuery->where('name', 'like', "%{$searchTerm}%");
                 })
                 ->orWhere('purpose', 'like', "%{$searchTerm}%")
@@ -619,7 +619,7 @@ class RequestController extends Controller
 
     public function myRequests(Request $request)
     {
-        $query = SupplyRequest::with(['user', 'item', 'adminApprover'])
+        $query = SupplyRequest::with(['user', 'adminApprover', 'requestItems.itemable'])
             ->latest();
 
         // Faculty can only see their own requests
@@ -629,7 +629,7 @@ class RequestController extends Controller
         if ($request->has('search') && $request->search) {
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
-                $q->whereHas('item', function($itemQuery) use ($searchTerm) {
+                $q->whereHas('requestItems.itemable', function($itemQuery) use ($searchTerm) {
                     $itemQuery->where('name', 'like', "%{$searchTerm}%");
                 })
                 ->orWhere('purpose', 'like', "%{$searchTerm}%")

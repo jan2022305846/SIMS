@@ -104,9 +104,9 @@
 
     {{-- Logout Section --}}
     <div class="logout-section">
-        <form method="POST" action="{{ route('logout') }}" style="width: 100%;">
+        <form id="logoutForm" method="POST" action="{{ route('logout') }}" style="width: 100%;">
             @csrf
-            <button type="submit" class="logout-btn">
+            <button type="button" class="logout-btn" data-bs-toggle="modal" data-bs-target="#logoutModal">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <polyline points="16,17 21,12 16,7"></polyline>
@@ -117,3 +117,41 @@
         </form>
     </div>
 </nav>
+
+<!-- Logout Confirmation Modal -->
+<div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logoutModalLabel">
+                    <i class="fas fa-sign-out-alt text-warning me-2"></i>
+                    Confirm Logout
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-question-circle text-warning" style="font-size: 3rem;"></i>
+                </div>
+                <h6 class="mb-3">Are you sure you want to logout?</h6>
+                <p class="text-muted mb-0">You will be redirected to the login page and will need to sign in again to access your account.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-danger" onclick="confirmLogout()">
+                    <i class="fas fa-sign-out-alt me-1"></i>
+                    Yes, Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmLogout() {
+    document.getElementById('logoutForm').submit();
+}
+</script>
