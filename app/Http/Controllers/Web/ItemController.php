@@ -716,6 +716,87 @@ class ItemController extends Controller
     }
 
     /**
+     * Display trashed (soft-deleted) items.
+     *
+     * Shows items that have been soft-deleted and can be restored or permanently deleted.
+     * Items are displayed with their deletion information and restoration options.
+     *
+     * @param Request $request The HTTP request instance
+     * @return \Illuminate\View\View
+     */
+    public function trashed(Request $request)
+    {
+        // Get trashed items from both consumables and non-consumables
+        $trashedConsumablesQuery = Consumable::onlyTrashed()->with('category');
+        $trashedNonConsumablesQuery = NonConsumable::onlyTrashed()->with('category');
+
+        // Apply search filter if provided
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $trashedConsumablesQuery->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('brand', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('description', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('product_code', 'like', '%' . $searchTerm . '%');
+            });
+            $trashedNonConsumablesQuery->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('brand', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('description', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('product_code', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('location', 'like', '%' . $searchTerm . '%');
+            });
+        }
+
+        // Apply category filter if provided
+        if ($request->filled('category')) {
+            $trashedConsumablesQuery->where('category_id', $request->category);
+            $trashedNonConsumablesQuery->where('category_id', $request->category);
+        }
+
+        // Get results and add type indicators and additional attributes
+        $trashedConsumables = $trashedConsumablesQuery->get()->map(function ($item) {
+            $item->item_type = 'consumable';
+            $item->current_stock = $item->quantity;
+            $item->barcode = $item->product_code;
+            return $item;
+        });
+
+        $trashedNonConsumables = $trashedNonConsumablesQuery->get()->map(function ($item) {
+            $item->item_type = 'non_consumable';
+            $item->current_stock = $item->quantity;
+            $item->barcode = $item->product_code;
+            return $item;
+        });
+
+        // Merge and sort by deletion date (newest first)
+        $allTrashedItems = $trashedConsumables->merge($trashedNonConsumables)
+            ->sortByDesc('deleted_at');
+
+        // Manual pagination
+        $perPage = 15;
+        $page = $request->get('page', 1);
+        $offset = ($page - 1) * $perPage;
+        $paginatedItems = $allTrashedItems->slice($offset, $perPage);
+
+        // Create a LengthAwarePaginator
+        $items = new \Illuminate\Pagination\LengthAwarePaginator(
+            $paginatedItems,
+            $allTrashedItems->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => 'page']
+        );
+
+        $items->appends(request()->query());
+
+        // Get categories for filter dropdown
+        $categories = Category::orderBy('name')->get();
+
+        return view('admin.items.trashed', compact('items', 'categories'));
+    }
+
+    /**
      * Process disposal of selected items.
      *
      * Permanently deletes selected non-consumable items with "Needs Repair" condition

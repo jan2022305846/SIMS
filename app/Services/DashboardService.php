@@ -63,7 +63,7 @@ class DashboardService
             'items' => [
                             'total_items' => Consumable::count() + NonConsumable::count(),
                 'active' => Consumable::where('quantity', '>', 0)->count() + NonConsumable::where('quantity', '>', 0)->count(),
-                'low_stock' => Consumable::whereRaw('quantity <= min_stock')->count() + NonConsumable::whereRaw('quantity <= min_stock')->count(),
+                'low_stock' => Consumable::whereRaw('quantity <= min_stock')->count(),
                 'out_of_stock' => Consumable::where('quantity', 0)->count() + NonConsumable::where('quantity', 0)->count()
             ],
             'requests' => [
@@ -99,6 +99,7 @@ class DashboardService
 
     /**
      * Get low stock items
+     * Only includes consumable items since non-consumables are tracked individually
      */
     public function getLowStockItems(): Collection
     {
@@ -111,16 +112,7 @@ class DashboardService
                 return $item;
             });
 
-        $lowStockNonConsumables = NonConsumable::whereRaw('quantity <= min_stock')
-            ->select('id', 'name', 'quantity', 'min_stock', 'product_code')
-            ->get()
-            ->map(function ($item) {
-                $item->stock_status = $item->quantity === 0 ? 'critical' : 'low';
-                $item->item_type = 'non_consumable';
-                return $item;
-            });
-
-        return $lowStockConsumables->merge($lowStockNonConsumables);
+        return $lowStockConsumables;
     }
 
     /**
