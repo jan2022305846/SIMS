@@ -231,6 +231,105 @@
         overflow-y: auto;
     }
 }
+
+/* Help section dark mode fixes */
+[data-theme="dark"] .help-section-compact .card h6 {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .help-section-compact .card .text-muted {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .help-section-compact .card .list-group-item {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .help-section-compact .card .list-group-item:hover {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .help-section-compact .card .bg-light {
+    background: var(--bg-tertiary) !important;
+}
+
+/* Additional dark mode fixes for list groups */
+[data-theme="dark"] .help-section-compact .card .list-group {
+    background: transparent !important;
+}
+
+[data-theme="dark"] .help-section-compact .card .list-group-item-action {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+[data-theme="dark"] .help-section-compact .card .list-group-item-action:hover {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* More specific selectors for help list items */
+[data-theme="dark"] .help-section-compact .card .list-group .list-group-item {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .help-section-compact .card .list-group .list-group-item-action {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .help-section-compact .card .list-group .list-group-item:hover,
+[data-theme="dark"] .help-section-compact .card .list-group .list-group-item-action:hover {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Fix for nested card structure - target list items within help sections */
+[data-theme="dark"] .help-section-compact .list-group-item {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .help-section-compact .list-group-item:hover {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .help-section-compact .list-group-item-action {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .help-section-compact .list-group-item-action:hover {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Custom class for help topic links - highest specificity */
+[data-theme="dark"] .help-topic-link {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .help-topic-link:hover {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .help-topic-link .text-muted {
+    color: var(--text-muted) !important;
+}
 </style>
 @endsection
 
@@ -304,12 +403,12 @@
 
                                             <div class="list-group list-group-flush">
                                                 @foreach($section['topics'] as $topicKey => $topicTitle)
-                                                <a href="{{ route('help.show', $topicKey) }}" class="list-group-item list-group-item-action border-0 px-0 py-1 d-flex justify-content-between align-items-center">
+                                                <a href="{{ route('help.show', $topicKey) }}" class="list-group-item list-group-item-action border-0 px-0 py-1 d-flex justify-content-between align-items-center help-topic-link" style="background: var(--bg-primary) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important;">
                                                     <span>
-                                                        <i class="fas fa-chevron-right me-2 text-muted small"></i>
+                                                        <i class="fas fa-chevron-right me-2 text-muted small" style="color: var(--text-muted) !important;"></i>
                                                         <small>{{ $topicTitle }}</small>
                                                     </span>
-                                                    <i class="fas fa-external-link-alt text-muted small"></i>
+                                                    <i class="fas fa-external-link-alt text-muted small" style="color: var(--text-muted) !important;"></i>
                                                 </a>
                                                 @endforeach
                                             </div>

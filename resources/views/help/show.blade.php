@@ -240,6 +240,25 @@
 .hover-bg-light:hover {
     background-color: #f8f9fa !important;
 }
+
+/* Dark mode fixes for help show page */
+[data-theme="dark"] .list-group-item {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .bg-light {
+    background: var(--bg-tertiary) !important;
+}
+
+[data-theme="dark"] .text-muted {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .hover-bg-light:hover {
+    background-color: var(--bg-tertiary) !important;
+}
 </style>
 
 <script>
