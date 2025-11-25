@@ -15,14 +15,6 @@
                     <i class="fas fa-times me-1"></i>Cancel Request
                 </button>
             @endif
-            @if($request->isReadyForPickup() || $request->isFulfilled() || $request->isClaimed())
-                <a href="{{ route('requests.claim-slip', $request) }}" class="btn btn-warning fw-bold" target="_blank">
-                    <i class="fas fa-print me-1"></i>Print Claim Slip
-                </a>
-                <a href="{{ route('faculty.requests.download-claim-slip', $request) }}" class="btn btn-success fw-bold">
-                    <i class="fas fa-download me-1"></i>Download PDF
-                </a>
-            @endif
             <a href="{{ route('faculty.requests.index') }}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left me-1"></i>Back to My Requests
             </a>
@@ -98,19 +90,37 @@
                                 <h6 class="text-muted mb-2">Item Details</h6>
                                 <div class="card bg-light border-0 mb-3">
                                     <div class="card-body">
-                                        <h5 class="mb-2">{{ $request->item ? $request->item->name : 'Item Not Found' }}</h5>
-                                        <div class="row">
-                                            <div class="col-6">
-                                                <small class="text-muted">Requested Quantity</small>
-                                                <div class="fw-bold fs-5">{{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}</div>
-                                            </div>
-                                            <div class="col-6">
-                                                <small class="text-muted">Available Stock</small>
-                                                <div class="fw-bold fs-5 {{ $request->item && $request->item->quantity < $request->quantity ? 'text-danger' : 'text-success' }}">
-                                                    {{ $request->item ? $request->item->quantity : 'N/A' }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}
+                                        @if($request->requestItems->count() > 0)
+                                            @foreach($request->requestItems as $requestItem)
+                                                <div class="mb-3 {{ !$loop->last ? 'border-bottom pb-3' : '' }}">
+                                                    <h5 class="mb-2">{{ $requestItem->itemable ? $requestItem->itemable->name : 'Item Not Found' }}</h5>
+                                                    <div class="row">
+                                                        <div class="col-6">
+                                                            <small class="text-muted">Requested Quantity</small>
+                                                            <div class="fw-bold fs-5">{{ $requestItem->quantity }} {{ $requestItem->itemable && $requestItem->itemable->unit ? $requestItem->itemable->unit : 'pcs' }}</div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <small class="text-muted">Available Stock</small>
+                                                            <div class="fw-bold fs-5 {{ $requestItem->itemable && $requestItem->itemable->quantity < $requestItem->quantity ? 'text-danger' : 'text-success' }}">
+                                                                {{ $requestItem->itemable ? $requestItem->itemable->quantity : 'N/A' }} {{ $requestItem->itemable && $requestItem->itemable->unit ? $requestItem->itemable->unit : 'pcs' }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        @else
+                                            <h5 class="mb-2">Item Not Found</h5>
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    <small class="text-muted">Requested Quantity</small>
+                                                    <div class="fw-bold fs-5">0 pcs</div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <small class="text-muted">Available Stock</small>
+                                                    <div class="fw-bold fs-5 text-muted">N/A pcs</div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -119,7 +129,7 @@
                                 <div class="mb-3">
                                     <div class="row mb-2">
                                         <div class="col-5"><strong>Office:</strong></div>
-                                        <div class="col-7">{{ $request->office ? $request->office->name : 'N/A' }}</div>
+                                        <div class="col-7">{{ $request->user->office ? $request->user->office->name : 'N/A' }}</div>
                                     </div>
                                     @if($request->claim_slip_number)
                                         <div class="row mb-2">
@@ -314,7 +324,7 @@
                                         </div>
                                         <div class="step-description mt-2">
                                             <small class="text-muted">
-                                                Faculty member submitted a request for {{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }} of {{ $request->item ? $request->item->name : 'Unknown Item' }}
+                                                Faculty member submitted a request for {{ $request->getTotalItems() }} {{ $request->getTotalItems() === 1 ? 'item' : 'items' }} of {{ $request->getUniqueItemsCount() }} {{ $request->getUniqueItemsCount() === 1 ? 'unique item' : 'unique items' }}
                                             </small>
                                         </div>
                                     </div>

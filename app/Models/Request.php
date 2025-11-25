@@ -60,9 +60,16 @@ class Request extends Model
     // Legacy relationship for backwards compatibility
     public function item()
     {
-        // This method should return a relationship instance, but for legacy compatibility
-        // we'll handle it with __get instead
-        return null;
+        // Return a relationship that points to the first request item's itemable
+        // This maintains backward compatibility with existing code
+        return $this->hasOneThrough(
+            related: \Illuminate\Database\Eloquent\Model::class,
+            through: RequestItem::class,
+            firstKey: 'id',
+            secondKey: 'item_id',
+            localKey: 'id',
+            secondLocalKey: 'item_id'
+        )->whereRaw('1 = 1'); // This will be filtered by the morph type in the query
     }
 
     // Override __get to handle the item property
@@ -102,7 +109,9 @@ class Request extends Model
 
     public function canBeFulfilled()
     {
-        return $this->status === 'approved_by_admin';
+        // This method is deprecated - faculty now generate claim slips directly
+        // Keeping for backwards compatibility but should not be used in new workflow
+        return false;
     }
 
     public function canGenerateClaimSlip()
@@ -142,6 +151,13 @@ class Request extends Model
 
     public function fulfill(User $user)
     {
+        // Ensure requestItems with itemable relationships are loaded
+        if (!$this->relationLoaded('requestItems')) {
+            $this->load('requestItems.itemable');
+        } elseif (!$this->requestItems->first() || !$this->requestItems->first()->relationLoaded('itemable')) {
+            $this->requestItems->load('itemable');
+        }
+
         // Generate claim slip number
         $claimSlipNumber = 'CS-' . date('Y') . '-' . str_pad($this->id, 6, '0', STR_PAD_LEFT);
 
@@ -150,29 +166,47 @@ class Request extends Model
             'claim_slip_number' => $claimSlipNumber,
         ]);
 
-        // Update item stock for all request items - only for consumables
-        foreach ($this->requestItems as $requestItem) {
-            if ($requestItem->isConsumable()) {
-                $requestItem->item->quantity -= $requestItem->quantity;
-                $requestItem->item->save();
-            }
-        }
+        // Note: Stock deduction moved to markAsClaimed to avoid double deduction
+        // Stock was already reserved in approveByAdmin, now it's ready for pickup
     }
 
     public function markAsClaimed(User $user)
     {
-        // Process each request item
+        // Note: requestItems with itemable relationships should already be loaded by the controller
+        // to handle the custom morphTo relationships properly
+
+        // Process stock movements and create transaction logs
         foreach ($this->requestItems as $requestItem) {
-            // Reduce stock for consumables
-            if ($requestItem->isConsumable()) {
-                $requestItem->item->quantity -= $requestItem->quantity;
-                $requestItem->item->save();
+            // For consumables: deduct from inventory and log the transaction
+            if ($requestItem->isConsumable() && $requestItem->itemable) {
+                // Actually deduct stock now (previously was done during approval)
+                $requestItem->itemable->decrement('quantity', $requestItem->quantity);
+
+                // Log the stock transaction for reporting
+                \App\Models\Log::create([
+                    'user_id' => $this->user_id, // The faculty member who requested
+                    'item_id' => $requestItem->item_id,
+                    'action' => 'claimed', // New action type for claimed items
+                    'details' => "Claimed from request #{$this->id} (Claim Slip: {$this->claim_slip_number})",
+                    'quantity' => $requestItem->quantity,
+                    'notes' => "Processed by admin: {$user->name}",
+                ]);
             }
 
             // For non-consumables, update the current holder
-            if ($requestItem->isNonConsumable()) {
-                $requestItem->item->current_holder_id = $user->id;
-                $requestItem->item->save();
+            if ($requestItem->isNonConsumable() && $requestItem->itemable) {
+                $requestItem->itemable->current_holder_id = $this->user_id; // Assign to the faculty member
+                $requestItem->itemable->save();
+
+                // Log the assignment for reporting
+                \App\Models\Log::create([
+                    'user_id' => $this->user_id,
+                    'item_id' => $requestItem->item_id,
+                    'action' => 'assigned', // New action type for assigned non-consumables
+                    'details' => "Assigned from request #{$this->id} (Claim Slip: {$this->claim_slip_number})",
+                    'quantity' => 1, // Non-consumables are assigned individually
+                    'notes' => "Assigned to faculty member, processed by admin: {$user->name}",
+                ]);
             }
         }
 
@@ -322,8 +356,15 @@ class Request extends Model
 
     public function hasSufficientStock()
     {
+        // Ensure requestItems with itemable relationships are loaded
+        if (!$this->relationLoaded('requestItems')) {
+            $this->load('requestItems.itemable');
+        } elseif (!$this->requestItems->first() || !$this->requestItems->first()->relationLoaded('itemable')) {
+            $this->requestItems->load('itemable');
+        }
+
         foreach ($this->requestItems as $requestItem) {
-            if ($requestItem->isConsumable() && $requestItem->item->quantity < $requestItem->quantity) {
+            if ($requestItem->isConsumable() && $requestItem->itemable && $requestItem->itemable->quantity < $requestItem->quantity) {
                 return false;
             }
         }
@@ -332,13 +373,20 @@ class Request extends Model
 
     public function getStockIssues()
     {
+        // Ensure requestItems with itemable relationships are loaded
+        if (!$this->relationLoaded('requestItems')) {
+            $this->load('requestItems.itemable');
+        } elseif (!$this->requestItems->first() || !$this->requestItems->first()->relationLoaded('itemable')) {
+            $this->requestItems->load('itemable');
+        }
+
         $issues = [];
         foreach ($this->requestItems as $requestItem) {
-            if ($requestItem->isConsumable() && $requestItem->item->quantity < $requestItem->quantity) {
+            if ($requestItem->isConsumable() && $requestItem->itemable && $requestItem->itemable->quantity < $requestItem->quantity) {
                 $issues[] = [
                     'item_name' => $requestItem->getItemName(),
                     'requested' => $requestItem->quantity,
-                    'available' => $requestItem->item->quantity,
+                    'available' => $requestItem->itemable->quantity,
                 ];
             }
         }
@@ -347,9 +395,17 @@ class Request extends Model
 
     public function reserveStockForItems()
     {
+        // Ensure requestItems with itemable relationships are loaded
+        if (!$this->relationLoaded('requestItems')) {
+            $this->load('requestItems.itemable');
+        } elseif (!$this->requestItems->first() || !$this->requestItems->first()->relationLoaded('itemable')) {
+            $this->requestItems->load('itemable');
+        }
+
         foreach ($this->requestItems as $requestItem) {
             if ($requestItem->hasSufficientStock()) {
-                // Reserve stock
+                // Create stock reservation record (but don't deduct stock yet)
+                // Stock will be deducted when the request is actually claimed
                 \App\Models\StockReservation::create([
                     'request_item_id' => $requestItem->id,
                     'item_id' => $requestItem->item_id,
@@ -359,11 +415,7 @@ class Request extends Model
                     'status' => 'active',
                 ]);
 
-                // Deduct from available stock
-                if ($requestItem->isConsumable()) {
-                    $requestItem->item->decrement('quantity', $requestItem->quantity);
-                }
-
+                // Mark as reserved (but don't deduct stock)
                 $requestItem->update(['status' => 'reserved']);
             } else {
                 // Mark as unavailable

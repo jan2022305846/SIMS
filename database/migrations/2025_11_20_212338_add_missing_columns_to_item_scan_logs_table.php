@@ -13,8 +13,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('item_scan_logs', function (Blueprint $table) {
-            $table->enum('item_type', ['consumable', 'non_consumable'])->after('item_id');
-            $table->text('notes')->nullable()->after('location_id');
+            if (!Schema::hasColumn('item_scan_logs', 'item_type')) {
+                $table->enum('item_type', ['consumable', 'non_consumable'])->after('item_id');
+            }
+            if (!Schema::hasColumn('item_scan_logs', 'notes')) {
+                $table->text('notes')->nullable()->after('location_id');
+            }
             
             // Update the action enum to include more actions
             DB::statement("ALTER TABLE item_scan_logs MODIFY COLUMN action ENUM('check_in', 'check_out', 'inventory_check', 'updated', 'item_claim', 'item_fulfill', 'stock_adjustment') NOT NULL");

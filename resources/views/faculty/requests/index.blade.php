@@ -149,8 +149,17 @@
                                             <i class="fas fa-box text-primary fa-lg"></i>
                                         </div>
                                         <div>
-                                            <h5 class="mb-1">{{ $request->item ? $request->item->name : 'Item Not Found' }}</h5>
-                                            <p class="text-muted mb-1">Qty: {{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}</p>
+                                            @if($request->requestItems->count() > 0)
+                                                <h5 class="mb-1">{{ $request->requestItems->first()->itemable ? $request->requestItems->first()->itemable->name : 'Multiple Items' }}</h5>
+                                                @if($request->requestItems->count() > 1)
+                                                    <p class="text-muted mb-1">+{{ $request->requestItems->count() - 1 }} more item{{ $request->requestItems->count() > 2 ? 's' : '' }}</p>
+                                                @else
+                                                    <p class="text-muted mb-1">Qty: {{ $request->requestItems->first()->quantity }} {{ $request->requestItems->first()->itemable && $request->requestItems->first()->itemable->unit ? $request->requestItems->first()->itemable->unit : 'pcs' }}</p>
+                                                @endif
+                                            @else
+                                                <h5 class="mb-1">Item Not Found</h5>
+                                                <p class="text-muted mb-1">Qty: 0 pcs</p>
+                                            @endif
                                             <small class="text-muted">{{ $request->department }}</small>
                                         </div>
                                     </div>

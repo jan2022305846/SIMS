@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('request_id')->constrained()->onDelete('cascade');
             $table->morphs('item'); // Creates item_id and item_type columns
             $table->integer('quantity')->default(1);
+            $table->enum('status', ['available', 'reserved', 'unavailable'])->default('available');
             $table->text('notes')->nullable();
             $table->timestamps();
 

@@ -49,7 +49,7 @@
 
                 <!-- Summary Cards -->
                 <div class="row g-3 mb-4" id="summaryCards">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="card border-primary h-100">
                             <div class="card-body text-center">
                                 <i class="fas fa-boxes fa-2x text-primary mb-2"></i>
@@ -58,16 +58,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card border-success h-100">
-                            <div class="card-body text-center">
-                                <i class="fas fa-arrow-up fa-2x text-success mb-2"></i>
-                                <h4 class="mb-0" id="totalAdded">0</h4>
-                                <small class="text-muted">Items Added/Restocked</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="card border-danger h-100">
                             <div class="card-body text-center">
                                 <i class="fas fa-arrow-down fa-2x text-danger mb-2"></i>
@@ -76,12 +67,12 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card border-info h-100">
+                    <div class="col-md-4">
+                        <div class="card border-warning h-100">
                             <div class="card-body text-center">
-                                <i class="fas fa-warehouse fa-2x text-info mb-2"></i>
-                                <h4 class="mb-0" id="currentStock">0</h4>
-                                <small class="text-muted">Current Stock</small>
+                                <i class="fas fa-warehouse fa-2x text-warning mb-2"></i>
+                                <h4 class="mb-0" id="totalRemaining">0</h4>
+                                <small class="text-muted">Items Remaining</small>
                             </div>
                         </div>
                     </div>
@@ -391,9 +382,8 @@ async function loadReportData() {
 // Update summary cards
 function updateSummaryCards(summary) {
     document.getElementById('totalItems').textContent = summary.totalItems || 0;
-    document.getElementById('totalAdded').textContent = summary.totalAdded || 0;
+    document.getElementById('totalRemaining').textContent = summary.currentStock || 0;
     document.getElementById('totalReleased').textContent = summary.totalReleased || 0;
-    document.getElementById('currentStock').textContent = summary.currentStock || 0;
 }
 
 // Update chart
@@ -406,16 +396,16 @@ function updateChart(chartData) {
     
     // Transform the data to Chart.js format
     const labels = chartData.map(item => item.date);
-    const addedData = chartData.map(item => item.added || 0);
+    const remainingData = chartData.map(item => item.remaining || 0);
     const releasedData = chartData.map(item => item.released || 0);
     
     const chartJsData = {
         labels: labels,
         datasets: [{
-            label: 'Items Added',
-            data: addedData,
-            backgroundColor: 'rgba(75, 192, 192, 0.6)',
-            borderColor: 'rgba(75, 192, 192, 1)',
+            label: 'Items Remaining',
+            data: remainingData,
+            backgroundColor: 'rgba(255, 193, 7, 0.6)', // Warning/orange color to match the stat card
+            borderColor: 'rgba(255, 193, 7, 1)',
             borderWidth: 2
         }, {
             label: 'Items Released',
@@ -470,7 +460,7 @@ function downloadReport() {
         format: 'docx'
     });
     
-    window.open(`/reports/download?${params.toString()}`, '_blank');
+    window.open(`/admin/reports/download?${params.toString()}`, '_blank');
 }
 
 // View item details (placeholder function)
@@ -519,7 +509,7 @@ async function loadQRData() {
     
     try {
         // Use real API data instead of mock data
-        const url = `/api/reports/qr-scan-data?period=${period}&selection=${selection}`;
+        const url = `/admin/api/reports/qr-scan-data?period=${period}&selection=${selection}`;
         
         const response = await fetch(url, {
             credentials: 'same-origin'
@@ -612,7 +602,7 @@ function downloadQRReport() {
         format: 'docx'
     });
     
-    window.open(`/reports/qr-scan-logs/download?${params.toString()}`, '_blank');
+    window.open(`/admin/reports/qr-scan-logs/download?${params.toString()}`, '_blank');
 }
 
 // Helper function to format timestamp

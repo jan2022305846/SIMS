@@ -23,8 +23,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const itemTypeSelect = document.getElementById('item_type');
     const productDetailsSection = document.getElementById('product-details-section');
     const nonConsumableFields = document.getElementById('non-consumable-fields');
+    const stockManagementSection = document.querySelector('.card.border-light'); // Stock management card
     const locationInput = document.getElementById('location');
     const conditionSelect = document.getElementById('condition');
+    const quantityInput = document.getElementById('quantity');
+    const minStockInput = document.getElementById('min_stock');
+    const maxStockInput = document.getElementById('max_stock');
 
     if (!itemTypeSelect) {
         console.error('Item type select not found');
@@ -45,25 +49,51 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Show non-consumable specific fields
                 if (nonConsumableFields) nonConsumableFields.classList.remove('d-none');
 
+                // Hide stock management section for non-consumable items
+                if (stockManagementSection) stockManagementSection.style.display = 'none';
+
                 // Make location and condition required
                 if (locationInput) locationInput.setAttribute('required', 'required');
                 if (conditionSelect) conditionSelect.setAttribute('required', 'required');
+
+                // Remove required attributes from stock fields
+                if (quantityInput) quantityInput.removeAttribute('required');
+                if (minStockInput) minStockInput.removeAttribute('required');
+                if (maxStockInput) maxStockInput.removeAttribute('required');
+
+                // Set default values for non-consumable items
+                if (quantityInput) quantityInput.value = '1';
+                if (minStockInput) minStockInput.value = '0';
+                if (maxStockInput) maxStockInput.value = '1';
+
             } else {
                 // Hide non-consumable specific fields
                 if (nonConsumableFields) nonConsumableFields.classList.add('d-none');
 
-                // Remove required attributes
+                // Show stock management section for consumable items
+                if (stockManagementSection) stockManagementSection.style.display = 'block';
+
+                // Remove required attributes from non-consumable fields
                 if (locationInput) locationInput.removeAttribute('required');
                 if (conditionSelect) conditionSelect.removeAttribute('required');
+
+                // Make stock fields required for consumable items
+                if (quantityInput) quantityInput.setAttribute('required', 'required');
+                if (minStockInput) minStockInput.setAttribute('required', 'required');
+                if (maxStockInput) maxStockInput.removeAttribute('required'); // max_stock is optional
             }
         } else {
             // Hide product details section when no type is selected
             if (productDetailsSection) productDetailsSection.classList.add('d-none');
             if (nonConsumableFields) nonConsumableFields.classList.add('d-none');
+            if (stockManagementSection) stockManagementSection.style.display = 'block'; // Show by default
 
             // Remove required attributes
             if (locationInput) locationInput.removeAttribute('required');
             if (conditionSelect) conditionSelect.removeAttribute('required');
+            if (quantityInput) quantityInput.setAttribute('required', 'required');
+            if (minStockInput) minStockInput.setAttribute('required', 'required');
+            if (maxStockInput) maxStockInput.removeAttribute('required');
         }
     }
 

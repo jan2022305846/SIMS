@@ -127,7 +127,7 @@
                                         <tbody>
                                             @foreach($requests as $request)
                                             <tr>
-                                                <td>{{ $request->item->name ?? 'N/A' }}</td>
+                                                <td>{{ $request->requestItems->first() && $request->requestItems->first()->itemable ? $request->requestItems->first()->itemable->name : 'N/A' }}</td>
                                                 <td>{{ $request->quantity }}</td>
                                                 <td>
                                                     <span class="badge bg-{{ $request->status === 'completed' ? 'success' : ($request->status === 'pending' ? 'warning' : ($request->status === 'claimed' ? 'primary' : 'secondary')) }}">

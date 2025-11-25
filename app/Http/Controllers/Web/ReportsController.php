@@ -159,10 +159,26 @@ class ReportsController extends Controller
         $dateTo = $dateRange['to'];
 
         // Get request data
-        $requests = \App\Models\Request::with(['user', 'requestItems.itemable'])
+        $requests = \App\Models\Request::with(['user', 'requestItems'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();
+
+        // Manually load itemable relationships for each request
+        foreach ($requests as $request) {
+            if ($request->requestItems->count() > 0) {
+                foreach ($request->requestItems as $requestItem) {
+                    if ($requestItem->item_type === 'consumable') {
+                        $itemable = \App\Models\Consumable::find($requestItem->item_id);
+                    } elseif ($requestItem->item_type === 'non_consumable') {
+                        $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
+                    } else {
+                        $itemable = null;
+                    }
+                    $requestItem->setRelation('itemable', $itemable);
+                }
+            }
+        }
 
         $requestStats = [
             'total_requests' => $requests->count(),
@@ -447,24 +463,74 @@ class ReportsController extends Controller
     }
 
     /**
-     * QR Code Scan Analytics Report
+     * Stock Transactions Report
      */
-    public function qrScanAnalytics(Request $request)
+    public function stockTransactions(Request $request)
     {
-        // Handle period parameter for consistent filtering with main reports
         $period = $request->get('period', 'monthly');
 
-        // Get report data based on period
-        $data = $this->getQrScanReportData($period);
+        // Get date range based on period
+        $dateRange = $this->getDateRangeFromPeriod($period);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
+
+        // Get stock transaction logs
+        $stockTransactions = \App\Models\Log::with(['user'])
+            ->whereIn('action', ['claimed', 'assigned'])
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($log) {
+                // Get item details
+                $item = null;
+                $itemType = 'unknown';
+                
+                // Try to find the item in consumables first, then non-consumables
+                $consumable = \App\Models\Consumable::find($log->item_id);
+                if ($consumable) {
+                    $item = $consumable;
+                    $itemType = 'consumable';
+                } else {
+                    $nonConsumable = \App\Models\NonConsumable::find($log->item_id);
+                    if ($nonConsumable) {
+                        $item = $nonConsumable;
+                        $itemType = 'non_consumable';
+                    }
+                }
+
+                return [
+                    'id' => $log->id,
+                    'date' => $log->created_at,
+                    'user_name' => $log->user ? $log->user->name : 'Unknown User',
+                    'item_name' => $item ? $item->name : 'Unknown Item',
+                    'item_type' => $itemType,
+                    'action' => $log->action,
+                    'quantity' => $log->quantity,
+                    'details' => $log->details,
+                    'notes' => $log->notes,
+                ];
+            });
+
+        $transactionStats = [
+            'total_transactions' => $stockTransactions->count(),
+            'total_items_claimed' => $stockTransactions->where('action', 'claimed')->sum('quantity'),
+            'total_items_assigned' => $stockTransactions->where('action', 'assigned')->count(),
+            'unique_users' => $stockTransactions->pluck('user_name')->unique()->count(),
+            'consumable_transactions' => $stockTransactions->where('item_type', 'consumable')->count(),
+            'non_consumable_transactions' => $stockTransactions->where('item_type', 'non_consumable')->count(),
+        ];
+
+        // Get QR scan data for the period
+        $qrScanData = $this->getQrScanReportData($period);
 
         if ($request->input('format') === 'pdf') {
-            $pdf = Pdf::loadView('admin.reports.pdf.qr-scan-analytics', compact('data'))
+            $pdf = Pdf::loadView('admin.reports.pdf.stock-transactions', compact('stockTransactions', 'transactionStats', 'qrScanData', 'period', 'dateFrom', 'dateTo'))
                 ->setPaper('a4', 'landscape');
 
-            return $pdf->download('qr-scan-analytics-' . date('Y-m-d') . '.pdf');
+            return $pdf->download('stock-transactions-' . date('Y-m-d') . '.pdf');
         }
 
-        return view('admin.reports.qr-scan-analytics', compact('data', 'period'));
+        return view('admin.reports.stock-transactions', compact('stockTransactions', 'transactionStats', 'qrScanData', 'period', 'dateFrom', 'dateTo'));
     }
     public function itemScanHistory(Request $request, $itemId)
     {
@@ -1029,14 +1095,31 @@ class ReportsController extends Controller
                     'to' => $date->copy()->endOfMonth()->toDateString()
                 ];
             case 'quarterly':
-                // Handle simple Q1, Q2, Q3, Q4 format
-                $quarter = (int) str_replace('Q', '', $selection);
-                $year = Carbon::now()->year; // Use current year
-                $quarterStartMonth = ($quarter - 1) * 3 + 1;
-                $date = Carbon::createFromDate($year, $quarterStartMonth, 1);
+                // Handle quarterly based on the quarter selection (Q1, Q2, Q3, Q4)
+                // For quarterly reports, we need to determine which quarter the selection represents
+                // If selection is just "Q1", "Q2", etc., use current year
+                // If selection contains year info, parse it accordingly
+                $currentYear = Carbon::now()->year;
+
+                if (preg_match('/Q(\d)/', $selection, $matches)) {
+                    $quarter = (int) $matches[1];
+                    $year = $currentYear; // Default to current year
+
+                    // Calculate quarter start and end dates
+                    $quarterStartMonth = ($quarter - 1) * 3 + 1; // Q1=1, Q2=4, Q3=7, Q4=10
+                    $startDate = Carbon::createFromDate($year, $quarterStartMonth, 1)->startOfMonth();
+                    $endDate = Carbon::createFromDate($year, $quarterStartMonth + 2, 1)->endOfMonth();
+
+                    return [
+                        'from' => $startDate->toDateString(),
+                        'to' => $endDate->toDateString()
+                    ];
+                }
+                // Fallback to current quarter
+                $now = Carbon::now();
                 return [
-                    'from' => $date->copy()->startOfQuarter()->toDateString(),
-                    'to' => $date->copy()->endOfQuarter()->toDateString()
+                    'from' => $now->copy()->startOfQuarter()->toDateString(),
+                    'to' => $now->copy()->endOfQuarter()->toDateString()
                 ];
             case 'annual':
                 $date = Carbon::createFromFormat('Y', $selection);
@@ -1068,7 +1151,12 @@ class ReportsController extends Controller
     private function getTotalItemsReleased()
     {
         // Count total items claimed through requests
-        return \App\Models\Request::where('status', 'claimed')->sum('quantity');
+        // Sum quantities from RequestItem relationships
+        return \App\Models\RequestItem::whereHas('request', function($query) {
+                $query->where('status', 'claimed');
+            })
+            ->where('item_type', 'consumable')
+            ->sum('quantity');
     }
 
     /**
@@ -1077,9 +1165,14 @@ class ReportsController extends Controller
     private function getItemsReleasedInPeriod($dateFrom, $dateTo)
     {
         // Count items claimed through requests within the date range
+        // Sum quantities from RequestItem instead of Request model
         return \App\Models\Request::where('status', 'claimed')
             ->whereBetween('updated_at', [$dateFrom, $dateTo])
-            ->sum('quantity');
+            ->with('requestItems')
+            ->get()
+            ->sum(function($request) {
+                return $request->requestItems->sum('quantity');
+            });
     }
 
     /**
@@ -1114,26 +1207,36 @@ class ReportsController extends Controller
         $chartData = [];
         $current = $startDate->copy()->startOfWeek();
 
+        // Get initial stock at the beginning of the period
+        $initialStock = \App\Models\Consumable::sum('quantity');
+
         while ($current <= $endDate) {
             $weekEnd = $current->copy()->endOfWeek();
             if ($weekEnd > $endDate) {
                 $weekEnd = $endDate;
             }
 
-            // Get real data for added and released items in this week
-            $added = \App\Models\Request::where('status', 'claimed')
-                ->whereBetween('updated_at', [$current, $weekEnd])
+            // Calculate remaining stock at the end of this week
+            // This is a simplified calculation - in a real system you'd track stock changes over time
+            $releasedThisWeek = \App\Models\RequestItem::whereHas('request', function($query) use ($current, $weekEnd) {
+                    $query->where('status', 'claimed')
+                          ->whereBetween('updated_at', [$current, $weekEnd]);
+                })
+                ->where('item_type', 'consumable')
                 ->sum('quantity');
 
-            $released = $added; // For now, released = claimed items
+            // For now, assume stock decreases by released amount each week
+            // In a real system, you'd need proper stock movement tracking
+            $remainingStock = $initialStock - $releasedThisWeek;
 
             $chartData[] = [
                 'date' => 'Week ' . $current->weekOfMonth,
-                'added' => (int)$added,
-                'released' => (int)$released,
+                'remaining' => (int)$remainingStock,
+                'released' => (int)$releasedThisWeek,
             ];
 
             $current = $weekEnd->copy()->addDay();
+            $initialStock = $remainingStock; // Update for next iteration
         }
 
         return $chartData;
@@ -1150,23 +1253,31 @@ class ReportsController extends Controller
         $chartData = [];
         $current = $startDate->copy();
 
+        // Get initial stock at the beginning of the period
+        $initialStock = \App\Models\Consumable::sum('quantity');
+
         while ($current <= $endDate) {
             $monthEnd = $current->copy()->endOfMonth();
 
-            // Get real data for added and released items in this month
-            $added = \App\Models\Request::where('status', 'claimed')
-                ->whereBetween('updated_at', [$current, $monthEnd])
+            // Calculate remaining stock at the end of this month
+            $releasedThisMonth = \App\Models\RequestItem::whereHas('request', function($query) use ($current, $monthEnd) {
+                    $query->where('status', 'claimed')
+                          ->whereBetween('updated_at', [$current, $monthEnd]);
+                })
+                ->where('item_type', 'consumable')
                 ->sum('quantity');
 
-            $released = $added; // For now, released = claimed items
+            // For now, assume stock decreases by released amount each month
+            $remainingStock = $initialStock - $releasedThisMonth;
 
             $chartData[] = [
                 'date' => $current->format('M Y'),
-                'added' => (int)$added,
-                'released' => (int)$released,
+                'remaining' => (int)$remainingStock,
+                'released' => (int)$releasedThisMonth,
             ];
 
             $current->addMonth();
+            $initialStock = $remainingStock; // Update for next iteration
         }
 
         return $chartData;
@@ -1183,23 +1294,31 @@ class ReportsController extends Controller
         $chartData = [];
         $current = $startDate->copy();
 
+        // Get initial stock at the beginning of the period
+        $initialStock = \App\Models\Consumable::sum('quantity');
+
         while ($current <= $endDate) {
             $quarterEnd = $current->copy()->endOfQuarter();
 
-            // Get real data for added and released items in this quarter
-            $added = \App\Models\Request::where('status', 'claimed')
-                ->whereBetween('updated_at', [$current, $quarterEnd])
+            // Calculate remaining stock at the end of this quarter
+            $releasedThisQuarter = \App\Models\RequestItem::whereHas('request', function($query) use ($current, $quarterEnd) {
+                    $query->where('status', 'claimed')
+                          ->whereBetween('updated_at', [$current, $quarterEnd]);
+                })
+                ->where('item_type', 'consumable')
                 ->sum('quantity');
 
-            $released = $added; // For now, released = claimed items
+            // For now, assume stock decreases by released amount each quarter
+            $remainingStock = $initialStock - $releasedThisQuarter;
 
             $chartData[] = [
                 'date' => 'Q' . $current->quarter . ' ' . $current->year,
-                'added' => (int)$added,
-                'released' => (int)$released,
+                'remaining' => (int)$remainingStock,
+                'released' => (int)$releasedThisQuarter,
             ];
 
             $current->addQuarter();
+            $initialStock = $remainingStock; // Update for next iteration
         }
 
         return $chartData;
@@ -1207,6 +1326,7 @@ class ReportsController extends Controller
 
     /**
      * Get inventory table data (consumables only for stock management)
+     * Total Quantity = Remaining Stock + Released Quantity
      */
     private function getInventoryTableData($dateFrom, $dateTo)
     {
@@ -1218,22 +1338,24 @@ class ReportsController extends Controller
         // Process only consumables
         foreach ($consumables as $item) {
             // Count how many were released/claimed in this period
-            $releasedInPeriod = \App\Models\Request::where('status', 'claimed')
+            // Sum quantities from RequestItem relationships for this specific consumable item
+            $releasedInPeriod = \App\Models\RequestItem::whereHas('request', function($query) use ($dateFrom, $dateTo) {
+                    $query->where('status', 'claimed')
+                          ->whereBetween('updated_at', [$dateFrom, $dateTo]);
+                })
                 ->where('item_type', 'consumable')
                 ->where('item_id', $item->id)
-                ->whereBetween('updated_at', [$dateFrom, $dateTo])
                 ->sum('quantity');
 
-            // Calculate total quantity at start of period + added during period
-            $addedDuringPeriod = 0; // For now, we'll assume no additions during period
-            $totalQuantity = $item->quantity + $addedDuringPeriod;
+            // Calculate total quantity: Remaining Stock + Released Quantity
+            $remainingStock = $item->quantity;
+            $totalQuantity = $remainingStock + $releasedInPeriod;
 
             $tableData[] = [
                 'name' => $item->name,
                 'released' => $releasedInPeriod,
                 'totalQuantity' => $totalQuantity,
-                'remaining' => $item->quantity,
-                // Removed category column as requested
+                'remaining' => $remainingStock,
             ];
         }
 
@@ -1333,6 +1455,14 @@ class ReportsController extends Controller
         $section->addText('Items Added/Restocked: ' . $summary['totalAdded']);
         $section->addText('Items Released/Claimed: ' . $summary['totalReleased']);
         $section->addText('Current Stock: ' . $summary['currentStock']);
+        $section->addTextBreak(1);
+
+        // Add calculation explanation
+        $section->addTitle('Calculation Method', 2);
+        $section->addText('Total Quantity = Remaining Stock + Released Quantity');
+        $section->addText('• Remaining Stock: Current quantity available in inventory');
+        $section->addText('• Released Quantity: Items claimed/released during the selected period');
+        $section->addText('• Total Quantity: Combined total representing inventory movement');
         $section->addTextBreak(1);
 
         // Add table data
@@ -1463,7 +1593,8 @@ class ReportsController extends Controller
         $data = $this->getInventoryTableData($dateFrom, $dateTo);
 
         // Create CSV content (consumables only, no category column)
-        $csv = "Item Name,Items Released/Claimed,Total Quantity (Start + Added),Remaining Stock\n";
+        $csv = "Item Name,Items Released/Claimed,Total Quantity (Remaining + Released),Remaining Stock\n";
+        $csv .= "Calculation: Total Quantity = Remaining Stock + Released Quantity\n\n";
 
         foreach ($data as $item) {
             $csv .= '"' . $item['name'] . '",' . $item['released'] . ',' . $item['totalQuantity'] . ',' . $item['remaining'] . "\n";

@@ -170,6 +170,51 @@ body {
     color: var(--text-primary) !important;
 }
 
+/* ===========================================
+   TOAST NOTIFICATIONS - Dark Mode Support
+   =========================================== */
+
+/* Dark mode toast styling */
+[data-theme="dark"] .toast {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .toast-header {
+    background: var(--bg-tertiary) !important;
+    border-bottom-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .toast-header.bg-success {
+    background: var(--success-color) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .toast-header.bg-danger {
+    background: var(--danger-color) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .toast-header.bg-warning {
+    background: #f6ad55 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .toast-header.bg-info {
+    background: #4299e1 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .toast-body {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .text-white-50 {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
 /* Stats Cards - Ensure visibility in both modes */
 .card.bg-warning {
     background-color: #f6ad55 !important;

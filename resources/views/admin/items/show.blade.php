@@ -48,22 +48,24 @@
                         <div class="col-lg-8">
                             
                             <!-- Stock Status Alert -->
-                            @if($item->isOutOfStock())
-                                <div class="alert alert-danger d-flex align-items-center" role="alert">
-                                    <i class="fas fa-times-circle me-2"></i>
-                                    <div>
-                                        <h6 class="alert-heading mb-1">Out of Stock</h6>
-                                        <p class="mb-0 small">This item is currently out of stock.</p>
+                            @if($item instanceof \App\Models\Consumable)
+                                @if($item->isOutOfStock())
+                                    <div class="alert alert-danger d-flex align-items-center" role="alert">
+                                        <i class="fas fa-times-circle me-2"></i>
+                                        <div>
+                                            <h6 class="alert-heading mb-1">Out of Stock</h6>
+                                            <p class="mb-0 small">This item is currently out of stock.</p>
+                                        </div>
                                     </div>
-                                </div>
-                            @elseif($item->isLowStock())
-                                <div class="alert alert-warning d-flex align-items-center" role="alert">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    <div>
-                                        <h6 class="alert-heading mb-1">Low Stock Warning</h6>
-                                        <p class="mb-0 small">Stock is running low. Consider restocking soon.</p>
+                                @elseif($item->isLowStock())
+                                    <div class="alert alert-warning d-flex align-items-center" role="alert">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <div>
+                                            <h6 class="alert-heading mb-1">Low Stock Warning</h6>
+                                            <p class="mb-0 small">Stock is running low. Consider restocking soon.</p>
+                                        </div>
                                     </div>
-                                </div>
+                                @endif
                             @endif
 
                             <!-- Item Details -->
@@ -134,6 +136,7 @@
                             </div>
 
                             <!-- Stock Management -->
+                            @if(!($item instanceof \App\Models\NonConsumable))
                             <div class="card border-light mb-4">
                                 <div class="card-header bg-light">
                                     <h5 class="card-title mb-0">
@@ -177,6 +180,7 @@
                                     </div>
                                 </div>
                             </div>
+                            @endif
 
                             <!-- Assignment Status -->
                             @if($item instanceof \App\Models\NonConsumable)

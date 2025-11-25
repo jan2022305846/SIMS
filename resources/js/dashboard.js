@@ -242,15 +242,19 @@ function processScannedData(data, source) {
         </div>
     `;
 
-    // Send AJAX request to lookup item
-    console.log('🔍 Looking up item with code:', data);
-    fetch(`/api/items/lookup/${encodeURIComponent(data)}`, {
-        method: 'GET',
+    // Send AJAX request to process QR code
+    console.log('🔍 Processing QR code:', data);
+    fetch('/qr/scan', {
+        method: 'POST',
         headers: {
             'Accept': 'application/json',
+            'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        }
+        },
+        body: JSON.stringify({
+            qr_data: data
+        })
     })
     .then(response => {
         console.log('📡 API Response status:', response.status);
@@ -260,7 +264,12 @@ function processScannedData(data, source) {
         console.log('📦 API Response data:', responseData);
         if (responseData.success) {
             // Store data globally for modal access
-            window.lastScannedItem = responseData;
+            window.lastScannedItem = {
+                item: responseData.item,
+                redirect: responseData.redirect,
+                scan_logged: responseData.scan_logged,
+                message: responseData.message
+            };
 
             // Hide the result div since we're auto-opening modal
             resultDiv.style.display = 'none';
@@ -274,7 +283,7 @@ function processScannedData(data, source) {
             resultDiv.innerHTML = `
                 <i class="fas fa-exclamation-triangle me-2"></i>
                 <strong>Item Not Found</strong>
-                <div class="small">No item found with code: ${data}</div>
+                <div class="small">${responseData.message || 'No item found with the scanned QR code'}</div>
             `;
             resultDiv.style.display = 'block';
 
@@ -327,12 +336,12 @@ function showItemDetailsModal() {
         <div class="row g-3">
             <div class="col-md-6">
                 <small class="text-muted d-block">Item Code</small>
-                <strong class="d-block">${itemData.item.item_code || 'N/A'}</strong>
+                <strong class="d-block">${itemData.item.product_code || 'N/A'}</strong>
             </div>
 
             <div class="col-md-6">
-                <small class="text-muted d-block">Barcode</small>
-                <strong class="d-block">${itemData.item.barcode || 'N/A'}</strong>
+                <small class="text-muted d-block">Category</small>
+                <strong class="d-block">${itemData.item.category || 'N/A'}</strong>
             </div>
 
             <div class="col-md-6">
@@ -340,10 +349,17 @@ function showItemDetailsModal() {
                 <strong class="d-block">${itemData.item.brand || 'N/A'}</strong>
             </div>
 
+            ${itemData.item.is_non_consumable ? `
             <div class="col-md-6">
-                <small class="text-muted d-block">Supplier</small>
-                <strong class="d-block">${itemData.item.supplier || 'N/A'}</strong>
+                <small class="text-muted d-block">Status</small>
+                <strong class="d-block">${itemData.item.quantity > 0 ? 'Available' : 'Assigned'}</strong>
             </div>
+            ` : `
+            <div class="col-md-6">
+                <small class="text-muted d-block">Quantity</small>
+                <strong class="d-block">${itemData.item.quantity || 0}</strong>
+            </div>
+            `}
 
             <div class="col-md-6">
                 <small class="text-muted d-block">Location</small>
@@ -351,19 +367,26 @@ function showItemDetailsModal() {
             </div>
 
             <div class="col-md-6">
-                <small class="text-muted d-block">Assignment</small>
-                ${itemData.item.is_assigned ?
-                    `<strong class="d-block text-success">${itemData.item.current_holder.name}</strong>` :
-                    `<span class="text-muted">Not assigned</span>`
-                }
+                <small class="text-muted d-block">Condition</small>
+                <strong class="d-block">${itemData.item.condition || 'N/A'}</strong>
+            </div>
+
+            <div class="col-md-6">
+                <small class="text-muted d-block">Current Holder</small>
+                <strong class="d-block text-success">${itemData.item.holder ? itemData.item.holder.name : 'Not assigned'}</strong>
+            </div>
+
+            <div class="col-md-6">
+                <small class="text-muted d-block">Last Scan</small>
+                <strong class="d-block">${itemData.item.last_scan || 'Never'}</strong>
             </div>
         </div>
 
         <div class="mt-4 pt-3 border-top">
             <div class="d-flex gap-2 flex-wrap">
-                <button class="btn btn-sm btn-primary" id="updateDetailsBtn">
-                    <i class="fas fa-edit me-1"></i>Update Details
-                </button>
+                <a href="${itemData.redirect || '#'}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-eye me-1"></i>View Details
+                </a>
             </div>
         </div>
     `;
@@ -377,12 +400,6 @@ function showItemDetailsModal() {
         closeButtons.forEach(button => {
             button.addEventListener('click', closeCustomModal);
         });
-
-        // Add event listener for update details button
-        const updateBtn = document.getElementById('updateDetailsBtn');
-        if (updateBtn) {
-            updateBtn.addEventListener('click', () => updateItemDetails(itemData.item.id));
-        }
     }, 100);
 }
 

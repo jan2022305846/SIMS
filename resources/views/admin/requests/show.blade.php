@@ -90,89 +90,20 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <h6 class="text-muted mb-2">Item Details</h6>
-                                @if($request->request_items && $request->request_items->count() > 0)
-                                    <!-- Bulk Request Items Table -->
-                                    <div class="card bg-light border-0 mb-3">
-                                        <div class="card-body p-0">
-                                            <div class="table-responsive">
-                                                <table class="table table-sm mb-0">
-                                                    <thead class="table-light">
-                                                        <tr>
-                                                            <th class="border-0 fw-medium">Item</th>
-                                                            <th class="border-0 fw-medium text-center">Requested</th>
-                                                            <th class="border-0 fw-medium text-center">Available</th>
-                                                            <th class="border-0 fw-medium text-center">Status</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach($request->request_items as $requestItem)
-                                                            <tr>
-                                                                <td class="border-0">
-                                                                    <div class="fw-medium">{{ $requestItem->itemable->name }}</div>
-                                                                    <small class="text-muted">{{ $requestItem->itemable->product_code ?? 'No barcode' }}</small>
-                                                                </td>
-                                                                <td class="border-0 text-center">
-                                                                    <span class="fw-bold">{{ $requestItem->quantity }} {{ $requestItem->itemable->unit ?? 'pcs' }}</span>
-                                                                </td>
-                                                                <td class="border-0 text-center">
-                                                                    <span class="fw-bold {{ $requestItem->itemable->current_stock < $requestItem->quantity ? 'text-danger' : 'text-success' }}">
-                                                                        {{ $requestItem->itemable->current_stock }} {{ $requestItem->itemable->unit ?? 'pcs' }}
-                                                                    </span>
-                                                                </td>
-                                                                <td class="border-0 text-center">
-                                                                    @if($requestItem->status === 'fulfilled')
-                                                                        <span class="badge bg-success">Fulfilled</span>
-                                                                    @elseif($requestItem->status === 'reserved')
-                                                                        <span class="badge bg-warning">Reserved</span>
-                                                                    @else
-                                                                        <span class="badge bg-secondary">Pending</span>
-                                                                    @endif
-                                                                </td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
+                                @if($request->requestItems && $request->requestItems->count() > 0)
+                                    <div class="mb-3">
+                                        @foreach($request->requestItems as $requestItem)
+                                            <div class="row mb-2">
+                                                <div class="col-5"><strong>{{ $requestItem->itemable ? $requestItem->itemable->name : 'Item Not Found' }}</strong></div>
+                                                <div class="col-7">{{ $requestItem->quantity }} {{ $requestItem->itemable ? ($requestItem->itemable->unit ?? 'pcs') : 'pcs' }}</div>
                                             </div>
-                                            <div class="p-3 border-top">
-                                                <div class="row">
-                                                    <div class="col-6">
-                                                        <small class="text-muted">Total Items</small>
-                                                        <div class="fw-bold fs-5">{{ $request->request_items->count() }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted">Fulfillment Status</small>
-                                                        <div class="fw-bold fs-5">
-                                                            @if($request->hasPartialFulfillment())
-                                                                <span class="text-warning">Partial</span>
-                                                            @elseif($request->request_items->where('status', 'fulfilled')->count() === $request->request_items->count())
-                                                                <span class="text-success">Complete</span>
-                                                            @else
-                                                                <span class="text-secondary">Pending</span>
-                                                            @endif
-                                                        </div>
-                                                    </div>
+                                            @if($request->requestItems->count() === 1)
+                                                <div class="row mb-2">
+                                                    <div class="col-5"><small class="text-muted">Available:</small></div>
+                                                    <div class="col-7"><small class="text-muted">{{ $requestItem->itemable ? $requestItem->itemable->quantity : 'N/A' }} {{ $requestItem->itemable ? ($requestItem->itemable->unit ?? 'pcs') : 'pcs' }}</small></div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @else
-                                    <!-- Single Item Display (Legacy) -->
-                                    <div class="card bg-light border-0 mb-3">
-                                        <div class="card-body">
-                                            <h5 class="mb-2">{{ $request->item ? $request->item->name : 'Item Not Found' }}</h5>
-                                            <div class="row">
-                                                <div class="col-6">
-                                                    <small class="text-muted">Requested Quantity</small>
-                                                    <div class="fw-bold fs-5">{{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}</div>
-                                                </div>
-                                                <div class="col-6">
-                                                    <small class="text-muted">Available Stock</small>
-                                                    <div class="fw-bold fs-5 {{ $request->item && $request->item->current_stock < $request->quantity ? 'text-danger' : 'text-success' }}">
-                                                        {{ $request->item ? $request->item->current_stock : 'N/A' }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                            @endif
+                                        @endforeach
                                     </div>
                                 @endif
                             </div>
@@ -180,12 +111,12 @@
                                 <h6 class="text-muted mb-2">Request Details</h6>
                                 <div class="mb-3">
                                     <div class="row mb-2">
-                                        <div class="col-5"><strong>Department:</strong></div>
-                                        <div class="col-7">{{ $request->department }}</div>
+                                        <div class="col-5"><strong>Office:</strong></div>
+                                        <div class="col-7">{{ $request->user->office->name ?? 'Unknown Office' }}</div>
                                     </div>
                                     <div class="row mb-2">
                                         <div class="col-5"><strong>Request Date:</strong></div>
-                                        <div class="col-7">{{ $request->request_date ? $request->request_date->format('M j, Y g:i A') : 'N/A' }}</div>
+                                        <div class="col-7">{{ $request->created_at ? $request->created_at->format('M j, Y g:i A') : 'N/A' }}</div>
                                     </div>
                                     <div class="row mb-2">
                                         <div class="col-5"><strong>Needed Date:</strong></div>
@@ -290,96 +221,6 @@
                                 @endif
                             @endif
 
-                            @if($request->canBeFulfilled())
-                                <div class="mb-3">
-                                    <label for="item_barcode" class="form-label fw-medium">Scan Item Barcode</label>
-                                    <div class="input-group">
-                                        <input type="text" name="item_barcode" id="item_barcode"
-                                               class="form-control" placeholder="Enter item barcode manually" value="">
-                                        <button type="button" class="btn btn-outline-primary" id="scan-item-barcode-btn" title="Scan Barcode">
-                                            <i class="fas fa-qrcode"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-outline-secondary" id="manual-item-barcode-btn" title="Manual Entry" style="display: none;">
-                                            <i class="fas fa-keyboard"></i>
-                                        </button>
-                                    </div>
-                                    <div class="form-text">
-                                        <small class="text-muted">
-                                            <i class="fas fa-info-circle me-1"></i>
-                                            Scan the item's barcode to verify and display item details
-                                        </small>
-                                    </div>
-                                </div>
-
-                                <div id="scanned-item-details" class="mb-3" style="display: none;">
-                                    <div class="card border-success">
-                                        <div class="card-header bg-success text-white">
-                                            <h6 class="mb-0">
-                                                <i class="fas fa-check-circle me-2"></i>Item Verified
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div id="item-details-content">
-                                                <!-- Item details will be populated here -->
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <form method="POST" action="{{ route('requests.fulfill', $request) }}" class="mb-2">
-                                    @csrf
-                                    <input type="hidden" name="scanned_barcode" id="scanned_barcode_input">
-                                    <button type="submit" class="btn btn-primary w-100" id="fulfill-btn" disabled>
-                                        <i class="fas fa-box me-2"></i>Fulfill Request
-                                    </button>
-                                </form>
-                            @endif
-
-                            @if($request->status === 'approved_by_admin')
-                                <div class="mb-3">
-                                    <label for="complete_barcode" class="form-label fw-medium">Scan Item Barcode to Complete Request</label>
-                                    <div class="input-group">
-                                        <input type="text" name="complete_barcode" id="complete_barcode"
-                                               class="form-control" placeholder="Enter item barcode manually" value="">
-                                        <button type="button" class="btn btn-outline-primary" id="scan-complete-barcode-btn" title="Scan Barcode">
-                                            <i class="fas fa-qrcode"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-outline-secondary" id="manual-complete-barcode-btn" title="Manual Entry" style="display: none;">
-                                            <i class="fas fa-keyboard"></i>
-                                        </button>
-                                    </div>
-                                    <div class="form-text">
-                                        <small class="text-muted">
-                                            <i class="fas fa-info-circle me-1"></i>
-                                            Scan the item's barcode to complete the request and mark as claimed
-                                        </small>
-                                    </div>
-                                </div>
-
-                                <div id="verified-complete-details" class="mb-3" style="display: none;">
-                                    <div class="card border-success">
-                                        <div class="card-header bg-success text-white">
-                                            <h6 class="mb-0">
-                                                <i class="fas fa-check-circle me-2"></i>Ready to Complete
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div id="complete-details-content">
-                                                <!-- Complete details will be populated here -->
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <form method="POST" action="{{ route('requests.complete', $request) }}" class="mb-2">
-                                    @csrf
-                                    <input type="hidden" name="scanned_barcode" id="scanned_complete_barcode_input">
-                                    <button type="submit" class="btn btn-success w-100" id="complete-btn" disabled>
-                                        <i class="fas fa-check-double me-2"></i>Complete & Claim Request
-                                    </button>
-                                </form>
-                            @endif
-
                             @if($request->canBeClaimed())
                                 <div class="mb-3">
                                     <label for="claim_barcode" class="form-label fw-medium">
@@ -421,7 +262,7 @@
                                     <input type="hidden" name="scanned_barcode" id="scanned_claim_barcode_input">
                                     <button type="submit" class="btn btn-secondary w-100" id="claim-btn" disabled>
                                         <i class="fas fa-handshake me-2"></i>
-                                        @if($request->request_items && $request->request_items->count() > 0)
+                                        @if($request->requestItems && $request->requestItems->count() > 0)
                                             Mark Bulk Request as Claimed
                                         @else
                                             Mark as Claimed
@@ -438,7 +279,7 @@
                                     <div class="alert alert-info mb-2">
                                         <i class="fas fa-clock me-2"></i>
                                         <strong>Waiting for faculty to generate claim slip</strong>
-                                        <br><small>Faculty will generate a claim slip and visit the supply office to pick up items.</small>
+                                        <br><small>Faculty member needs to generate a claim slip before items can be picked up.</small>
                                     </div>
                                 @elseif($request->status !== 'ready_for_pickup')
                                     <div class="alert alert-warning mb-2">
@@ -512,10 +353,10 @@
                                         </div>
                                         <div class="step-description mt-2">
                                             <small class="text-muted">
-                                                @if($request->request_items && $request->request_items->count() > 0)
-                                                    Faculty member submitted a bulk request for {{ $request->request_items->count() }} different items ({{ $request->request_items->sum('quantity') }} total pieces)
+                                                @if($request->requestItems && $request->requestItems->count() > 0)
+                                                    Faculty member submitted a bulk request for {{ $request->requestItems->count() }} different items ({{ $request->requestItems->sum('quantity') }} total pieces)
                                                 @else
-                                                    Faculty member submitted a request for {{ $request->quantity }} {{ $request->item && $request->item->unit ? $request->item->unit : 'pcs' }} of {{ $request->item ? $request->item->name : 'Unknown Item' }}
+                                                    Faculty member submitted a request for {{ $request->quantity }} {{ $request->requestItems->first() && $request->requestItems->first()->itemable ? ($request->requestItems->first()->itemable->unit ?? 'pcs') : 'pcs' }} of {{ $request->requestItems->first() && $request->requestItems->first()->itemable ? $request->requestItems->first()->itemable->name : 'Unknown Item' }}
                                                 @endif
                                             </small>
                                         </div>
@@ -631,11 +472,11 @@
                                                     Faculty generated claim slip with QR code for pickup verification
                                                 </small>
                                             </div>
-                                        @elseif(in_array($request->status, ['approved_by_admin', 'fulfilled']))
+                                        @elseif(in_array($request->status, ['approved_by_admin']))
                                             <div class="step-description">
                                                 <small class="text-muted">
                                                     <i class="fas fa-info-circle me-1"></i>
-                                                    Faculty needs to generate a claim slip to proceed with pickup
+                                                    Faculty member needs to generate a claim slip to proceed with pickup
                                                 </small>
                                             </div>
                                         @else
@@ -1077,6 +918,26 @@
     [data-bs-theme="dark"] .list-group-item.bg-light {
         background-color: #6c757d !important;
     }
+    
+    /* Item display dark mode styles */
+    [data-bs-theme="dark"] .card.bg-light {
+        background-color: #495057 !important;
+        border-color: #6c757d !important;
+        color: #ffffff !important;
+    }
+    
+    [data-bs-theme="dark"] .card.bg-light .card-body {
+        color: #ffffff !important;
+    }
+    
+    [data-bs-theme="dark"] .card.bg-light strong {
+        color: #ffffff !important;
+    }
+    
+    [data-bs-theme="dark"] .list-group-item.bg-transparent {
+        color: #ffffff !important;
+        background-color: transparent !important;
+    }
 </style>
 
 @if(session('success'))
@@ -1149,7 +1010,6 @@ document.addEventListener('DOMContentLoaded', function() {
     script.src = 'https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js';
     script.onload = function() {
         initializeClaimBarcodeScanner();
-        initializeCompleteBarcodeScanner();
     };
     document.head.appendChild(script);
     
@@ -1167,311 +1027,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-
-function initializeItemBarcodeScanner() {
-    let scannerActive = false;
-    let scannerContainer = null;
-
-    const scanBtn = document.getElementById('scan-item-barcode-btn');
-    const barcodeInput = document.getElementById('item_barcode');
-    const scannedBarcodeInput = document.getElementById('scanned_barcode_input');
-    const fulfillBtn = document.getElementById('fulfill-btn');
-    const itemDetailsDiv = document.getElementById('scanned-item-details');
-    const itemDetailsContent = document.getElementById('item-details-content');
-
-    if (!scanBtn || !barcodeInput) return; // Exit if elements don't exist
-
-    // Add manual input handler directly to the input field
-    barcodeInput.addEventListener('input', handleManualBarcodeInput);
-
-    // Scan barcode button
-    scanBtn.addEventListener('click', function() {
-        if (scannerActive) {
-            stopItemScanner();
-        } else {
-            startItemScanner();
-        }
-    });
-
-    function handleManualBarcodeInput() {
-        const barcode = barcodeInput.value.trim();
-        if (barcode.length > 0) {
-            verifyAndDisplayItem(barcode);
-        } else {
-            hideItemDetails();
-        }
-    }
-
-    function startItemScanner() {
-        scannerActive = true;
-        
-        // Create scanner container with better positioning
-        scannerContainer = document.createElement('div');
-        scannerContainer.id = 'item-barcode-scanner-container';
-        scannerContainer.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 10000;
-            background: white;
-            border: 2px solid #007bff;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-            width: 420px;
-            max-width: 95vw;
-            max-height: 90vh;
-            overflow-y: auto;
-        `;
-
-        scannerContainer.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="mb-0 fw-bold"><i class="fas fa-qrcode me-2 text-primary"></i>Scan Item Barcode</h5>
-                <button type="button" class="btn-close" id="close-item-scanner" aria-label="Close"></button>
-            </div>
-            <div id="item-scanner-viewport" style="
-                width: 100%; 
-                height: 320px; 
-                border: 2px solid #e9ecef;
-                border-radius: 8px;
-                background: #f8f9fa;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                position: relative;
-            "></div>
-            <div class="mt-3 text-center">
-                <small class="text-muted">
-                    <i class="fas fa-camera me-1"></i>
-                    Position item barcode in front of camera
-                </small>
-            </div>
-            <div class="mt-3 text-center">
-                <small class="text-secondary">
-                    Camera will automatically detect and scan the barcode
-                </small>
-            </div>
-        `;
-
-        document.body.appendChild(scannerContainer);
-
-        // Add backdrop
-        const backdrop = document.createElement('div');
-        backdrop.id = 'item-scanner-backdrop';
-        backdrop.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(2px);
-            z-index: 9999;
-        `;
-        document.body.appendChild(backdrop);
-
-        // Initialize Quagga
-        Quagga.init({
-            inputStream: {
-                name: "Live",
-                type: "LiveStream",
-                target: document.querySelector('#item-scanner-viewport'),
-                constraints: {
-                    width: 640,
-                    height: 480,
-                    facingMode: "environment" // Use back camera on mobile
-                }
-            },
-            locator: {
-                patchSize: "medium",
-                halfSample: true
-            },
-            numOfWorkers: 2,
-            decoder: {
-                readers: [
-                    "code_128_reader",
-                    "ean_reader",
-                    "ean_8_reader",
-                    "code_39_reader",
-                    "upc_reader",
-                    "upc_e_reader",
-                    "codabar_reader"
-                ]
-            },
-            locate: true
-        }, function(err) {
-            if (err) {
-                console.error(err);
-                alert('Error initializing camera: ' + err.message);
-                stopItemScanner();
-                return;
-            }
-            Quagga.start();
-        });
-
-        // Handle barcode detection
-        Quagga.onDetected(function(result) {
-            const code = result.codeResult.code;
-            barcodeInput.value = code;
-            scannedBarcodeInput.value = code;
-            verifyAndDisplayItem(code);
-            stopItemScanner();
-            
-            // Show success message
-            showToast('Barcode scanned successfully!', 'success');
-        });
-
-        // Close scanner button
-        document.getElementById('close-item-scanner').addEventListener('click', stopItemScanner);
-        
-        // Close on backdrop click
-        backdrop.addEventListener('click', stopItemScanner);
-        
-        // Close on escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                stopItemScanner();
-            }
-        });
-    }
-
-    function stopItemScanner() {
-        scannerActive = false;
-        
-        if (scannerContainer) {
-            document.body.removeChild(scannerContainer);
-            scannerContainer = null;
-        }
-        
-        // Remove backdrop
-        const backdrop = document.getElementById('item-scanner-backdrop');
-        if (backdrop) {
-            document.body.removeChild(backdrop);
-        }
-        
-        if (typeof Quagga !== 'undefined') {
-            Quagga.stop();
-        }
-        
-        scanBtn.innerHTML = '<i class="fas fa-qrcode"></i>';
-        scanBtn.classList.remove('btn-danger');
-        scanBtn.classList.add('btn-outline-primary');
-        scanBtn.title = 'Scan Barcode';
-    }
-
-    function verifyAndDisplayItem(barcode) {
-        // Show loading state
-        itemDetailsContent.innerHTML = `
-            <div class="text-center">
-                <div class="spinner-border text-success" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <div class="mt-2">Verifying item...</div>
-            </div>
-        `;
-        itemDetailsDiv.style.display = 'block';
-
-        // Make AJAX request to verify item
-        fetch(`{{ url('items/verify-barcode') }}/${barcode}`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displayItemDetails(data.item);
-                fulfillBtn.disabled = false;
-                scannedBarcodeInput.value = barcode;
-            } else {
-                showItemError('Item not found or invalid barcode');
-                fulfillBtn.disabled = true;
-                scannedBarcodeInput.value = '';
-            }
-        })
-        .catch(error => {
-            console.error('Error verifying barcode:', error);
-            showItemError('Error verifying barcode. Please try again.');
-            fulfillBtn.disabled = true;
-            scannedBarcodeInput.value = '';
-        });
-    }
-
-    function displayItemDetails(item) {
-        itemDetailsContent.innerHTML = `
-            <div class="row">
-                <div class="col-md-6">
-                    <h6 class="text-success mb-2"><i class="fas fa-tag me-1"></i>Item Information</h6>
-                    <p class="mb-1"><strong>Name:</strong> ${item.name}</p>
-                    <p class="mb-1"><strong>Barcode:</strong> <code>${item.product_code || 'N/A'}</code></p>
-                    <p class="mb-1"><strong>Brand:</strong> ${item.brand || 'N/A'}</p>
-                    <p class="mb-1"><strong>Category:</strong> ${item.category || 'N/A'}</p>
-                </div>
-                <div class="col-md-6">
-                    <h6 class="text-success mb-2"><i class="fas fa-boxes me-1"></i>Stock Information</h6>
-                    <p class="mb-1"><strong>Current Stock:</strong> ${item.quantity} ${item.unit || 'pcs'}</p>
-                    <p class="mb-1"><strong>Minimum Stock:</strong> ${item.min_stock || 'N/A'}</p>
-                    <p class="mb-1"><strong>Location:</strong> ${item.location || 'N/A'}</p>
-                    <p class="mb-1"><strong>Condition:</strong> ${item.condition || 'N/A'}</p>
-                </div>
-            </div>
-            <div class="mt-2">
-                <strong>Status:</strong> <span class="badge bg-success">Verified - Matches Request</span>
-            </div>
-        `;
-    }
-
-    function showItemError(message) {
-        itemDetailsContent.innerHTML = `
-            <div class="alert alert-warning mb-0">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                ${message}
-            </div>
-        `;
-        itemDetailsDiv.style.display = 'block';
-    }
-
-    function hideItemDetails() {
-        itemDetailsDiv.style.display = 'none';
-        scannedBarcodeInput.value = '';
-        fulfillBtn.disabled = true;
-    }
-
-    function showItemError(message) {
-        itemDetailsContent.innerHTML = `
-            <div class="alert alert-danger mb-0">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                ${message}
-            </div>
-        `;
-        itemDetailsDiv.style.display = 'block';
-    }
-
-    function showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-        toast.style.cssText = `
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            min-width: 300px;
-        `;
-        toast.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.remove();
-            }
-        }, 3000);
-    }
-}
 
 function initializeClaimBarcodeScanner() {
     let scannerActive = false;
@@ -1734,301 +1289,6 @@ function checkClaimButtonState() {
     const claimSlipVerified = claimDetailsDiv.style.display !== 'none' &&
                              !claimDetailsDiv.querySelector('.alert-danger');
     claimBtn.disabled = !claimSlipVerified;
-}
-
-function initializeCompleteBarcodeScanner() {
-    let scannerActive = false;
-    let scannerContainer = null;
-
-    const scanBtn = document.getElementById('scan-complete-barcode-btn');
-    const barcodeInput = document.getElementById('complete_barcode');
-    const scannedBarcodeInput = document.getElementById('scanned_complete_barcode_input');
-    const completeBtn = document.getElementById('complete-btn');
-    const completeDetailsDiv = document.getElementById('verified-complete-details');
-    const completeDetailsContent = document.getElementById('complete-details-content');
-
-    if (!scanBtn || !barcodeInput) return; // Exit if elements don't exist
-
-    // Add manual input handler directly to the input field
-    barcodeInput.addEventListener('input', handleManualCompleteInput);
-
-    // Scan barcode button
-    scanBtn.addEventListener('click', function() {
-        if (scannerActive) {
-            stopCompleteScanner();
-        } else {
-            startCompleteScanner();
-        }
-    });
-
-    function handleManualCompleteInput() {
-        const barcode = barcodeInput.value.trim();
-        if (barcode.length > 0) {
-            verifyAndDisplayComplete(barcode);
-        } else {
-            hideCompleteDetails();
-        }
-    }
-
-    function startCompleteScanner() {
-        scannerActive = true;
-        
-        // Create scanner container with better positioning
-        scannerContainer = document.createElement('div');
-        scannerContainer.id = 'complete-barcode-scanner-container';
-        scannerContainer.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 10000;
-            background: white;
-            border: 2px solid #007bff;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-            width: 420px;
-            max-width: 95vw;
-            max-height: 90vh;
-            overflow-y: auto;
-        `;
-
-        scannerContainer.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="mb-0 fw-bold"><i class="fas fa-qrcode me-2 text-primary"></i>Scan Item Barcode</h5>
-                <button type="button" class="btn-close" id="close-complete-scanner" aria-label="Close"></button>
-            </div>
-            <div id="complete-scanner-viewport" style="
-                width: 100%; 
-                height: 320px; 
-                border: 2px solid #e9ecef;
-                border-radius: 8px;
-                background: #f8f9fa;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                position: relative;
-            "></div>
-            <div class="mt-3 text-center">
-                <small class="text-muted">
-                    <i class="fas fa-camera me-1"></i>
-                    Position item barcode in front of camera
-                </small>
-            </div>
-            <div class="mt-3 text-center">
-                <small class="text-secondary">
-                    Camera will automatically detect and scan the barcode
-                </small>
-            </div>
-        `;
-
-        document.body.appendChild(scannerContainer);
-
-        // Add backdrop
-        const backdrop = document.createElement('div');
-        backdrop.id = 'complete-scanner-backdrop';
-        backdrop.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(2px);
-            z-index: 9999;
-        `;
-        document.body.appendChild(backdrop);
-
-        // Initialize Quagga
-        Quagga.init({
-            inputStream: {
-                name: "Live",
-                type: "LiveStream",
-                target: document.querySelector('#complete-scanner-viewport'),
-                constraints: {
-                    width: 640,
-                    height: 480,
-                    facingMode: "environment" // Use back camera on mobile
-                }
-            },
-            locator: {
-                patchSize: "medium",
-                halfSample: true
-            },
-            numOfWorkers: 2,
-            decoder: {
-                readers: [
-                    "code_128_reader",
-                    "ean_reader",
-                    "ean_8_reader",
-                    "code_39_reader",
-                    "upc_reader",
-                    "upc_e_reader",
-                    "codabar_reader"
-                ]
-            },
-            locate: true
-        }, function(err) {
-            if (err) {
-                console.error(err);
-                alert('Error initializing camera: ' + err.message);
-                stopCompleteScanner();
-                return;
-            }
-            Quagga.start();
-        });
-
-        // Handle barcode detection
-        Quagga.onDetected(function(result) {
-            const code = result.codeResult.code;
-            barcodeInput.value = code;
-            scannedBarcodeInput.value = code;
-            verifyAndDisplayComplete(code);
-            stopCompleteScanner();
-            
-            // Show success message
-            showToast('Item barcode scanned successfully!', 'success');
-        });
-
-        // Close scanner button
-        document.getElementById('close-complete-scanner').addEventListener('click', stopCompleteScanner);
-        
-        // Close on backdrop click
-        backdrop.addEventListener('click', stopCompleteScanner);
-        
-        // Close on escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                stopCompleteScanner();
-            }
-        });
-    }
-
-    function stopCompleteScanner() {
-        scannerActive = false;
-        
-        if (scannerContainer) {
-            document.body.removeChild(scannerContainer);
-            scannerContainer = null;
-        }
-        
-        // Remove backdrop
-        const backdrop = document.getElementById('complete-scanner-backdrop');
-        if (backdrop) {
-            document.body.removeChild(backdrop);
-        }
-        
-        if (typeof Quagga !== 'undefined') {
-            Quagga.stop();
-        }
-        
-        scanBtn.innerHTML = '<i class="fas fa-qrcode"></i>';
-        scanBtn.classList.remove('btn-danger');
-        scanBtn.classList.add('btn-outline-primary');
-        scanBtn.title = 'Scan Barcode';
-    }
-
-    function verifyAndDisplayComplete(barcode) {
-        // Show loading state
-        completeDetailsContent.innerHTML = `
-            <div class="text-center">
-                <div class="spinner-border text-success" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <div class="mt-2">Verifying item...</div>
-            </div>
-        `;
-        completeDetailsDiv.style.display = 'block';
-
-        // Make AJAX request to verify item
-        fetch(`{{ url('items/verify-barcode') }}/${barcode}`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displayCompleteDetails(data.item);
-                completeBtn.disabled = false;
-                scannedBarcodeInput.value = barcode;
-            } else {
-                showCompleteError('Item not found or invalid barcode');
-                completeBtn.disabled = true;
-                scannedBarcodeInput.value = '';
-            }
-        })
-        .catch(error => {
-            console.error('Error verifying barcode:', error);
-            showCompleteError('Error verifying barcode. Please try again.');
-            completeBtn.disabled = true;
-            scannedBarcodeInput.value = '';
-        });
-    }
-
-    function displayCompleteDetails(item) {
-        completeDetailsContent.innerHTML = `
-            <div class="row">
-                <div class="col-md-6">
-                    <h6 class="text-success mb-2"><i class="fas fa-tag me-1"></i>Item Information</h6>
-                    <p class="mb-1"><strong>Name:</strong> ${item.name}</p>
-                    <p class="mb-1"><strong>Barcode:</strong> <code>${item.barcode || 'N/A'}</code></p>
-                    <p class="mb-1"><strong>Brand:</strong> ${item.brand || 'N/A'}</p>
-                    <p class="mb-1"><strong>Category:</strong> ${item.category ? item.category.name : 'N/A'}</p>
-                </div>
-                <div class="col-md-6">
-                    <h6 class="text-success mb-2"><i class="fas fa-boxes me-1"></i>Stock Information</h6>
-                    <p class="mb-1"><strong>Current Stock:</strong> ${item.current_stock} ${item.unit || 'pcs'}</p>
-                    <p class="mb-1"><strong>Minimum Stock:</strong> ${item.minimum_stock || 'N/A'}</p>
-                    <p class="mb-1"><strong>Location:</strong> ${item.location || 'N/A'}</p>
-                    <p class="mb-1"><strong>Condition:</strong> ${item.condition || 'N/A'}</p>
-                </div>
-            </div>
-            <div class="mt-2">
-                <strong>Status:</strong> <span class="badge bg-success">Verified - Ready to complete</span>
-            </div>
-        `;
-    }
-
-    function showCompleteError(message) {
-        completeDetailsContent.innerHTML = `
-            <div class="alert alert-danger mb-0">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                ${message}
-            </div>
-        `;
-        completeDetailsDiv.style.display = 'block';
-    }
-
-    function hideCompleteDetails() {
-        completeDetailsDiv.style.display = 'none';
-        scannedBarcodeInput.value = '';
-        completeBtn.disabled = true;
-    }
-
-    function showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-        toast.style.cssText = `
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            min-width: 300px;
-        `;
-        toast.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.remove();
-            }
-        }, 3000);
-    }
 }
 
 // Comprehensive modal backdrop management

@@ -93,7 +93,6 @@
                 
                 // Clear existing timers
                 clearTimeout(inactivityTimer);
-                clearTimeout(warningTimer);
                 
                 // Set new inactivity timer (logout directly without warning)
                 inactivityTimer = setTimeout(logoutNow, inactivityLimit);
@@ -116,15 +115,18 @@
             // Periodic session refresh (every 30 seconds when active)
             setInterval(() => {
                 if (Date.now() - lastActivity < inactivityLimit) {
-                    fetch('/dashboard', {
-                        method: 'GET',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        }
-                    }).catch(error => {
-                        console.log('Session refresh failed:', error);
-                    });
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+                    if (csrfToken) {
+                        fetch('/dashboard', {
+                            method: 'GET',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': csrfToken.getAttribute('content')
+                            }
+                        }).catch(error => {
+                            console.log('Session refresh failed:', error);
+                        });
+                    }
                 }
             }, 30000); // 30 seconds
             

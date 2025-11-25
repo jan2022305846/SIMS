@@ -67,7 +67,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/help/api/search', [HelpController::class, 'search'])->name('help.search');
     
     // Admin routes
-    Route::middleware(['admin'])->group(function () {
+    Route::middleware(['admin'])->prefix('admin')->group(function () {
         // Users
         Route::resource('users', UserController::class);
         Route::get('users/{user}/export/fulfilled', [UserController::class, 'exportFulfilledRequests'])->name('admin.users.export.fulfilled');
@@ -80,6 +80,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('items/low-stock', [ItemController::class, 'lowStock'])->name('items.low-stock');
         Route::get('items/expiring-soon', [ItemController::class, 'expiringSoon'])->name('items.expiring-soon');
         Route::get('items/trashed', [ItemController::class, 'trashed'])->name('items.trashed');
+        Route::get('items/disposal', [ItemController::class, 'disposal'])->name('items.disposal');
+        Route::post('items/disposal/process', [ItemController::class, 'processDisposal'])->name('items.disposal.process');
         Route::post('items/{id}/restore', [ItemController::class, 'restore'])->name('items.restore');
         Route::post('items/bulk-restore', [ItemController::class, 'bulkRestore'])->name('items.bulk-restore');
         Route::delete('items/{id}/force-delete', [ItemController::class, 'forceDelete'])->name('items.force-delete');
@@ -94,6 +96,10 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('items/{id}/location', [ItemController::class, 'updateLocation'])->name('items.update-location');
         
         Route::resource('items', ItemController::class);
+        
+        // Item disposal routes
+        Route::get('items/disposal', [ItemController::class, 'disposal'])->name('items.disposal');
+        Route::post('items/process-disposal', [ItemController::class, 'disposeItems'])->name('items.process-disposal');
         
         // Requests Management
         Route::get('requests/manage', [RequestController::class, 'manage'])->name('requests.manage');
@@ -124,6 +130,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports/inventory-summary', [ReportsController::class, 'inventorySummary'])->name('reports.inventory-summary');
         Route::get('reports/low-stock-alert', [ReportsController::class, 'lowStockAlert'])->name('reports.low-stock-alert');
         Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
+        Route::get('reports/stock-transactions', [ReportsController::class, 'stockTransactions'])->name('reports.stock-transactions');
         Route::get('reports/user-activity', [ReportsController::class, 'userActivityReport'])->name('reports.user-activity');
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
         

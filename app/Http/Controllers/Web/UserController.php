@@ -235,9 +235,27 @@ class UserController extends Controller
 
             // Add rows for each fulfilled request
             foreach ($fulfilledRequests as $request) {
+                // Ensure requestItems are loaded with itemable relationships
+                if (!$request->relationLoaded('requestItems')) {
+                    $request->load('requestItems.itemable');
+                } elseif (!$request->requestItems->first() || !$request->requestItems->first()->relationLoaded('itemable')) {
+                    $request->requestItems->load('itemable');
+                }
+                
+                // Create item summary
+                $itemNames = [];
+                $totalQuantity = 0;
+                foreach ($request->requestItems as $requestItem) {
+                    $itemName = $requestItem->itemable ? $requestItem->itemable->name : 'Unknown Item';
+                    $itemNames[] = $itemName;
+                    $totalQuantity += $requestItem->quantity;
+                }
+                
+                $itemSummary = count($itemNames) === 1 ? $itemNames[0] : count($itemNames) . ' items';
+                
                 $historyTable->addRow();
-                $historyTable->addCell(4000)->addText($request->item->name ?? 'N/A');
-                $historyTable->addCell(2000)->addText($request->quantity . ' ' . ($request->item->unit ?? 'pieces'));
+                $historyTable->addCell(4000)->addText($itemSummary);
+                $historyTable->addCell(2000)->addText($totalQuantity . ' items');
                 $historyTable->addCell(2500)->addText($request->updated_at->format('M j, Y'));
             }
         }

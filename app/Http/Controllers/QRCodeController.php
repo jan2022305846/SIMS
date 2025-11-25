@@ -125,21 +125,27 @@ class QRCodeController extends Controller
             // Then try to find in non-consumables
             $nonConsumableItem = NonConsumable::find($parsedData['id']);
 
-            // Only process non-consumable items for scanning (as per requirements)
-            // Non-consumable items are tracked and monitored for evidence and records
-            if (!$nonConsumableItem) {
+            // Determine which item to use based on availability
+            if ($consumableItem && $nonConsumableItem) {
+                // Both exist - prioritize based on most recently updated
+                $item = $consumableItem->updated_at > $nonConsumableItem->updated_at ? $consumableItem : $nonConsumableItem;
+            } elseif ($consumableItem) {
+                $item = $consumableItem;
+            } elseif ($nonConsumableItem) {
+                $item = $nonConsumableItem;
+            } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Only non-consumable items can be scanned for monitoring purposes'
-                ], 400);
+                    'message' => 'Item not found'
+                ], 404);
             }
 
-            $item = $nonConsumableItem;
-            $itemType = 'non_consumable';
+            $itemType = $item instanceof NonConsumable ? 'non_consumable' : 'consumable';
 
             // Log the scan in item_scan_logs table (as per ERD requirement)
             ItemScanLog::logScan($item->id, 'inventory_check', [
                 'location' => $item->location ?? 'Supply Office', // Use item's current location
+                'item_type' => $itemType
             ]);            // Prepare enhanced item data with holder and assignment information
             $itemData = $item->load('category', 'currentHolder');
             $enhancedData = [
@@ -316,7 +322,14 @@ class QRCodeController extends Controller
                 return "Non-consumable item scanned. Available for assignment at {$item->location}.";
             }
         } else {
-            return "Consumable item scanned. {$item->quantity} remaining in stock.";
+            // For consumable items
+            if ($item->quantity <= 0) {
+                return "Consumable item scanned. Out of stock.";
+            } elseif ($item->quantity <= $item->min_stock) {
+                return "Consumable item scanned. Low stock ({$item->quantity} remaining).";
+            } else {
+                return "Consumable item scanned. {$item->quantity} remaining in stock.";
+            }
         }
     }
 }

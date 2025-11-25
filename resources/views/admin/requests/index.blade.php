@@ -152,7 +152,6 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th scope="col">Request Details</th>
-                                        <th scope="col">Item & Quantity</th>
                                         <th scope="col">Status</th>
                                         <th scope="col">Priority</th>
                                         <th scope="col">Dates</th>
@@ -170,25 +169,6 @@
                                                     <div>
                                                         <div class="fw-semibold text-dark">{{ $request->user->name }}</div>
                                                         <div class="text-muted small">{{ $request->user->email }}</div>
-                                                        @if($request->purpose)
-                                                            <div class="text-muted small" title="{{ $request->purpose }}">
-                                                                {{ Str::limit($request->purpose, 40) }}
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div>
-                                                    <div class="fw-semibold">{{ $request->item ? $request->item->name : 'Item Not Found' }}</div>
-                                                    <div class="mb-1">
-                                                        <span class="badge bg-primary">Qty: {{ $request->quantity }}</span>
-                                                        @if($request->item && $request->item->unit)
-                                                            <span class="text-muted small">{{ $request->item->unit }}</span>
-                                                        @endif
-                                                    </div>
-                                                    <div class="text-muted small">
-                                                        Stock: {{ $request->item ? $request->item->quantity : 'N/A' }}
                                                     </div>
                                                 </div>
                                             </td>
@@ -249,7 +229,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="6" class="text-center text-muted py-5">
+                                            <td colspan="5" class="text-center text-muted py-5">
                                                 <div class="d-flex flex-column align-items-center">
                                                     <div class="bg-light rounded-circle p-4 mb-3">
                                                         <i class="fas fa-clipboard-list fa-3x text-muted"></i>

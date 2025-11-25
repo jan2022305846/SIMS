@@ -39,7 +39,7 @@
                         </div>
                     @endif
 
-                    <form action="{{ route('items.update', $item) }}" method="POST" id="item-edit-form">
+                    <form action="{{ route('items.update', $item) }}?type={{ $item instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}" method="POST" id="item-edit-form">
                         @csrf
                         @method('PUT')
                         
@@ -143,6 +143,7 @@
                         </div>
 
                         <!-- Stock Management -->
+                        @if($item instanceof \App\Models\Consumable)
                         <hr class="my-4">
                         <div class="card border-light">
                             <div class="card-header bg-light">
@@ -196,6 +197,7 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
 
                     </form>
                 </div>

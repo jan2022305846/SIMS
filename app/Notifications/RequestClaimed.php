@@ -39,19 +39,45 @@ class RequestClaimed extends Notification
     {
         $request = $this->request;
 
-        return (new MailMessage)
+        // Ensure requestItems are loaded
+        if (!$request->relationLoaded('requestItems')) {
+            $request->load('requestItems');
+        }
+
+        // Manually load itemable relationships for each request item
+        foreach ($request->requestItems as $requestItem) {
+            if (!$requestItem->relationLoaded('itemable')) {
+                if ($requestItem->item_type === 'consumable') {
+                    $itemable = \App\Models\Consumable::find($requestItem->item_id);
+                } elseif ($requestItem->item_type === 'non_consumable') {
+                    $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
+                } else {
+                    $itemable = null;
+                }
+                $requestItem->setRelation('itemable', $itemable);
+            }
+        }
+
+        $mail = (new MailMessage)
             ->subject('Request Claimed - Supply Office System')
             ->greeting("Hello {$notifiable->name},")
             ->line("Your request has been successfully claimed!")
-            ->line("**Request Details:**")
-            ->line("- Item: {$request->item->name}")
-            ->line("- Quantity: {$request->quantity}")
-            ->line("- Purpose: {$request->purpose}")
+            ->line("**Request Details:**");
+
+        // Add each item to the email
+        foreach ($request->requestItems as $requestItem) {
+            $itemName = $requestItem->itemable ? $requestItem->itemable->name : 'Unknown Item';
+            $mail->line("- Item: {$itemName} (Quantity: {$requestItem->quantity})");
+        }
+
+        $mail->line("- Purpose: {$request->purpose}")
             ->line("- Claim Slip Number: {$request->claim_slip_number}")
             ->line('Please keep this claim slip number for your records.')
             ->action('Download Claim Slip', route('faculty.requests.download-claim-slip', $request))
             ->line('Thank you for using the Supply Office System!')
             ->salutation('Best regards, Supply Office Team');
+
+        return $mail;
     }
 
     /**
@@ -61,10 +87,39 @@ class RequestClaimed extends Notification
      */
     public function toArray(object $notifiable): array
     {
+        $request = $this->request;
+
+        // Ensure requestItems are loaded
+        if (!$request->relationLoaded('requestItems')) {
+            $request->load('requestItems');
+        }
+
+        // Manually load itemable relationships for each request item
+        foreach ($request->requestItems as $requestItem) {
+            if (!$requestItem->relationLoaded('itemable')) {
+                if ($requestItem->item_type === 'consumable') {
+                    $itemable = \App\Models\Consumable::find($requestItem->item_id);
+                } elseif ($requestItem->item_type === 'non_consumable') {
+                    $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
+                } else {
+                    $itemable = null;
+                }
+                $requestItem->setRelation('itemable', $itemable);
+            }
+        }
+
+        $items = [];
+        foreach ($request->requestItems as $requestItem) {
+            $items[] = [
+                'name' => $requestItem->itemable ? $requestItem->itemable->name : 'Unknown Item',
+                'quantity' => $requestItem->quantity,
+            ];
+        }
+
         return [
             'request_id' => $this->request->id,
-            'item_name' => $this->request->item->name,
-            'quantity' => $this->request->quantity,
+            'items' => $items,
+            'total_quantity' => $request->getTotalItems(),
             'claim_slip_number' => $this->request->claim_slip_number,
         ];
     }

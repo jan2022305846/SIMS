@@ -92,15 +92,12 @@ class ItemController extends Controller
                 });
             }
         } else {
-            // No type filter - get all items with applied filters
+            // No type filter - default to showing only consumables
             $consumables = $consumablesQuery->get()->map(function ($item) {
                 $item->item_type = 'consumable';
                 return $item;
             });
-            $nonConsumables = $nonConsumablesQuery->get()->map(function ($item) {
-                $item->item_type = 'non_consumable';
-                return $item;
-            });
+            $nonConsumables = collect(); // Empty collection for non-consumables
         }
 
         // Combine and sort results
@@ -148,8 +145,8 @@ class ItemController extends Controller
             'category_id' => 'required|exists:categories,id',
             'unit' => 'required|string|max:50',
             'product_code' => 'nullable|string|max:255',
-            'quantity' => 'required|integer|min:0',
-            'min_stock' => 'required|integer|min:0',
+            'quantity' => 'nullable|integer|min:0',
+            'min_stock' => 'nullable|integer|min:0',
             'max_stock' => 'nullable|integer|min:0',
             'brand' => 'nullable|string|max:255',
         ];
@@ -158,6 +155,12 @@ class ItemController extends Controller
         if ($request->item_type === 'non_consumable') {
             $rules['location'] = 'required|string|max:255';
             $rules['condition'] = 'required|in:New,Good,Fair,Needs Repair';
+            // Remove stock management requirements for non-consumables
+            unset($rules['quantity'], $rules['min_stock'], $rules['max_stock']);
+        } else {
+            // For consumables, stock management fields are required
+            $rules['quantity'] = 'required|integer|min:0';
+            $rules['min_stock'] = 'required|integer|min:0';
         }
 
         $request->validate($rules);
@@ -166,6 +169,13 @@ class ItemController extends Controller
         
         // Generate unique QR code
         $data['qr_code'] = Str::uuid();
+
+        // Set default values for non-consumable items
+        if ($request->item_type === 'non_consumable') {
+            $data['quantity'] = 1;
+            $data['min_stock'] = 0;
+            $data['max_stock'] = 1;
+        }
 
         // Handle product_code: auto-generate if empty or duplicate
         if (empty($data['product_code'])) {
@@ -354,28 +364,25 @@ class ItemController extends Controller
 
         $rules = [
             'name' => 'required|string|max:255',
-            'description' =>  'required|exists:categories,id',
+            'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
             'unit' => 'required|string|max:50',
             'product_code' => 'nullable|string|max:100',
             'brand' => 'nullable|string|max:100',
-            'min_stock' => 'required|integer|min:0',
+            'min_stock' => 'nullable|integer|min:0',
             'max_stock' => 'nullable|integer|min:0',
             'add_quantity' => 'nullable|integer|min:0',
         ];
 
-        // Non-Consumable Specific rule requirements
-        if($item instanceof NonConsumable){
-            $rules =[
-                'location' => 'required|string|max:255',
-                'condition' =>  'required|in:New,Good,Fair,Needs Repair'
-            ] ;
-        }
-        
         // Add conditional validation for non-consumables
         if (!$isConsumable) {
             $rules['location'] = 'required|string|max:255';
             $rules['condition'] = 'required|in:New,Good,Fair,Needs Repair';
+            // Remove stock management requirements for non-consumables
+            unset($rules['min_stock'], $rules['max_stock'], $rules['add_quantity']);
+        } else {
+            // For consumables, stock management fields are required
+            $rules['min_stock'] = 'required|integer|min:0';
         }
 
         $request->validate($rules);
@@ -466,6 +473,11 @@ class ItemController extends Controller
         $nonConsumables = $nonConsumablesQuery->get()->map(function ($item) {
             $item->item_type = 'non_consumable';
             return $item;
+        });
+
+        // Filter out assigned non-consumable items (they shouldn't be requestable)
+        $nonConsumables = $nonConsumables->filter(function ($item) {
+            return !$item->isAssigned();
         });
 
         // Combine results
@@ -595,7 +607,8 @@ class ItemController extends Controller
      */
     public function lowStock()
     {
-        // Get low stock consumables - items where quantity <= min_stock (or <= 10 if min_stock not set)
+        // Get low stock consumables only - items where quantity <= min_stock (or <= 10 if min_stock not set)
+        // Non-consumable items are excluded since they always have quantity 1 and don't need low stock monitoring
         $consumables = Consumable::with('category')
             ->whereRaw('quantity <= COALESCE(min_stock, 10)')
             ->get()
@@ -606,19 +619,8 @@ class ItemController extends Controller
                 return $item;
             });
 
-        // Get low stock non-consumables - items where quantity <= min_stock (or <= 10 if min_stock not set)
-        $nonConsumables = NonConsumable::with('category')
-            ->whereRaw('quantity <= COALESCE(min_stock, 10)')
-            ->get()
-            ->map(function ($item) {
-                $item->item_type = 'non_consumable';
-                $item->current_stock = $item->quantity;
-                $item->minimum_stock = $item->min_stock;
-                return $item;
-            });
-
-        // Combine and sort results
-        $allItems = $consumables->concat($nonConsumables)->sortBy('quantity');
+        // Sort results by quantity (lowest first)
+        $allItems = $consumables->sortBy('quantity');
 
         // Manual pagination
         $perPage = 10;
@@ -651,65 +653,55 @@ class ItemController extends Controller
     }
 
     /**
-     * Display trashed (soft-deleted) items.
+     * Display items available for disposal.
      *
-     * Shows items that have been soft-deleted and can be restored.
-     * Items in trash maintain their relationships and can be recovered.
+     * Shows non-consumable items with "Needs Repair" condition that can be disposed.
+     * Items in this list can be permanently deleted from the system.
      *
      * @param Request $request The HTTP request instance
      * @return \Illuminate\View\View
      */
-    public function trashed(Request $request)
+    public function disposal(Request $request)
     {
-        // Query trashed consumables with their category relationships
-        $consumablesQuery = Consumable::onlyTrashed()->with('category');
-        // Query trashed non-consumables with their category relationships
-        $nonConsumablesQuery = NonConsumable::onlyTrashed()->with('category');
+        // Get non-consumable items with "Needs Repair" condition
+        $disposalItemsQuery = NonConsumable::with('category')
+            ->where('condition', 'Needs Repair');
 
         // Apply search filter if provided
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $consumablesQuery->where(function ($q) use ($searchTerm) {
+            $disposalItemsQuery->where(function ($q) use ($searchTerm) {
                 $q->where('name', 'like', '%' . $searchTerm . '%')
                   ->orWhere('brand', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('description', 'like', '%' . $searchTerm . '%');
-            });
-            $nonConsumablesQuery->where(function ($q) use ($searchTerm) {
-                $q->where('name', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('brand', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('description', 'like', '%' . $searchTerm . '%');
+                  ->orWhere('description', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('location', 'like', '%' . $searchTerm . '%');
             });
         }
 
         // Apply category filter if provided
         if ($request->filled('category')) {
-            $consumablesQuery->where('category_id', $request->category);
-            $nonConsumablesQuery->where('category_id', $request->category);
+            $disposalItemsQuery->where('category_id', $request->category);
         }
 
-        // Get results and add type indicators
-        $consumables = $consumablesQuery->get()->map(function ($item) {
-            $item->item_type = 'consumable';
-            return $item;
-        });
-        $nonConsumables = $nonConsumablesQuery->get()->map(function ($item) {
+        // Get results and add type indicator
+        $disposalItems = $disposalItemsQuery->get()->map(function ($item) {
             $item->item_type = 'non_consumable';
             return $item;
         });
 
-        // Combine results and sort by deletion date (most recently deleted first)
-        $allItems = $consumables->concat($nonConsumables)->sortByDesc('deleted_at');
+        // Sort by name
+        $disposalItems = $disposalItems->sortBy('name');
 
         // Manual pagination
         $perPage = 15;
         $page = $request->get('page', 1);
         $offset = ($page - 1) * $perPage;
-        $paginatedItems = $allItems->slice($offset, $perPage);
+        $paginatedItems = $disposalItems->slice($offset, $perPage);
 
         // Create a LengthAwarePaginator
         $items = new \Illuminate\Pagination\LengthAwarePaginator(
             $paginatedItems,
-            $allItems->count(),
+            $disposalItems->count(),
             $perPage,
             $page,
             ['path' => $request->url(), 'pageName' => 'page']
@@ -720,7 +712,200 @@ class ItemController extends Controller
         // Get categories for filter dropdown
         $categories = Category::orderBy('name')->get();
 
-        return view('admin.items.trashed', compact('items', 'categories'));
+        return view('admin.items.disposal', compact('items', 'categories'));
+    }
+
+    /**
+     * Process disposal of selected items.
+     *
+     * Permanently deletes selected non-consumable items with "Needs Repair" condition
+     * and generates a DOCX disposal report.
+     *
+     * @param Request $request The HTTP request instance
+     * @return \Illuminate\Http\RedirectResponse|\Symfony\Component\HttpFoundation\BinaryFileResponse
+     */
+    public function processDisposal(Request $request)
+    {
+        $request->validate([
+            'item_ids' => 'required|array|min:1',
+            'item_ids.*' => 'required|integer'
+        ]);
+
+        try {
+            $itemIds = $request->item_ids;
+
+            // Find items that are eligible for disposal (non-consumable with "Needs Repair" condition)
+            $eligibleItems = NonConsumable::whereIn('id', $itemIds)
+                ->where('condition', 'Needs Repair')
+                ->get();
+
+            if ($eligibleItems->isEmpty()) {
+                return redirect()->route('items.disposal')
+                    ->with('error', 'No eligible items found for disposal.');
+            }
+
+            $disposedCount = 0;
+            $skippedCount = count($itemIds) - $eligibleItems->count();
+            $disposedItems = [];
+
+            // Store disposal data for DOCX generation
+            foreach ($eligibleItems as $item) {
+                $disposedItems[] = [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'brand' => $item->brand,
+                    'product_code' => $item->product_code,
+                    'category' => $item->category ? $item->category->name : 'Uncategorized',
+                    'location' => $item->location,
+                    'condition' => $item->condition,
+                    'quantity' => $item->quantity,
+                    'description' => $item->description,
+                    'disposed_at' => now()->format('Y-m-d H:i:s'),
+                    'disposed_by' => Auth::user()->name
+                ];
+
+                // Log the disposal
+                Log::warning('Item disposed permanently', [
+                    'item_id' => $item->id,
+                    'item_name' => $item->name,
+                    'item_type' => 'non_consumable',
+                    'condition' => $item->condition,
+                    'disposed_by' => Auth::id(),
+                    'disposed_at' => now(),
+                    'warning' => 'Item permanently deleted from disposal process'
+                ]);
+
+                // Permanently delete the item
+                $item->forceDelete();
+                $disposedCount++;
+            }
+
+            // Generate DOCX disposal report
+            $docxFile = $this->generateDisposalReport($disposedItems);
+
+            // Build success message
+            $message = "Successfully disposed of {$disposedCount} item" . ($disposedCount > 1 ? 's' : '') . '.';
+            if ($skippedCount > 0) {
+                $message .= " {$skippedCount} item" . ($skippedCount > 1 ? 's were' : ' was') . ' skipped (not eligible for disposal).';
+            }
+
+            return response()->download($docxFile)->deleteFileAfterSend();
+
+        } catch (\Exception $e) {
+            Log::error('Failed to process item disposal', [
+                'item_ids' => $request->item_ids ?? [],
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            return redirect()->route('items.disposal')
+                ->with('error', 'An error occurred during disposal. Please try again.');
+        }
+    }
+
+    /**
+     * Generate DOCX disposal report.
+     *
+     * Creates a DOCX document listing all disposed items with their details.
+     *
+     * @param array $disposedItems Array of disposed item data
+     * @return string Path to the generated DOCX file
+     */
+    private function generateDisposalReport($disposedItems)
+    {
+        try {
+            $phpWord = new \PhpOffice\PhpWord\PhpWord();
+
+            // Set document properties
+            $properties = $phpWord->getDocInfo();
+            $properties->setCreator('Supply Office System');
+            $properties->setCompany('Supply Office');
+            $properties->setTitle('Item Disposal Report');
+            $properties->setDescription('Report of permanently disposed items');
+            $properties->setSubject('Item Disposal');
+
+            // Add a section
+            $section = $phpWord->addSection();
+
+            // Add header
+            $header = $section->addHeader();
+            $header->addText('SUPPLY OFFICE SYSTEM', ['bold' => true, 'size' => 16], ['alignment' => 'center']);
+            $header->addText('ITEM DISPOSAL REPORT', ['bold' => true, 'size' => 14], ['alignment' => 'center']);
+            $header->addText('Generated on: ' . now()->format('F j, Y \a\t g:i A'), ['size' => 10], ['alignment' => 'center']);
+            $header->addText('', [], []); // Empty line
+
+            // Add summary
+            $section->addText('DISPOSAL SUMMARY', ['bold' => true, 'size' => 12], ['alignment' => 'left']);
+            $section->addText('Total Items Disposed: ' . count($disposedItems), ['size' => 11]);
+            $section->addText('Disposal Date: ' . now()->format('F j, Y'), ['size' => 11]);
+            $section->addText('Processed By: ' . Auth::user()->name, ['size' => 11]);
+            $section->addText('', [], []); // Empty line
+
+            // Create table for disposed items
+            $table = $section->addTable([
+                'borderSize' => 6,
+                'borderColor' => '000000',
+                'cellMargin' => 80,
+                'alignment' => 'left'
+            ]);
+
+            // Add table header
+            $table->addRow();
+            $table->addCell(1000)->addText('No.', ['bold' => true, 'size' => 10]);
+            $table->addCell(2500)->addText('Item Name', ['bold' => true, 'size' => 10]);
+            $table->addCell(1500)->addText('Brand', ['bold' => true, 'size' => 10]);
+            $table->addCell(1500)->addText('Product Code', ['bold' => true, 'size' => 10]);
+            $table->addCell(1500)->addText('Category', ['bold' => true, 'size' => 10]);
+            $table->addCell(1500)->addText('Location', ['bold' => true, 'size' => 10]);
+            $table->addCell(1200)->addText('Condition', ['bold' => true, 'size' => 10]);
+            $table->addCell(800)->addText('Qty', ['bold' => true, 'size' => 10]);
+
+            // Add table rows
+            $counter = 1;
+            foreach ($disposedItems as $item) {
+                $table->addRow();
+                $table->addCell(1000)->addText($counter++, ['size' => 9]);
+                $table->addCell(2500)->addText($item['name'], ['size' => 9]);
+                $table->addCell(1500)->addText($item['brand'] ?? 'N/A', ['size' => 9]);
+                $table->addCell(1500)->addText($item['product_code'] ?? 'N/A', ['size' => 9]);
+                $table->addCell(1500)->addText($item['category'], ['size' => 9]);
+                $table->addCell(1500)->addText($item['location'] ?? 'N/A', ['size' => 9]);
+                $table->addCell(1200)->addText($item['condition'], ['size' => 9]);
+                $table->addCell(800)->addText($item['quantity'], ['size' => 9]);
+            }
+
+            // Add footer notes
+            $section->addText('', [], []); // Empty line
+            $section->addText('IMPORTANT NOTES:', ['bold' => true, 'size' => 11]);
+            $section->addText('• All listed items have been permanently removed from the system database.', ['size' => 10]);
+            $section->addText('• Items were disposed due to "Needs Repair" condition.', ['size' => 10]);
+            $section->addText('• This action cannot be undone.', ['size' => 10]);
+            $section->addText('• Please retain this document for audit purposes.', ['size' => 10]);
+
+            // Generate filename with timestamp
+            $filename = 'item_disposal_report_' . now()->format('Y-m-d_H-i-s') . '.docx';
+            $filePath = storage_path('app/temp/' . $filename);
+
+            // Ensure temp directory exists
+            $tempDir = storage_path('app/temp');
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            // Save the document
+            $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
+            $objWriter->save($filePath);
+
+            return $filePath;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to generate disposal report', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            throw $e;
+        }
     }
 
     /**

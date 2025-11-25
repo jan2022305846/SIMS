@@ -139,6 +139,11 @@
                         <i class="fas fa-trash me-1"></i>
                         Trash
                     </a>
+                    <a href="{{ route('items.disposal') }}" 
+                       class="btn btn-dark fw-bold">
+                        <i class="fas fa-times-circle me-1"></i>
+                        Item Disposal
+                    </a>
                     <a href="{{ route('items.low-stock') }}" 
                        class="btn btn-danger fw-bold">
                         <i class="fas fa-exclamation-triangle me-1"></i>
@@ -177,8 +182,7 @@
                                 </div>
                                 <div class="col-md-2">
                                     <select class="form-select" name="type">
-                                        <option value="">All Types</option>
-                                        <option value="consumable" {{ request('type') == 'consumable' ? 'selected' : '' }}>Consumable</option>
+                                        <option value="consumable" {{ request('type', 'consumable') == 'consumable' ? 'selected' : '' }}>Consumable</option>
                                         <option value="non_consumable" {{ request('type') == 'non_consumable' ? 'selected' : '' }}>Non-Consumable</option>
                                     </select>
                                 </div>
@@ -255,12 +259,14 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <span class="fw-semibold me-2">{{ $item->quantity }}</span>
-                                            @if($item->quantity <= 0)
-                                                <span class="badge bg-danger">Out of Stock</span>
-                                            @elseif($item->quantity <= $item->min_stock)
-                                                <span class="badge bg-warning">Low Stock</span>
-                                            @else
-                                                <span class="badge bg-success">In Stock</span>
+                                            @if($item->item_type === 'consumable')
+                                                @if($item->quantity <= 0)
+                                                    <span class="badge bg-danger">Out of Stock</span>
+                                                @elseif($item->quantity <= $item->min_stock)
+                                                    <span class="badge bg-warning">Low Stock</span>
+                                                @else
+                                                    <span class="badge bg-success">In Stock</span>
+                                                @endif
                                             @endif
                                         </div>
                                     </td>

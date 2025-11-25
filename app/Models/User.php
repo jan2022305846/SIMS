@@ -29,7 +29,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @method \Illuminate\Database\Eloquent\Relations\HasMany|\Illuminate\Database\Eloquent\Builder unreadNotifications()
  * @method int unreadNotificationsCount()
  * 
- * Note: Single admin system - only user ID 6 is admin
+ * Note: Role-based system - users with role 'admin' have admin privileges
  */
 class User extends Authenticatable
 {
@@ -43,6 +43,7 @@ class User extends Authenticatable
         'password',
         'status',
         'must_set_password',
+        'role',
     ];
 
     protected $hidden = [
@@ -90,11 +91,11 @@ class User extends Authenticatable
 
     // Role helper methods
     /**
-     * Check if user is an admin (single admin system - only user ID 6 is admin)
+     * Check if user is an admin
      */
     public function isAdmin(): bool
     {
-        return $this->id === 6; // Denver Ian Gemino is the admin
+        return $this->role === 'admin';
     }
 
     /**

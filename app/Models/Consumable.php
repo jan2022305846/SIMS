@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Consumable extends Model
 {
@@ -38,6 +39,11 @@ class Consumable extends Model
     public function requests(): HasMany
     {
         return $this->hasMany(Request::class, 'item_id')->where('item_type', 'consumable');
+    }
+
+    public function requestItems(): MorphMany
+    {
+        return $this->morphMany(RequestItem::class, 'itemable');
     }
 
     public function scanLogs(): HasMany

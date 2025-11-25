@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class NonConsumable extends Model
 {
@@ -26,21 +27,12 @@ class NonConsumable extends Model
         'condition',
     ];
 
-    protected $attributes = [
-        'location' => null,
-        'condition' => null,
-    ];
-
     protected $casts = [
         'quantity' => 'integer',
         'min_stock' => 'integer',
         'max_stock' => 'integer',
         'current_holder_id' => 'integer',
     ];
-
-    // Explicitly declare properties for linter
-    public $location;
-    public $condition;
 
     public function category(): BelongsTo
     {
@@ -55,6 +47,11 @@ class NonConsumable extends Model
     public function requests(): HasMany
     {
         return $this->hasMany(Request::class, 'item_id')->where('item_type', 'non_consumable');
+    }
+
+    public function requestItems(): MorphMany
+    {
+        return $this->morphMany(RequestItem::class, 'itemable');
     }
 
     public function scanLogs(): HasMany

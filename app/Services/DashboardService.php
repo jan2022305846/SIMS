@@ -128,7 +128,7 @@ class DashboardService
      */
     public function getPendingRequests($user): Collection
     {
-        $query = SupplyRequest::with(['user', 'requestItems.itemable'])
+        $query = SupplyRequest::with(['user', 'requestItems'])
             ->where('status', 'pending');
 
         // If not admin, only show user's own requests
@@ -136,7 +136,25 @@ class DashboardService
             $query->where('user_id', $user->id);
         }
 
-        return $query->latest()->get();
+        $requests = $query->latest()->get();
+
+        // Manually load itemable relationships for each request item
+        foreach ($requests as $request) {
+            foreach ($request->requestItems as $requestItem) {
+                if (!$requestItem->relationLoaded('itemable')) {
+                    if ($requestItem->item_type === 'consumable') {
+                        $itemable = \App\Models\Consumable::find($requestItem->item_id);
+                    } elseif ($requestItem->item_type === 'non_consumable') {
+                        $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
+                    } else {
+                        $itemable = null;
+                    }
+                    $requestItem->setRelation('itemable', $itemable);
+                }
+            }
+        }
+
+        return $requests;
     }
 
     /**
@@ -350,11 +368,29 @@ class DashboardService
      */
     private function getMyRecentRequests($user, $limit = 5): Collection
     {
-        return SupplyRequest::with(['requestItems.itemable'])
+        $requests = SupplyRequest::with(['requestItems'])
             ->where('user_id', $user->id)
             ->latest()
             ->limit($limit)
             ->get();
+
+        // Manually load itemable relationships for each request item
+        foreach ($requests as $request) {
+            foreach ($request->requestItems as $requestItem) {
+                if (!$requestItem->relationLoaded('itemable')) {
+                    if ($requestItem->item_type === 'consumable') {
+                        $itemable = \App\Models\Consumable::find($requestItem->item_id);
+                    } elseif ($requestItem->item_type === 'non_consumable') {
+                        $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
+                    } else {
+                        $itemable = null;
+                    }
+                    $requestItem->setRelation('itemable', $itemable);
+                }
+            }
+        }
+
+        return $requests;
     }
 
     /**

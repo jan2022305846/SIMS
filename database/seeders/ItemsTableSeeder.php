@@ -82,7 +82,6 @@ class ItemsTableSeeder extends Seeder
                         'brand' => $item['brand'],
                         'min_stock' => $item['min_stock'],
                         'max_stock' => $item['max_stock'],
-                        'current_stock' => $item['current_stock'],
                     ]
                 );
             } else {
@@ -95,7 +94,6 @@ class ItemsTableSeeder extends Seeder
                         'current_holder_id' => $item['current_holder_id'],
                         'location' => $item['location'],
                         'condition' => $item['condition'],
-                        'current_stock' => 1, // Non-consumables typically have stock of 1
                     ]
                 );
             }

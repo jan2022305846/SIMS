@@ -22,15 +22,59 @@ class RequestItem extends Model
         'quantity' => 'integer',
     ];
 
+    protected $morphMap = [
+        'consumable' => \App\Models\Consumable::class,
+        'non_consumable' => \App\Models\NonConsumable::class,
+    ];
+
     // Relationships
     public function request()
     {
         return $this->belongsTo(Request::class);
     }
 
-    public function item()
+    public function consumable()
     {
-        return $this->morphTo();
+        return $this->belongsTo(\App\Models\Consumable::class, 'item_id');
+    }
+
+    public function nonConsumable()
+    {
+        return $this->belongsTo(\App\Models\NonConsumable::class, 'item_id');
+    }
+
+    public function itemable()
+    {
+        return $this->morphTo('item', 'item_type', 'item_id');
+    }
+
+    // Override the morphTo resolution to handle our custom types
+    protected function getMorphedModel($type)
+    {
+        return match($type) {
+            'consumable' => \App\Models\Consumable::class,
+            'non_consumable' => \App\Models\NonConsumable::class,
+            default => null,
+        };
+    }
+
+    // Override the __get method to ensure proper morphTo resolution
+    public function __get($key)
+    {
+        if ($key === 'itemable') {
+            if (!$this->relationLoaded('itemable')) {
+                $morphClass = $this->getMorphedModel($this->item_type);
+                if ($morphClass && class_exists($morphClass)) {
+                    $related = $morphClass::find($this->item_id);
+                    $this->setRelation('itemable', $related);
+                } else {
+                    $this->setRelation('itemable', null);
+                }
+            }
+            return $this->getRelation('itemable');
+        }
+
+        return parent::__get($key);
     }
 
     // Helper methods
@@ -61,17 +105,29 @@ class RequestItem extends Model
 
     public function getItemName()
     {
-        return $this->item ? $this->item->name : 'Unknown Item';
+        // Ensure itemable is loaded if not already
+        if (!$this->relationLoaded('itemable')) {
+            $this->load('itemable');
+        }
+        return $this->itemable ? $this->itemable->name : 'Unknown Item';
     }
 
     public function getItemCode()
     {
-        return $this->item ? ($this->item->item_code ?? $this->item->product_code ?? 'N/A') : 'N/A';
+        // Ensure itemable is loaded if not already
+        if (!$this->relationLoaded('itemable')) {
+            $this->load('itemable');
+        }
+        return $this->itemable ? ($this->itemable->item_code ?? $this->itemable->product_code ?? 'N/A') : 'N/A';
     }
 
     public function getAvailableStock()
     {
-        return $this->item ? $this->item->quantity : 0;
+        // Ensure itemable is loaded if not already
+        if (!$this->relationLoaded('itemable')) {
+            $this->load('itemable');
+        }
+        return $this->itemable ? $this->itemable->quantity : 0;
     }
 
     public function hasSufficientStock()

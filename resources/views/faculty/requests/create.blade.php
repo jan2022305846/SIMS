@@ -24,6 +24,16 @@
                         </h5>
                     </div>
                     <div class="card-body">
+                        @if ($errors->any())
+                            <div class="alert alert-danger">
+                                <h6 class="mb-2"><i class="fas fa-exclamation-triangle me-2"></i>Please fix the following errors:</h6>
+                                <ul class="mb-0">
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
                         <form method="POST" action="{{ route('faculty.requests.store') }}" enctype="multipart/form-data" id="requestForm">
                             @csrf
 
@@ -68,6 +78,11 @@
                                             <input type="hidden" name="item_id" value="{{ $preselectedItem->id }}">
                                             <input type="hidden" name="item_type" value="{{ $preselectedItem instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}">
                                         </div>
+                                    @else
+                                        <div class="alert alert-danger">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            <strong>Invalid Item:</strong> The requested item could not be found. Please select an item from the list below.
+                                        </div>
                                     @endif
                                 @endif
 
@@ -83,7 +98,7 @@
                                                 <option value="{{ $item->id }}"
                                                         data-stock="{{ $item->quantity }}"
                                                         data-unit="{{ $item->unit ?? 'pieces' }}"
-                                                        data-type="{{ $item instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}"
+                                                        data-type="{{ $item->item_type }}"
                                                         {{ request('item_id') == $item->id ? 'selected' : '' }}>
                                                     {{ $item->name }} ({{ $item->quantity }} {{ $item->unit ?? 'pieces' }} available)
                                                 </option>
@@ -146,7 +161,7 @@
                             </div>
 
                             <!-- Department (Hidden - Auto-populated from user profile) -->
-                            <input type="hidden" name="department" value="{{ Auth::user()->department ?? 'Faculty Office' }}">
+                            <input type="hidden" name="office_id" value="{{ Auth::user()->office_id }}">
 
                             <!-- Priority -->
                             <div class="mb-4">
@@ -312,6 +327,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const bulkItemForm = document.getElementById('bulkItemForm');
     const requestForm = document.getElementById('requestForm');
 
+    // Check if required elements exist
+    if (!singleRequestRadio || !bulkRequestRadio || !singleItemForm || !bulkItemForm || !requestForm) {
+        console.error('Required form elements not found');
+        return;
+    }
+
     // Toggle between single and bulk request forms
     function toggleRequestType() {
         if (singleRequestRadio.checked) {
@@ -344,6 +365,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const itemsContainer = document.getElementById('itemsContainer');
     let itemIndex = 0;
 
+    // Check bulk request elements
+    if (!addItemBtn || !itemsContainer) {
+        console.error('Bulk request elements not found');
+        return;
+    }
+
     // Available items data
     const availableItems = @json($items);
 
@@ -367,7 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <option value="${item.id}"
                                     data-stock="${item.quantity}"
                                     data-unit="${item.unit || 'pieces'}"
-                                    data-type="${item.constructor.name === 'Consumable' ? 'consumable' : 'non_consumable'}"
+                                    data-type="${item.item_type}"
                                     ${itemData && itemData.item_id == item.id ? 'selected' : ''}>
                                 ${item.name} (${item.quantity} ${item.unit || 'pieces'} available)
                             </option>
@@ -456,53 +483,101 @@ document.addEventListener('DOMContentLoaded', function() {
     const stockInfo = document.getElementById('stock-info');
     const itemTypeInput = document.getElementById('item_type');
 
-    // Update stock info and item type when item is selected
-    itemSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        if (selectedOption.value) {
-            const stock = selectedOption.getAttribute('data-stock');
-            const unit = selectedOption.getAttribute('data-unit') || 'pieces';
-            const itemType = selectedOption.getAttribute('data-type');
-            stockInfo.textContent = `Available: ${stock} ${unit}`;
+    // Check if we're in pre-selected item mode (item_id in URL)
+    const isPreselectedItem = @json(request('item_id') ? true : false);
 
-            // Set item type
-            if (itemTypeInput) {
-                itemTypeInput.value = itemType;
-            }
+    if (isPreselectedItem) {
+        // Pre-selected item mode - only handle quantity validation
+        console.log('Pre-selected item mode - skipping item selection logic');
+        if (quantityInput) {
+            // Set max quantity from the pre-selected item
+            const preselectedStock = @json($preselectedItem->quantity ?? 0);
+            const preselectedUnit = @json($preselectedItem->unit ?? 'pieces');
+            quantityInput.max = preselectedStock;
 
-            // Set max quantity
-            quantityInput.max = stock;
-            quantityInput.value = Math.min(quantityInput.value || 1, stock);
-        } else {
-            stockInfo.textContent = 'Select an item to see available stock';
-            quantityInput.removeAttribute('max');
-            if (itemTypeInput) {
-                itemTypeInput.value = '';
-            }
+            // Validate quantity doesn't exceed stock
+            quantityInput.addEventListener('input', function() {
+                const maxStock = parseInt(this.max);
+                if (maxStock && parseInt(this.value) > maxStock) {
+                    this.value = maxStock;
+                }
+            });
         }
-    });
-
-    // Validate quantity doesn't exceed stock
-    quantityInput.addEventListener('input', function() {
-        const maxStock = parseInt(this.max);
-        if (maxStock && parseInt(this.value) > maxStock) {
-            this.value = maxStock;
+    } else {
+        // Regular single item mode - full functionality
+        // Check single item elements
+        if (!itemSelect || !quantityInput || !stockInfo) {
+            console.error('Single item form elements not found');
+            return;
         }
-    });
 
-    // Trigger change event on page load if item is pre-selected
-    if (itemSelect.value) {
-        itemSelect.dispatchEvent(new Event('change'));
+        // Update stock info and item type when item is selected
+        itemSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value) {
+                const stock = selectedOption.getAttribute('data-stock');
+                const unit = selectedOption.getAttribute('data-unit') || 'pieces';
+                const itemType = selectedOption.getAttribute('data-type');
+                stockInfo.textContent = `Available: ${stock} ${unit}`;
+
+                // Set item type
+                if (itemTypeInput) {
+                    itemTypeInput.value = itemType;
+                }
+
+                // Set max quantity
+                quantityInput.max = stock;
+                quantityInput.value = Math.min(quantityInput.value || 1, stock);
+            } else {
+                stockInfo.textContent = 'Select an item to see available stock';
+                quantityInput.removeAttribute('max');
+                if (itemTypeInput) {
+                    itemTypeInput.value = '';
+                }
+            }
+        });
+
+        // Validate quantity doesn't exceed stock
+        quantityInput.addEventListener('input', function() {
+            const maxStock = parseInt(this.max);
+            if (maxStock && parseInt(this.value) > maxStock) {
+                this.value = maxStock;
+            }
+        });
+
+        // Trigger change event on page load if item is pre-selected
+        if (itemSelect.value) {
+            itemSelect.dispatchEvent(new Event('change'));
+        }
     }
 
     // Form validation before submit
     requestForm.addEventListener('submit', function(e) {
+        console.log('=== FORM SUBMISSION DEBUG ===');
+        console.log('Request type selected:', document.querySelector('input[name="request_type"]:checked')?.value);
+        
         if (bulkRequestRadio.checked) {
             const itemRows = itemsContainer.querySelectorAll('.item-row');
+            console.log('Bulk request - item rows found:', itemRows.length);
+            
             if (itemRows.length === 0) {
                 e.preventDefault();
                 alert('Please add at least one item to your bulk request.');
                 return false;
+            }
+            
+            // Log all form data for bulk request
+            const formData = new FormData(requestForm);
+            console.log('=== FORM DATA DEBUG ===');
+            for (let [key, value] of formData.entries()) {
+                console.log(`${key}: ${value}`);
+            }
+        } else {
+            console.log('Single request selected');
+            const formData = new FormData(requestForm);
+            console.log('=== FORM DATA DEBUG ===');
+            for (let [key, value] of formData.entries()) {
+                console.log(`${key}: ${value}`);
             }
         }
     });

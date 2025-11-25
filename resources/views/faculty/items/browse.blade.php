@@ -71,10 +71,23 @@
                             @endif
 
                             <div class="mb-3">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="text-muted small">Quantity:</span>
-                                    <span class="fw-medium small">{{ $item->quantity }} {{ $item->unit }}</span>
-                                </div>
+                                @if($item->item_type === 'consumable')
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="text-muted small">Stock:</span>
+                                        <span class="fw-medium small">{{ $item->quantity }} {{ $item->unit }}</span>
+                                    </div>
+                                @else
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="text-muted small">Status:</span>
+                                        <span class="fw-medium small">
+                                            @if($item->isAssigned())
+                                                <span class="text-danger">Assigned</span>
+                                            @else
+                                                <span class="text-success">Available</span>
+                                            @endif
+                                        </span>
+                                    </div>
+                                @endif
                                 
                                 @if($item->brand)
                                     <div class="d-flex justify-content-between mb-1">
@@ -85,7 +98,7 @@
                             </div>
 
                             <div class="mt-auto">
-                                @if($item->quantity > 0)
+                                @if($item->item_type === 'consumable' ? $item->quantity > 0 : true)
                                     <a href="{{ route('faculty.requests.create', ['item_id' => $item->id]) }}" 
                                        class="btn btn-warning w-100 fw-bold mb-2">
                                         <i class="fas fa-plus me-1"></i>
@@ -94,11 +107,15 @@
                                 @else
                                     <button disabled class="btn btn-secondary w-100 mb-2">
                                         <i class="fas fa-times me-1"></i>
-                                        Out of Stock
+                                        @if($item->item_type === 'consumable')
+                                            Out of Stock
+                                        @else
+                                            Assigned
+                                        @endif
                                     </button>
                                 @endif
 
-                                @if($item->isLowStock())
+                                @if($item->item_type === 'consumable' && $item->isLowStock())
                                     <div class="text-center">
                                         <span class="badge bg-danger">
                                             Low Stock

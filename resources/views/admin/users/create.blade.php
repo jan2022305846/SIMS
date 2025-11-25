@@ -101,7 +101,8 @@
                                 <input type="text" 
                                        id="username" 
                                        name="username" 
-                                       value="{{ old('username') }}" 
+                                       value="{{ old('username') }}"
+                                       placeholder="Use School ID"
                                        required
                                        class="form-control @error('username') is-invalid @enderror">
                                 @error('username')

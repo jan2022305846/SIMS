@@ -142,14 +142,21 @@
 
     <div class="chart-section">
         <h2>Detailed Inventory Report</h2>
+        
+        <div class="period-info">
+            <strong>Calculation Method:</strong> Total Quantity = Remaining Stock + Released Quantity<br>
+            <em>• Remaining Stock: Current quantity available in inventory</em><br>
+            <em>• Released Quantity: Items claimed/released during the selected period</em><br>
+            <em>• Total Quantity: Combined total representing inventory movement</em>
+        </div>
+        
         <table class="table">
             <thead>
                 <tr>
                     <th>Item Name</th>
                     <th>Items Released/Claimed</th>
-                    <th>Total Quantity (Start + Added)</th>
+                    <th>Total Quantity (Remaining + Released)</th>
                     <th>Remaining Stock</th>
-                    <th>Category</th>
                 </tr>
             </thead>
             <tbody>
@@ -159,7 +166,6 @@
                     <td>{{ $item['released'] }}</td>
                     <td>{{ $item['totalQuantity'] }}</td>
                     <td>{{ $item['remaining'] }}</td>
-                    <td>{{ $item['category'] }}</td>
                 </tr>
                 @endforeach
             </tbody>
