@@ -61,6 +61,7 @@ class Consumable extends Model
         return app(\App\Services\QRCodeService::class)->generateItemQRCode(
             $this->id,
             $this->name,
+            'consumable',
             $this->product_code
         );
     }
@@ -75,6 +76,7 @@ class Consumable extends Model
         return app(\App\Services\QRCodeService::class)->getItemQRCodeDataUrl(
             $this->id,
             $this->name,
+            'consumable',
             $this->product_code
         );
     }
@@ -137,5 +139,15 @@ class Consumable extends Model
     public function isAssigned(): bool
     {
         return false;
+    }
+
+    /**
+     * Get current holder (consumables don't have holders, so always return null)
+     *
+     * @return null
+     */
+    public function currentHolder()
+    {
+        return null;
     }
 }

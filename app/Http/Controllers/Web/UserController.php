@@ -30,6 +30,11 @@ class UserController extends Controller
             });
         }
 
+        // Office filter
+        if ($request->filled('office_id')) {
+            $query->where('office_id', $request->office_id);
+        }
+
         // No role filter needed in single admin system
         // All users created through UI are faculty
 

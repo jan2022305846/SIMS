@@ -70,7 +70,7 @@
                                 <h6 class="text-muted mb-2">Request Timeline</h6>
                                 <div class="mb-3">
                                     <div class="small">
-                                        <div class="mb-1"><strong>Submitted:</strong> {{ $request->created_at ? $request->created_at->format('M j, Y g:i A') : 'N/A' }}</div>
+                                        <div class="mb-1"><strong>Submitted:</strong> {{ $request->created_at ? $request->created_at->format('M j, Y') : 'N/A' }}</div>
                                         <div class="mb-1"><strong>Needed by:</strong> {{ $request->needed_date ? $request->needed_date->format('M j, Y') : 'N/A' }}</div>
                                         @if($request->status === 'fulfilled' || $request->status === 'claimed')
                                             <div class="mb-1 text-success"><strong>Ready for pickup:</strong> {{ $request->updated_at->format('M j, Y') }}</div>

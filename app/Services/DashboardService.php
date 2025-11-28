@@ -347,7 +347,7 @@ class DashboardService
             'my_requests' => [
                 'total' => $userRequests->count(),
                 'pending' => (clone $userRequests)->where('status', 'pending')->count(),
-                'approved' => (clone $userRequests)->where('status', 'fulfilled')->count(), // Ready for pickup
+                'approved' => (clone $userRequests)->where('status', 'approved_by_admin')->count(), // Approved by admin
                 'completed' => (clone $userRequests)->where('status', 'claimed')->count(),
                 'cancelled' => (clone $userRequests)->where('status', 'cancelled')->count(),
                 'declined' => (clone $userRequests)->where('status', 'declined')->count(),

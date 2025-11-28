@@ -9,6 +9,7 @@ use App\Models\NonConsumable;
 use App\Models\Log as ActivityLog;
 use App\Models\ActivityLog as RequestActivityLog;
 use App\Models\User;
+use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -73,6 +74,9 @@ class RequestController extends Controller
         if ($request->has('office') && $request->office) {
             $query->where('office_id', $request->office);
         }
+
+        // Order by most recent first
+        $query->orderBy('created_at', 'desc');
 
         $requests = $query->paginate(15);
         
@@ -225,6 +229,10 @@ class RequestController extends Controller
             // Notify admin about new pending request
             \App\Services\NotificationService::notifyNewPendingRequest($supplyRequest);
 
+            // Clear dashboard cache for the user who created the request
+            $dashboardService = app(\App\Services\DashboardService::class);
+            $dashboardService->clearCache(Auth::user());
+
             return redirect()->route('faculty.requests.show', $supplyRequest)
                 ->with('success', 'Request submitted successfully!');
 
@@ -364,6 +372,11 @@ class RequestController extends Controller
 
         $supplyRequest->approveByAdmin(Auth::user());
 
+        // Clear dashboard cache for both admin and faculty user
+        $dashboardService = app(\App\Services\DashboardService::class);
+        $dashboardService->clearCache(Auth::user()); // Admin
+        $dashboardService->clearCache($supplyRequest->user); // Faculty
+
         return back()->with('success', 'Request approved by administrator successfully!');
     }
 
@@ -431,6 +444,10 @@ class RequestController extends Controller
             $supplyRequest->fulfill(Auth::user());
 
             DB::commit();
+
+            // Clear dashboard cache for the user whose request was fulfilled
+            $dashboardService = app(DashboardService::class);
+            $dashboardService->clearCache($supplyRequest->user);
 
             return back()->with('success', 'Request fulfilled successfully! Claim slip number: ' . $supplyRequest->claim_slip_number);
 
@@ -507,6 +524,10 @@ class RequestController extends Controller
             $supplyRequest->markAsClaimed(Auth::user());
 
             DB::commit();
+
+            // Clear dashboard cache for the user whose request was claimed
+            $dashboardService = app(DashboardService::class);
+            $dashboardService->clearCache($supplyRequest->user);
 
             $stockMessage = $supplyRequest->requestItems->contains(function ($item) {
                 return $item->isConsumable();
@@ -602,6 +623,10 @@ class RequestController extends Controller
 
             DB::commit();
 
+            // Clear dashboard cache for the user whose request was completed and claimed
+            $dashboardService = app(DashboardService::class);
+            $dashboardService->clearCache($supplyRequest->user);
+
             return back()->with('success', 'Request completed and claimed successfully! Claim slip: ' . $claimSlipNumber);
 
         } catch (\Exception $e) {
@@ -655,6 +680,10 @@ class RequestController extends Controller
             'notes' => $supplyRequest->notes
         ]);
 
+        // Clear dashboard cache for the user whose request was declined
+        $dashboardService = app(DashboardService::class);
+        $dashboardService->clearCache($supplyRequest->user);
+
         return redirect()->route('requests.manage')->with('success', 'Request declined successfully!');
     }
 
@@ -675,6 +704,10 @@ class RequestController extends Controller
         }
 
         $supplyRequest->delete();
+
+        // Clear dashboard cache for the user whose request was deleted
+        $dashboardService = app(DashboardService::class);
+        $dashboardService->clearCache($supplyRequest->user);
 
         // Redirect based on user role
         if ($user->isAdmin()) {
@@ -972,6 +1005,9 @@ class RequestController extends Controller
             }
         }
 
+        // Order by most recent first
+        $query->orderBy('created_at', 'desc');
+
         $requests = $query->paginate(15);
         
         // Load itemable relationships manually for each request
@@ -1110,6 +1146,10 @@ class RequestController extends Controller
             'new_status' => $supplyRequest->status,
             'notes' => $supplyRequest->notes
         ]);
+
+        // Clear dashboard cache for the user who cancelled their request
+        $dashboardService = app(DashboardService::class);
+        $dashboardService->clearCache($user);
 
         return redirect()->route('faculty.requests.index')->with('success', 'Request cancelled successfully!');
     }

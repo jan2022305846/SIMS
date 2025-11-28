@@ -68,11 +68,6 @@
                                             Office: {{ \App\Models\Office::find(request('office_id'))?->name ?? 'Unknown' }}
                                         @endif
                                     </div>
-                                    @if($users->total() > 0)
-                                        <span class="text-muted small">
-                                            {{ $users->firstItem() }}-{{ $users->lastItem() }} of {{ $users->total() }} users
-                                        </span>
-                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -143,8 +138,13 @@
 
                 <!-- Pagination -->
                 @if($users->hasPages())
-                    <div class="d-flex justify-content-center mt-4">
-                        {{ $users->links() }}
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <div class="text-muted">
+                            Showing {{ $users->firstItem() }}-{{ $users->lastItem() }} of {{ $users->total() }} users
+                        </div>
+                        <nav aria-label="Users pagination">
+                            {{ $users->links('pagination::simple-bootstrap-5') }}
+                        </nav>
                     </div>
                 @endif
                     </div>
@@ -180,3 +180,92 @@
 </script>
 @endpush
 @endsection
+
+@push('styles')
+<style>
+/* Dark mode fixes for pagination */
+[data-theme="dark"] .pagination .page-link {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .pagination .page-link:hover {
+    background: var(--bg-tertiary) !important;
+    border-color: var(--accent-primary) !important;
+    color: var(--accent-primary) !important;
+}
+
+[data-theme="dark"] .pagination .page-item.active .page-link {
+    background: var(--accent-primary) !important;
+    border-color: var(--accent-primary) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .pagination .page-item.disabled .page-link {
+    background: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-muted) !important;
+}
+
+/* Ensure pagination is properly centered and aligned */
+nav[aria-label="Users pagination"] .pagination {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+    margin: 0 !important;
+}
+
+nav[aria-label="Users pagination"] .pagination .page-item {
+    margin: 0 !important;
+}
+
+nav[aria-label="Users pagination"] .pagination .page-link {
+    border-radius: 0.375rem !important;
+    margin: 0 1px !important;
+    border: 1px solid #dee2e6 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 40px !important;
+    height: 38px !important;
+    text-decoration: none !important;
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+}
+
+/* Mobile responsive fixes */
+@media (max-width: 576px) {
+    nav[aria-label="Users pagination"] .pagination {
+        gap: 0.125rem !important;
+        justify-content: center !important;
+    }
+
+    nav[aria-label="Users pagination"] .pagination .page-link {
+        padding: 0.375rem 0.5rem !important;
+        font-size: 0.875rem !important;
+        min-width: 35px !important;
+        height: 35px !important;
+    }
+}
+
+/* Fix clear button alignment - ensure icon and text are horizontally aligned */
+.btn-outline-secondary i.fas.fa-times,
+.btn-outline-secondary:has(i.fas.fa-times) {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+}
+
+.btn-outline-secondary {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+}
+</style>
+@endpush

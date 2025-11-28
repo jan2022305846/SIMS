@@ -168,7 +168,7 @@
                                                     </div>
                                                     <div>
                                                         <div class="fw-semibold text-dark">{{ $request->user->name }}</div>
-                                                        <div class="text-muted small">{{ $request->user->email }}</div>
+                                                        <div class="text-muted small">{{ $request->user->office->name ?? 'Unknown Office' }}</div>
                                                     </div>
                                                 </div>
                                             </td>

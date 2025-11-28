@@ -16,13 +16,14 @@ class QRCodeService
      *
      * @param int $itemId The item ID
      * @param string $itemName The item name
-     * @param string $itemCode The item code/barcode
+     * @param string $itemType The item type ('consumable' or 'non_consumable')
+     * @param string|null $itemCode The item code/barcode
      * @return string Base64 encoded QR code SVG
      */
-    public function generateItemQRCode(int $itemId, string $itemName, ?string $itemCode = null): string
+    public function generateItemQRCode(int $itemId, string $itemName, string $itemType, ?string $itemCode = null): string
     {
         $options = new QROptions([
-            'version'    => 7,  // Increased to version 7 for better capacity
+            'version'    => 8,  // Increased to version 8 for more capacity
             'outputType' => 'svg',
             'eccLevel'   => EccLevel::L,
             'scale'      => 10,
@@ -33,9 +34,10 @@ class QRCodeService
         $qrData = [
             'type' => 'item',
             'id' => $itemId,
+            'item_type' => $itemType,
             'name' => $itemName,
             'code' => $itemCode,
-            'url' => config('app.url', '') . '/items/' . $itemId
+            'url' => config('app.url', '') . '/items/' . $itemId . '?type=' . $itemType
         ];
 
         $qrcode = new QRCode($options);
@@ -48,11 +50,14 @@ class QRCodeService
      * Generate QR code URL for an item
      *
      * @param int $itemId The item ID
+     * @param string $itemName The item name
+     * @param string $itemType The item type ('consumable' or 'non_consumable')
+     * @param string|null $itemCode The item code/barcode
      * @return string QR code data URL
      */
-    public function getItemQRCodeDataUrl(int $itemId, string $itemName, ?string $itemCode = null): string
+    public function getItemQRCodeDataUrl(int $itemId, string $itemName, string $itemType, ?string $itemCode = null): string
     {
-        $base64 = $this->generateItemQRCode($itemId, $itemName, $itemCode);
+        $base64 = $this->generateItemQRCode($itemId, $itemName, $itemType, $itemCode);
         return 'data:image/svg+xml;base64,' . $base64;
     }
 

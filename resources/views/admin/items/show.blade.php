@@ -24,7 +24,7 @@
                                     <i class="fas fa-user-tag me-1"></i>
                                     {{ $item->isAssigned() ? 'Manage Assignment' : 'Assign Item' }}
                                 </a>
-                                <a href="{{ route('qr.download', $item) }}" class="btn btn-outline-secondary btn-sm">
+                                <a href="{{ route('qr.download', $item) }}?type={{ $item->item_type }}" class="btn btn-outline-secondary btn-sm">
                                     <i class="fas fa-qrcode me-1"></i>
                                     Download QR
                                 </a>
@@ -265,7 +265,7 @@
                                     </button>
                                     <p class="text-muted small mb-2">Product Code: {{ $item->product_code }}</p>
                                     @can('admin')
-                                    <a href="{{ route('qr.download', $item) }}" 
+                                    <a href="{{ route('qr.download', $item) }}?type={{ $item->item_type }}" 
                                        class="btn btn-outline-secondary btn-sm w-100">
                                         <i class="fas fa-download me-1"></i>
                                         Download QR
@@ -478,8 +478,9 @@ function printQRCode() {
 
 function generateQRCode() {
     const itemId = {{ $item->id }};
+    const itemType = '{{ $item->item_type }}';
 
-    fetch(`/qr/generate/${itemId}`, {
+    fetch(`/qr/generate/${itemId}?type=${itemType}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

@@ -172,8 +172,20 @@ class DashboardController extends Controller
                 ], 400);
             }
 
-            // Find the item by ID from parsed data
-            $item = Consumable::find($parsedData['id']) ?? NonConsumable::find($parsedData['id']);
+            // Find the item by ID and type from parsed data
+            $item = null;
+            if (isset($parsedData['item_type'])) {
+                if ($parsedData['item_type'] === 'consumable') {
+                    $item = Consumable::find($parsedData['id']);
+                } elseif ($parsedData['item_type'] === 'non_consumable') {
+                    $item = NonConsumable::find($parsedData['id']);
+                }
+            }
+
+            // Fallback: if no item_type in QR or item not found, try both tables
+            if (!$item) {
+                $item = Consumable::find($parsedData['id']) ?? NonConsumable::find($parsedData['id']);
+            }
 
             if (!$item) {
                 return response()->json([
@@ -181,6 +193,8 @@ class DashboardController extends Controller
                     'message' => 'Item not found with this QR code'
                 ], 404);
             }
+
+            $itemType = $item instanceof NonConsumable ? 'non_consumable' : 'consumable';
 
             // Log the scan
             ItemScanLog::create([
@@ -201,7 +215,7 @@ class DashboardController extends Controller
                 'data' => [
                     'item' => $item->load('category'),
                     'scan_time' => now()->format('Y-m-d H:i:s'),
-                    'redirect_url' => route('items.show', $item->id)
+                    'redirect_url' => route('items.show', [$item->id, 'type' => $itemType])
                 ]
             ]);
 

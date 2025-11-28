@@ -69,6 +69,7 @@ class NonConsumable extends Model
         return app(\App\Services\QRCodeService::class)->generateItemQRCode(
             $this->id,
             $this->name,
+            'non_consumable',
             $this->product_code
         );
     }
@@ -83,6 +84,7 @@ class NonConsumable extends Model
         return app(\App\Services\QRCodeService::class)->getItemQRCodeDataUrl(
             $this->id,
             $this->name,
+            'non_consumable',
             $this->product_code
         );
     }

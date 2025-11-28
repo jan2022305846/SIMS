@@ -116,7 +116,7 @@
                                     </div>
                                     <div class="row mb-2">
                                         <div class="col-5"><strong>Request Date:</strong></div>
-                                        <div class="col-7">{{ $request->created_at ? $request->created_at->format('M j, Y g:i A') : 'N/A' }}</div>
+                                        <div class="col-7">{{ $request->created_at ? $request->created_at->format('M j, Y') : 'N/A' }}</div>
                                     </div>
                                     <div class="row mb-2">
                                         <div class="col-5"><strong>Needed Date:</strong></div>
