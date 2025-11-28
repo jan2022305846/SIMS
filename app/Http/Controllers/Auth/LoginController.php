@@ -49,6 +49,11 @@ class LoginController extends Controller
      */
     public function showLoginForm()
     {
+        // Ensure session is started and CSRF token is available
+        if (!session()->has('_token')) {
+            session()->regenerateToken();
+        }
+        
         return view('auth.login');
     }
 
@@ -63,6 +68,9 @@ class LoginController extends Controller
     public function login(Request $request)
     {
         $this->validateLogin($request);
+
+        // Ensure fresh CSRF token for this request
+        $request->session()->regenerateToken();
 
         // If the class is using the ThrottlesLogins trait, we can automatically throttle
         // the login attempts for this application. We'll key this by the username and
@@ -113,6 +121,7 @@ class LoginController extends Controller
     protected function sendLoginResponse(Request $request)
     {
         $request->session()->regenerate();
+        $request->session()->regenerateToken(); // Force CSRF token regeneration
 
         $this->clearLoginAttempts($request);
 

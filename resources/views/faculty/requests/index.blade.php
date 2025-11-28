@@ -5,6 +5,9 @@
         <h2 class="h3 fw-semibold text-dark mb-0">
             <i class="fas fa-clipboard-list me-2 text-warning"></i>
             My Requests
+            <small class="text-muted fw-normal ms-2">
+                <i class="fas fa-clock me-1"></i>Most recent first
+            </small>
         </h2>
         <a href="{{ route('faculty.requests.create') }}"
            class="btn btn-warning fw-bold">

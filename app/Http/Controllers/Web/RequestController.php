@@ -75,8 +75,8 @@ class RequestController extends Controller
             $query->where('office_id', $request->office);
         }
 
-        // Order by most recent first
-        $query->orderBy('created_at', 'desc');
+        // Order by most recent first (updated_at desc for most recently modified, then by id desc for consistent ordering)
+        $query->orderBy('updated_at', 'desc')->orderBy('id', 'desc');
 
         $requests = $query->paginate(15);
         
@@ -1006,7 +1006,7 @@ class RequestController extends Controller
         }
 
         // Order by most recent first
-        $query->orderBy('created_at', 'desc');
+        $query->orderBy('updated_at', 'desc')->orderBy('id', 'desc');
 
         $requests = $query->paginate(15);
         
@@ -1163,7 +1163,17 @@ class RequestController extends Controller
         }
 
         // Accept JSON data directly from request body
+        // Try both all() and json()->all() to handle different request parsing scenarios
         $qrData = $httpRequest->all();
+        if (empty($qrData) || !isset($qrData['qr_data'])) {
+            $qrData = $httpRequest->json()->all();
+        }
+        
+        \Log::info('QR verification request received', [
+            'raw_data' => $qrData,
+            'content_type' => $httpRequest->header('Content-Type'),
+            'request_content' => $httpRequest->getContent()
+        ]);
 
         // If qr_data is provided as string, try to decode it
         if (isset($qrData['qr_data']) && is_string($qrData['qr_data'])) {
@@ -1174,17 +1184,17 @@ class RequestController extends Controller
                 // If it's not valid JSON, treat it as a manual claim slip number entry
                 $claimSlipNumber = $qrData['qr_data'];
                 $requestId = $qrData['request_id'] ?? null;
-                
+
                 if (!$requestId) {
                     return response()->json([
-                        'success' => false, 
+                        'success' => false,
                         'message' => 'Request ID is required for manual verification'
                     ], 400);
                 }
 
                 try {
                     $request = SupplyRequest::findOrFail($requestId);
-                    
+
                     if ($request->claim_slip_number === $claimSlipNumber) {
                         return response()->json([
                             'success' => true,
@@ -1200,23 +1210,34 @@ class RequestController extends Controller
                         ]);
                     } else {
                         return response()->json([
-                            'success' => false, 
+                            'success' => false,
                             'message' => 'Claim slip number does not match this request'
                         ], 400);
                     }
                 } catch (\Exception $e) {
                     return response()->json([
-                        'success' => false, 
+                        'success' => false,
                         'message' => 'Failed to verify claim slip'
                     ], 500);
                 }
             }
         }
-
-        // Validate required fields for full QR data
+        // If qr_data is provided as an array/object (parsed JSON), use it directly
+        elseif (isset($qrData['qr_data']) && is_array($qrData['qr_data'])) {
+            $qrData = $qrData['qr_data'];
+        }
+        
+        \Log::info('QR data after parsing', ['parsed_qr_data' => $qrData]);        // Validate required fields for full QR data
+        \Log::info('About to validate QR data fields', ['qr_data' => $qrData]);
         $requiredFields = ['type', 'claim_slip_number', 'request_id', 'user_id', 'timestamp', 'hash'];
         foreach ($requiredFields as $field) {
-            if (!isset($qrData[$field])) {
+            if (!isset($qrData[$field]) || empty($qrData[$field])) {
+                \Log::error('Missing or empty required field in QR data', [
+                    'missing_field' => $field,
+                    'field_value' => $qrData[$field] ?? 'NOT_SET',
+                    'available_fields' => array_keys($qrData),
+                    'qr_data' => $qrData
+                ]);
                 return response()->json([
                     'success' => false, 
                     'message' => 'QR code missing required verification data'

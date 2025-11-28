@@ -4,6 +4,35 @@
 <link rel="stylesheet" href="{{ asset('css/login.css') }}">
 @endpush
 
+@push('scripts')
+<script>
+// Add cache control headers to prevent CSRF token caching
+document.addEventListener('DOMContentLoaded', function() {
+    // Force fresh CSRF token on page load
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        // Add timestamp to ensure uniqueness
+        const timestamp = Date.now();
+        csrfMeta.setAttribute('content', csrfMeta.getAttribute('content') + '_' + timestamp);
+    }
+    
+    // Ensure CSRF token is available before form submission
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(e) {
+            // Double-check CSRF token exists
+            const csrfToken = document.querySelector('meta[name="csrf-token"]');
+            if (!csrfToken || !csrfToken.getAttribute('content')) {
+                e.preventDefault();
+                alert('Security token missing. Please refresh the page and try again.');
+                return false;
+            }
+        });
+    }
+});
+</script>
+@endpush
+
 @section('content')
 <div class="login-page-wrapper">
     <div class="login-card-container">
@@ -298,9 +327,12 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('{{ route("login") }}', {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content').split('_')[0], // Remove timestamp suffix
                 'Accept': 'application/json',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
             },
+            cache: 'no-store',
             body: formData
         })
         .then(response => {
@@ -346,8 +378,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // General error message
                 showLoginError(error.message);
             } else {
-                // Network or other error
-                showLoginError('Network error. Please check your connection and try again.');
+                // Network or other error - fall back to regular form submission
+                console.warn('AJAX login failed, falling back to form submission:', error);
+                loginForm.submit();
+                return;
             }
         })
         .finally(() => {

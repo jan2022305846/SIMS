@@ -1003,11 +1003,11 @@
 
 @push('scripts')
 <script>
-// Include QuaggaJS library for barcode scanning
+// Include html5-qrcode library for QR code scanning
 document.addEventListener('DOMContentLoaded', function() {
-    // Load QuaggaJS dynamically
+    // Load html5-qrcode locally
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js';
+    script.src = '{{ asset('js/html5-qrcode.min.js') }}';
     script.onload = function() {
         initializeClaimBarcodeScanner();
     };
@@ -1099,55 +1099,81 @@ function initializeClaimBarcodeScanner() {
 
         document.body.appendChild(scannerContainer);
 
-        // Initialize Quagga
-        Quagga.init({
-            inputStream: {
-                name: "Live",
-                type: "LiveStream",
-                target: document.querySelector('#claim-scanner-viewport'),
-                constraints: {
-                    width: 640,
-                    height: 480,
-                    facingMode: "environment" // Use back camera on mobile
-                }
-            },
-            locator: {
-                patchSize: "medium",
-                halfSample: true
-            },
-            numOfWorkers: 2,
-            decoder: {
-                readers: [
-                    "code_128_reader",
-                    "ean_reader",
-                    "ean_8_reader",
-                    "code_39_reader",
-                    "upc_reader",
-                    "upc_e_reader",
-                    "codabar_reader"
-                ]
-            },
-            locate: true
-        }, function(err) {
-            if (err) {
-                console.error(err);
-                alert('Error initializing camera: ' + err.message);
+        // Initialize Html5Qrcode for QR code scanning
+        if (!window.claimSlipScanner) {
+            try {
+                window.claimSlipScanner = new Html5Qrcode("claim-scanner-viewport");
+                console.log('Html5Qrcode initialized for claim slip scanner');
+            } catch (error) {
+                console.error('Error initializing Html5Qrcode:', error);
+                alert('Error initializing camera: ' + error.message);
                 stopClaimScanner();
                 return;
             }
-            Quagga.start();
-        });
+        }
 
-        // Handle barcode detection
-        Quagga.onDetected(function(result) {
-            const code = result.codeResult.code;
-            barcodeInput.value = code;
-            scannedBarcodeInput.value = code;
-            verifyAndDisplayClaim(code);
-            stopClaimScanner();
+        // Get cameras and start scanning
+        Html5Qrcode.getCameras().then(devices => {
+            console.log('Cameras found for claim slip scanner:', devices.length);
             
-            // Show success message
-            showToast('Claim slip scanned successfully!', 'success');
+            if (devices && devices.length) {
+                // Prefer back camera on mobile devices
+                let cameraId = devices[0].id;
+                
+                // Look for back/environment camera on mobile
+                for (let device of devices) {
+                    if (device.label) {
+                        const label = device.label.toLowerCase();
+                        if (label.includes('back') ||
+                            label.includes('environment') ||
+                            label.includes('rear') ||
+                            label.includes('world') ||
+                            (label.includes('camera') && label.includes('1')) ||
+                            (label.includes('cam') && label.includes('1'))) {
+                            cameraId = device.id;
+                            console.log('Found back camera for claim slip scanner:', device.label);
+                            break;
+                        }
+                    }
+                }
+                
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0
+                };
+                
+                window.claimSlipScanner.start(
+                    cameraId,
+                    config,
+                    (decodedText, decodedResult) => {
+                        console.log('Claim slip QR Code detected:', decodedText);
+                        barcodeInput.value = decodedText;
+                        scannedBarcodeInput.value = decodedText;
+                        verifyAndDisplayClaim(decodedText);
+                        stopClaimScanner();
+                        
+                        // Show success message
+                        showToast('Claim slip scanned successfully!', 'success');
+                    },
+                    (errorMessage) => {
+                        // Handle scan errors silently - this happens frequently while scanning
+                    }
+                ).then(() => {
+                    console.log('Claim slip scanner started successfully');
+                }).catch(err => {
+                    console.error('Error starting claim slip scanner:', err);
+                    alert('Failed to start scanner: ' + err.message);
+                    stopClaimScanner();
+                });
+            } else {
+                alert('No cameras found. Please ensure you have a camera connected and grant camera permissions.');
+                stopClaimScanner();
+            }
+        }).catch(err => {
+            console.error('Error accessing cameras for claim slip scanner:', err);
+            alert('Error accessing camera: ' + err.message + '. Please grant camera permissions and refresh the page.');
+            stopClaimScanner();
         });
 
         // Close scanner button
@@ -1162,8 +1188,13 @@ function initializeClaimBarcodeScanner() {
             scannerContainer = null;
         }
         
-        if (typeof Quagga !== 'undefined') {
-            Quagga.stop();
+        if (window.claimSlipScanner) {
+            window.claimSlipScanner.stop().then(() => {
+                console.log('Claim slip scanner stopped');
+                window.claimSlipScanner = null;
+            }).catch(err => {
+                console.error('Error stopping claim slip scanner:', err);
+            });
         }
         
         scanBtn.innerHTML = '<i class="fas fa-qrcode"></i>';
@@ -1173,50 +1204,61 @@ function initializeClaimBarcodeScanner() {
     }
 
     function verifyAndDisplayClaim(qrDataString) {
-        // Show loading state
-        claimDetailsContent.innerHTML = `
-            <div class="text-center">
-                <div class="spinner-border text-success" role="status">
-                    <span class="visually-hidden">Loading...</span>
+        try {
+            // Parse the QR data as JSON
+            const qrData = JSON.parse(qrDataString);
+            console.log('Parsed QR data:', qrData);
+            
+            // Show loading state
+            claimDetailsContent.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="mt-2">Verifying claim slip...</div>
                 </div>
-                <div class="mt-2">Verifying claim slip...</div>
-            </div>
-        `;
-        claimDetailsDiv.style.display = 'block';
+            `;
+            claimDetailsDiv.style.display = 'block';
 
-        // Make AJAX request to verify the QR code data
-        fetch(`{{ url('admin/requests/verify-claim-slip-qr') }}`, {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({
-                qr_data: qrDataString,
-                request_id: {{ $request->id }}
+            // Make AJAX request to verify the QR code data
+            fetch(`{{ url('admin/requests/verify-claim-slip-qr') }}`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    qr_data: qrData,
+                    request_id: {{ $request->id }}
+                })
             })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displayClaimDetails(data.data);
-                // Set the hidden input for the verified QR data
-                scannedBarcodeInput.value = qrDataString;
-                checkClaimButtonState(); // Check if verification is complete
-                showToast('Claim slip verified successfully!', 'success');
-            } else {
-                showClaimError(data.message || 'Claim slip verification failed');
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayClaimDetails(data.data);
+                    // Set the hidden input for the verified QR data
+                    scannedBarcodeInput.value = qrDataString;
+                    checkClaimButtonState(); // Check if verification is complete
+                    showToast('Claim slip verified successfully!', 'success');
+                } else {
+                    showClaimError(data.message || 'Claim slip verification failed');
+                    claimBtn.disabled = true;
+                    scannedBarcodeInput.value = '';
+                }
+            })
+            .catch(error => {
+                console.error('Error verifying claim slip:', error);
+                showClaimError('Error verifying claim slip. Please try again.');
                 claimBtn.disabled = true;
                 scannedBarcodeInput.value = '';
-            }
-        })
-        .catch(error => {
-            console.error('Error verifying claim slip:', error);
-            showClaimError('Error verifying claim slip. Please try again.');
+            });
+        } catch (parseError) {
+            console.error('Error parsing QR data:', parseError);
+            showClaimError('Invalid QR code format. Please ensure you are scanning a valid claim slip QR code.');
             claimBtn.disabled = true;
             scannedBarcodeInput.value = '';
-        });
+        }
     }
 
     function displayClaimDetails(verificationData) {
