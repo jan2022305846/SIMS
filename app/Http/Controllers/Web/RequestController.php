@@ -13,7 +13,7 @@ use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Log as Logger;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpWord\PhpWord;
 
@@ -75,6 +75,22 @@ class RequestController extends Controller
             $query->where('office_id', $request->office);
         }
 
+        // Calculate stats from the entire dataset before pagination
+        $statsQuery = clone $query;
+        $statsQuery->with('requestItems');
+        $allRequests = $statsQuery->get();
+        
+        $stats = [
+            'total_requests' => $allRequests->count(),
+            'pending' => $allRequests->where('status', 'pending')->count(),
+            'approved_by_admin' => $allRequests->where('status', 'approved_by_admin')->count(),
+            'fulfilled' => $allRequests->where('status', 'fulfilled')->count(),
+            'claimed' => $allRequests->where('status', 'claimed')->count(),
+            'total_items_claimed' => $allRequests->where('status', 'claimed')->sum(function($request) {
+                return $request->requestItems->sum('quantity');
+            }),
+        ];
+
         // Order by most recent first (updated_at desc for most recently modified, then by id desc for consistent ordering)
         $query->orderBy('updated_at', 'desc')->orderBy('id', 'desc');
 
@@ -86,9 +102,9 @@ class RequestController extends Controller
                 // Manually load itemable relationships for each request item
                 foreach ($supplyRequest->requestItems as $requestItem) {
                     if ($requestItem->item_type === 'consumable') {
-                        $itemable = \App\Models\Consumable::find($requestItem->item_id);
+                        $itemable = Consumable::find($requestItem->item_id);
                     } elseif ($requestItem->item_type === 'non_consumable') {
-                        $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
+                        $itemable = NonConsumable::find($requestItem->item_id);
                     } else {
                         $itemable = null;
                     }
@@ -99,7 +115,7 @@ class RequestController extends Controller
         
         $offices = \App\Models\Office::orderBy('name')->get();
 
-        return view('admin.requests.index', compact('requests', 'offices'));
+        return view('admin.requests.index', compact('requests', 'offices', 'stats'));
     }
 
     public function create()
@@ -208,7 +224,7 @@ class RequestController extends Controller
 
                 // Check stock availability (only for consumables)
                 if ($validatedData['item_type'] === 'consumable' && $item->quantity < $validatedData['quantity']) {
-                    Log::warning('Stock validation failed', [
+                    Logger::warning('Stock validation failed', [
                         'item_id' => $item->id,
                         'requested' => $validatedData['quantity'],
                         'available' => $item->quantity
@@ -230,7 +246,7 @@ class RequestController extends Controller
             \App\Services\NotificationService::notifyNewPendingRequest($supplyRequest);
 
             // Clear dashboard cache for the user who created the request
-            $dashboardService = app(\App\Services\DashboardService::class);
+            $dashboardService = app(DashboardService::class);
             $dashboardService->clearCache(Auth::user());
 
             return redirect()->route('faculty.requests.show', $supplyRequest)
@@ -238,14 +254,14 @@ class RequestController extends Controller
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             DB::rollback();
-            Log::error('Model not found during request creation', [
+            Logger::error('Model not found during request creation', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
             return back()->withErrors(['error' => 'Required data not found. Please try again.']);
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Unexpected error during request creation', [
+            Logger::error('Unexpected error during request creation', [
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
@@ -266,9 +282,9 @@ class RequestController extends Controller
             // Manually load itemable relationships for each request item
             foreach ($supplyRequest->requestItems as $requestItem) {
                 if ($requestItem->item_type === 'consumable') {
-                    $itemable = \App\Models\Consumable::find($requestItem->item_id);
+                    $itemable = Consumable::find($requestItem->item_id);
                 } elseif ($requestItem->item_type === 'non_consumable') {
-                    $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
+                    $itemable = NonConsumable::find($requestItem->item_id);
                 } else {
                     $itemable = null;
                 }
@@ -373,7 +389,7 @@ class RequestController extends Controller
         $supplyRequest->approveByAdmin(Auth::user());
 
         // Clear dashboard cache for both admin and faculty user
-        $dashboardService = app(\App\Services\DashboardService::class);
+        $dashboardService = app(DashboardService::class);
         $dashboardService->clearCache(Auth::user()); // Admin
         $dashboardService->clearCache($supplyRequest->user); // Faculty
 
@@ -401,7 +417,7 @@ class RequestController extends Controller
         // Get the first request item for validation
         $firstRequestItem = $supplyRequest->requestItems->first();
         if (!$firstRequestItem || !$firstRequestItem->itemable) {
-            Log::error('Fulfill failed: Request item or itemable is null', [
+            Logger::error('Fulfill failed: Request item or itemable is null', [
                 'request_id' => $supplyRequest->id,
                 'firstRequestItem_exists' => $firstRequestItem ? true : false,
                 'itemable_exists' => $firstRequestItem && $firstRequestItem->itemable ? true : false,
@@ -412,7 +428,7 @@ class RequestController extends Controller
 
         // Check stock availability one more time with null check
         if ($firstRequestItem->itemable && $firstRequestItem->itemable->quantity < $firstRequestItem->quantity) {
-            Log::warning('Fulfill failed: Insufficient stock', [
+            Logger::warning('Fulfill failed: Insufficient stock', [
                 'request_id' => $supplyRequest->id,
                 'item_id' => $firstRequestItem->itemable->id ?? 'N/A',
                 'item_name' => $firstRequestItem->itemable->name ?? 'Unknown Item',
@@ -453,7 +469,7 @@ class RequestController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Fulfill transaction failed', [
+            Logger::error('Fulfill transaction failed', [
                 'request_id' => $supplyRequest->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -484,8 +500,8 @@ class RequestController extends Controller
         foreach ($supplyRequest->requestItems as $requestItem) {
             if (!$requestItem->relationLoaded('itemable')) {
                 $morphClass = match($requestItem->item_type) {
-                    'consumable' => \App\Models\Consumable::class,
-                    'non_consumable' => \App\Models\NonConsumable::class,
+                    'consumable' => Consumable::class,
+                    'non_consumable' => NonConsumable::class,
                     default => null,
                 };
 
@@ -504,7 +520,7 @@ class RequestController extends Controller
         });
 
         if ($invalidItems->count() > 0) {
-            Log::error('MarkAsClaimed failed: Some request items have null itemable', [
+            Logger::error('MarkAsClaimed failed: Some request items have null itemable', [
                 'request_id' => $supplyRequest->id,
                 'invalid_items_count' => $invalidItems->count(),
                 'total_items_count' => $supplyRequest->requestItems->count(),
@@ -536,7 +552,7 @@ class RequestController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('MarkAsClaimed transaction failed', [
+            Logger::error('MarkAsClaimed transaction failed', [
                 'request_id' => $supplyRequest->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -566,7 +582,7 @@ class RequestController extends Controller
         // Get the first request item for validation
         $firstRequestItem = $supplyRequest->requestItems->first();
         if (!$firstRequestItem || !$firstRequestItem->itemable) {
-            Log::error('CompleteAndClaim failed: Request item or itemable is null', [
+            Logger::error('CompleteAndClaim failed: Request item or itemable is null', [
                 'request_id' => $supplyRequest->id,
                 'firstRequestItem_exists' => $firstRequestItem ? true : false,
                 'itemable_exists' => $firstRequestItem && $firstRequestItem->itemable ? true : false,
@@ -577,7 +593,7 @@ class RequestController extends Controller
 
         // Check stock availability one more time
         if ($firstRequestItem->itemable && $firstRequestItem->itemable->quantity < $firstRequestItem->quantity) {
-            Log::warning('CompleteAndClaim failed: Insufficient stock', [
+            Logger::warning('CompleteAndClaim failed: Insufficient stock', [
                 'request_id' => $supplyRequest->id,
                 'item_id' => $firstRequestItem->itemable->id ?? 'N/A',
                 'item_name' => $firstRequestItem->itemable->name ?? 'Unknown Item',
@@ -631,7 +647,7 @@ class RequestController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('CompleteAndClaim transaction failed', [
+            Logger::error('CompleteAndClaim transaction failed', [
                 'request_id' => $supplyRequest->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -641,7 +657,7 @@ class RequestController extends Controller
     }    public function decline(Request $httpRequest, SupplyRequest $supplyRequest)
     {
         /** @var \App\Models\Request $supplyRequest */
-        Log::info('Decline method called', [
+        Logger::info('Decline method called', [
             'request_id' => $supplyRequest->id,
             'user_id' => Auth::id(),
             'form_data' => $httpRequest->all()
@@ -663,7 +679,7 @@ class RequestController extends Controller
             'reason' => 'required|string|max:500',
         ]);
 
-        Log::info('Declining request', [
+        Logger::info('Declining request', [
             'request_id' => $supplyRequest->id,
             'current_status' => $supplyRequest->status,
             'reason' => $validatedData['reason']
@@ -674,7 +690,7 @@ class RequestController extends Controller
 
         // Check if the status was actually updated
         $supplyRequest->refresh();
-        Log::info('Request status after decline', [
+        Logger::info('Request status after decline', [
             'request_id' => $supplyRequest->id,
             'new_status' => $supplyRequest->status,
             'notes' => $supplyRequest->notes
@@ -798,7 +814,7 @@ class RequestController extends Controller
             throw new \Exception('PHP ZipArchive extension is required for DOCX export. Please contact your administrator.');
         }
 
-        $phpWord = new \PhpOffice\PhpWord\PhpWord();
+        $phpWord = new PhpWord();
 
         // Set document properties
         $properties = $phpWord->getDocInfo();
@@ -1016,9 +1032,9 @@ class RequestController extends Controller
                 // Manually load itemable relationships for each request item
                 foreach ($supplyRequest->requestItems as $requestItem) {
                     if ($requestItem->item_type === 'consumable') {
-                        $itemable = \App\Models\Consumable::find($requestItem->item_id);
+                        $itemable = Consumable::find($requestItem->item_id);
                     } elseif ($requestItem->item_type === 'non_consumable') {
-                        $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
+                        $itemable = NonConsumable::find($requestItem->item_id);
                     } else {
                         $itemable = null;
                     }
@@ -1130,7 +1146,7 @@ class RequestController extends Controller
             'reason' => 'nullable|string|max:500',
         ]);
 
-        Log::info('Cancelling faculty request', [
+        Logger::info('Cancelling faculty request', [
             'request_id' => $supplyRequest->id,
             'current_status' => $supplyRequest->status,
             'reason' => $validatedData['reason'] ?? null
@@ -1141,7 +1157,7 @@ class RequestController extends Controller
 
         // Check if the status was actually updated
         $supplyRequest->refresh();
-        Log::info('Request status after cancellation', [
+        Logger::info('Request status after cancellation', [
             'request_id' => $supplyRequest->id,
             'new_status' => $supplyRequest->status,
             'notes' => $supplyRequest->notes
@@ -1169,7 +1185,7 @@ class RequestController extends Controller
             $qrData = $httpRequest->json()->all();
         }
         
-        \Log::info('QR verification request received', [
+        Logger::info('QR verification request received', [
             'raw_data' => $qrData,
             'content_type' => $httpRequest->header('Content-Type'),
             'request_content' => $httpRequest->getContent()
@@ -1227,12 +1243,12 @@ class RequestController extends Controller
             $qrData = $qrData['qr_data'];
         }
         
-        \Log::info('QR data after parsing', ['parsed_qr_data' => $qrData]);        // Validate required fields for full QR data
-        \Log::info('About to validate QR data fields', ['qr_data' => $qrData]);
+        Logger::info('QR data after parsing', ['parsed_qr_data' => $qrData]);        // Validate required fields for full QR data
+        Logger::info('About to validate QR data fields', ['qr_data' => $qrData]);
         $requiredFields = ['type', 'claim_slip_number', 'request_id', 'user_id', 'timestamp', 'hash'];
         foreach ($requiredFields as $field) {
             if (!isset($qrData[$field]) || empty($qrData[$field])) {
-                \Log::error('Missing or empty required field in QR data', [
+                Logger::error('Missing or empty required field in QR data', [
                     'missing_field' => $field,
                     'field_value' => $qrData[$field] ?? 'NOT_SET',
                     'available_fields' => array_keys($qrData),
@@ -1306,7 +1322,7 @@ class RequestController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('QR code verification error', [
+            Logger::error('QR code verification error', [
                 'error' => $e->getMessage(),
                 'qr_data' => $qrData,
                 'request_id' => $qrData['request_id'] ?? null

@@ -143,11 +143,27 @@
         @if($items->hasPages())
             <div class="row mt-4 mb-4">
                 <div class="col-12">
-                    <nav aria-label="Items pagination" class="d-flex justify-content-center w-100">
-                        <div class="pagination-container">
-                            {{ $items->appends(request()->query())->links('pagination::bootstrap-5') }}
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+                        <div class="text-muted small">
+                            <i class="fas fa-list me-1"></i>
+                            Showing {{ $items->firstItem() }}-{{ $items->lastItem() }} of {{ $items->total() }} items
+                            @if(request('search') || request('category'))
+                                (filtered)
+                            @endif
                         </div>
-                    </nav>
+                        <nav aria-label="Items pagination">
+                            {{ $items->appends(request()->query())->links('pagination::bootstrap-5') }}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        @elseif($items->total() > 0)
+            <div class="row mt-4 mb-4">
+                <div class="col-12">
+                    <div class="text-center text-muted small">
+                        <i class="fas fa-check me-1"></i>
+                        Showing all {{ $items->total() }} items
+                    </div>
                 </div>
             </div>
         @endif

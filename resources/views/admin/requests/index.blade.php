@@ -16,7 +16,7 @@
                     </h2>
                     <div>
                         <span class="badge bg-primary fs-6 px-3 py-2">
-                            {{ $requests->total() }} Total Requests
+                            {{ $stats['total_requests'] }} Total Requests
                         </span>
                     </div>
                 </div>
@@ -29,7 +29,7 @@
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
                                         <h6 class="card-title mb-1">Pending Review</h6>
-                                        <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'pending')->count() }}</h3>
+                                        <h3 class="mb-0 fw-bold">{{ $stats['pending'] }}</h3>
                                     </div>
                                     <div class="ms-3">
                                         <i class="fas fa-clock fa-2x opacity-75"></i>
@@ -44,7 +44,7 @@
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
                                         <h6 class="card-title mb-1">Admin Approved</h6>
-                                        <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'approved_by_admin')->count() }}</h3>
+                                        <h3 class="mb-0 fw-bold">{{ $stats['approved_by_admin'] }}</h3>
                                     </div>
                                     <div class="ms-3">
                                         <i class="fas fa-user-check fa-2x opacity-75"></i>
@@ -59,7 +59,7 @@
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
                                         <h6 class="card-title mb-1">Ready for Pickup</h6>
-                                        <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'fulfilled')->count() }}</h3>
+                                        <h3 class="mb-0 fw-bold">{{ $stats['fulfilled'] }}</h3>
                                     </div>
                                     <div class="ms-3">
                                         <i class="fas fa-box-open fa-2x opacity-75"></i>
@@ -73,8 +73,8 @@
                             <div class="card-body">
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
-                                        <h6 class="card-title mb-1">Completed</h6>
-                                        <h3 class="mb-0 fw-bold">{{ $requests->where('status', 'claimed')->count() }}</h3>
+                                        <h6 class="card-title mb-1">Items Released/Claimed</h6>
+                                        <h3 class="mb-0 fw-bold">{{ $stats['total_items_claimed'] }}</h3>
                                     </div>
                                     <div class="ms-3">
                                         <i class="fas fa-check-circle fa-2x opacity-75"></i>
@@ -254,7 +254,7 @@
                                     Showing {{ $requests->firstItem() }}-{{ $requests->lastItem() }} of {{ $requests->total() }} requests
                                 </div>
                                 <nav aria-label="Requests pagination">
-                                    {{ $requests->withQueryString()->links() }}
+                                    {{ $requests->withQueryString()->links('pagination::simple-bootstrap-5') }}
                                 </nav>
                             </div>
                         @else
@@ -411,6 +411,79 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+@endpush
+
+@push('styles')
+<style>
+/* Dark mode fixes for pagination */
+[data-theme="dark"] .pagination .page-link {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .pagination .page-link:hover {
+    background: var(--bg-tertiary) !important;
+    border-color: var(--accent-primary) !important;
+    color: var(--accent-primary) !important;
+}
+
+[data-theme="dark"] .pagination .page-item.active .page-link {
+    background: var(--accent-primary) !important;
+    border-color: var(--accent-primary) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .pagination .page-item.disabled .page-link {
+    background: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-muted) !important;
+}
+
+/* Ensure pagination is properly centered and aligned */
+nav[aria-label="Requests pagination"] .pagination {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+    margin: 0 !important;
+}
+
+nav[aria-label="Requests pagination"] .pagination .page-item {
+    margin: 0 !important;
+}
+
+nav[aria-label="Requests pagination"] .pagination .page-link {
+    border-radius: 0.375rem !important;
+    margin: 0 1px !important;
+    border: 1px solid #dee2e6 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 40px !important;
+    height: 38px !important;
+    text-decoration: none !important;
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+}
+
+/* Mobile responsive fixes */
+@media (max-width: 576px) {
+    nav[aria-label="Requests pagination"] .pagination {
+        gap: 0.125rem !important;
+        justify-content: center !important;
+    }
+
+    nav[aria-label="Requests pagination"] .pagination .page-link {
+        padding: 0.375rem 0.5rem !important;
+        font-size: 0.875rem !important;
+        min-width: 35px !important;
+        height: 35px !important;
+    }
+}
+</style>
 @endpush
 
 @endsection

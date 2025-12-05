@@ -77,8 +77,8 @@ A comprehensive Laravel-based **Supply Office Management System** designed for e
 
 ### **Deployment**
 - **Containerization**: Docker with Apache
-- **Cloud Platform**: Render.com
-- **Database**: FreeMySQLDatabase
+- **Local Server**: XAMPP/LAMPP or similar
+- **Database**: MySQL/MariaDB
 - **Asset Compilation**: Node.js 18.x
 
 ### **Database Schema**
@@ -166,58 +166,143 @@ Visit `http://localhost:8000` and login with:
 
 ## 🌐 Deployment
 
-### **Production Deployment on Render**
+### **Local Server Deployment**
 
-#### **Step 1: Prepare Docker Configuration**
-The project includes production-ready Docker configuration:
-- `Dockerfile` - Multi-stage build with Apache + Node.js
-- `docker-start-simple.sh` - Production startup script
-- `database-init.sh` - Database initialization script
+#### **Step 1: Server Requirements**
+Ensure your local server has:
+- **PHP 8.1+** with required extensions
+- **MySQL/MariaDB 5.7+**
+- **Node.js 18.x+** for asset compilation
+- **Composer** for PHP dependencies
+- **Git** for version control
 
-#### **Step 2: Environment Variables**
-Set these environment variables in Render Dashboard:
+#### **Step 2: Upload Project Files**
+1. Upload the project files to your web server's document root
+2. Set proper file permissions:
+```bash
+# Set ownership to web server user (e.g., www-data, apache, or nobody)
+sudo chown -R www-data:www-data /path/to/project
 
+# Set proper permissions
+sudo chmod -R 755 /path/to/project
+sudo chmod -R 775 /path/to/project/storage
+sudo chmod -R 775 /path/to/project/bootstrap/cache
+```
+
+#### **Step 3: Environment Configuration**
+1. Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+
+2. Update `.env` with your local server settings:
 ```bash
 # Application
 APP_NAME="Supply Office Management System"
 APP_ENV=production
-APP_KEY=your_generated_app_key_here
 APP_DEBUG=false
-APP_TIMEZONE=UTC
-APP_URL=https://your-app-name.onrender.com
+APP_TIMEZONE=Asia/Manila
+APP_URL=http://your-local-server.com
 
-# Database (FreeMySQLDatabase)
+# Database
 DB_CONNECTION=mysql
-DB_HOST=your_database_host
+DB_HOST=localhost
 DB_PORT=3306
-DB_DATABASE=your_database_name
-DB_USERNAME=your_database_user
-DB_PASSWORD=your_database_password
+DB_DATABASE=supply_office_db
+DB_USERNAME=your_db_user
+DB_PASSWORD=your_db_password
 
-# Deployment
-RUN_MIGRATIONS=true
+# Session (adjust for local server)
+SESSION_DOMAIN=null
+SESSION_SECURE_COOKIE=false
 ```
 
-#### **Step 3: Deploy to Render**
-1. Connect your GitHub repository
-2. Select **Docker** as the environment
-3. Set environment variables
-4. Deploy
-
-The deployment process will:
-- ✅ Install PHP and Node.js dependencies
-- ✅ Build frontend assets with Vite
-- ✅ Run database migrations automatically
-- ✅ Create admin user
-- ✅ Configure Apache virtual host
-- ✅ Start the application server
-
-### **Manual Database Initialization**
-If migrations fail, run the database initialization script:
+#### **Step 4: Install Dependencies**
 ```bash
-# Inside the running container
-/usr/local/bin/database-init.sh
+# Install PHP dependencies
+composer install --no-dev --optimize-autoloader
+
+# Install Node.js dependencies
+npm install
+
+# Build production assets
+npm run build
 ```
+
+#### **Step 5: Database Setup**
+```bash
+# Generate application key
+php artisan key:generate
+
+# Run database migrations
+php artisan migrate
+
+# Seed the database (optional)
+php artisan db:seed
+```
+
+#### **Step 6: Optimize for Production**
+```bash
+# Clear and cache configuration
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# Set storage permissions
+php artisan storage:link
+```
+
+#### **Step 7: Web Server Configuration**
+Configure your web server (Apache/Nginx) to point to the `public` directory:
+
+**Apache (.htaccess is included):**
+```apache
+<VirtualHost *:80>
+    ServerName your-local-server.com
+    DocumentRoot /path/to/project/public
+    
+    <Directory /path/to/project/public>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+```
+
+**Nginx:**
+```nginx
+server {
+    listen 80;
+    server_name your-local-server.com;
+    root /path/to/project/public;
+    
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+    
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+}
+```
+
+### **Docker Deployment (Alternative)**
+If using Docker for local deployment:
+
+```bash
+# Build and run with Docker
+docker build -t supply-office .
+docker run -d -p 80:80 --name supply-office supply-office
+```
+
+### **Post-Deployment Checklist**
+- ✅ Application loads without errors
+- ✅ Database connection works
+- ✅ Admin user can login
+- ✅ File uploads work (storage permissions)
+- ✅ Email notifications (if configured)
+- ✅ QR code scanning functionality
 
 ## 👥 Usage
 

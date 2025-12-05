@@ -224,97 +224,10 @@ class ReportsController extends Controller
 
         // Get user activity data
         $users = \App\Models\User::with(['requests', 'scanLogs'])->get();
-
-        $userActivity = $users->map(function($user) use ($dateFrom, $dateTo) {
-            $userRequests = $user->requests()->whereBetween('created_at', [$dateFrom, $dateTo])->get();
-            $userScans = $user->scanLogs()->whereBetween('created_at', [$dateFrom, $dateTo])->get();
-
-            return [
-                'user' => $user,
-                'total_requests' => $userRequests->count(),
-                'completed_requests' => $userRequests->where('status', 'completed')->count(),
-                'total_scans' => $userScans->count(),
-                'unique_items_scanned' => $userScans->pluck('item_id')->unique()->count(),
-                'last_activity' => max(
-                    $userRequests->max('created_at'),
-                    $userScans->max('created_at')
-                ),
-            ];
-        })->filter(function($activity) {
-            return $activity['total_requests'] > 0 || $activity['total_scans'] > 0;
-        })->sortByDesc(function($activity) {
-            return $activity['total_requests'] + $activity['total_scans'];
-        });
+        $userActivity = $this->getUserActivity($users, $dateFrom, $dateTo);
 
         // Build userStats structure expected by the view
-        $userStats = [
-            'total_users' => $users->count(),
-            'active_users' => $userActivity->count(),
-            'total_scans' => $userActivity->pluck('total_scans')->sum(),
-            'avg_scans_per_user' => $userActivity->count() > 0 ? round($userActivity->pluck('total_scans')->sum() / $userActivity->count(), 1) : 0,
-            'most_active_users' => $userActivity->take(10)->map(function($activity) {
-                return [
-                    'name' => $activity['user']->name,
-                    'role' => $activity['user']->role,
-                    'scan_count' => $activity['total_scans'],
-                    'last_activity' => $activity['last_activity'] ? Carbon::parse($activity['last_activity']) : null,
-                ];
-            }),
-            'recent_activities' => \App\Models\ItemScanLog::with(['user', 'item'])
-                ->whereBetween('created_at', [$dateFrom, $dateTo])
-                ->orderBy('created_at', 'desc')
-                ->take(15)
-                ->get()
-                ->map(function($scan) {
-                    return [
-                        'user_name' => $scan->user->name,
-                        'item_name' => $scan->item ? ($scan->item->name ?? 'Unknown Item') : 'Unknown Item',
-                        'created_at' => $scan->created_at,
-                    ];
-                }),
-            'users_by_role' => $users->groupBy('role')->map(function($roleUsers) use ($dateFrom, $dateTo) {
-                $roleScans = \App\Models\ItemScanLog::whereIn('user_id', $roleUsers->pluck('id'))
-                    ->whereBetween('created_at', [$dateFrom, $dateTo])
-                    ->count();
-                return [
-                    'total_users' => $roleUsers->count(),
-                    'active_users' => $roleUsers->filter(function($user) use ($dateFrom, $dateTo) {
-                        return $user->scanLogs()->whereBetween('created_at', [$dateFrom, $dateTo])->exists() ||
-                               $user->requests()->whereBetween('created_at', [$dateFrom, $dateTo])->exists();
-                    })->count(),
-                    'total_scans' => $roleScans,
-                ];
-            }),
-            'user_registration_trends' => $users->groupBy(function($user) {
-                return $user->created_at->format('Y-m');
-            })->map(function($monthUsers) {
-                return [
-                    'month' => Carbon::createFromFormat('Y-m', collect($monthUsers)->first()->created_at->format('Y-m'))->startOfMonth(),
-                    'count' => $monthUsers->count(),
-                ];
-            })->sortBy('month')->values(),
-            'inactive_users' => $users->filter(function($user) use ($dateFrom, $dateTo) {
-                return !$user->scanLogs()->whereBetween('created_at', [$dateFrom, $dateTo])->exists() &&
-                       !$user->requests()->whereBetween('created_at', [$dateFrom, $dateTo])->exists();
-            })->map(function($user) {
-                $lastScan = $user->scanLogs()->latest('created_at')->first();
-                $lastRequest = $user->requests()->latest('created_at')->first();
-                $lastActivity = $lastScan && $lastRequest ?
-                    max($lastScan->created_at, $lastRequest->created_at) :
-                    ($lastScan ? $lastScan->created_at : ($lastRequest ? $lastRequest->created_at : null));
-                return [
-                    'name' => $user->name,
-                    'role' => $user->role,
-                    'last_activity' => $lastActivity,
-                ];
-            })->sortByDesc('last_activity'),
-            'activity_distribution' => [
-                'active' => $userActivity->where('total_scans', '>', 10)->count(),
-                'moderate' => $userActivity->whereBetween('total_scans', [5, 10])->count(),
-                'low' => $userActivity->whereBetween('total_scans', [1, 4])->count(),
-                'inactive' => $users->count() - $userActivity->count(),
-            ],
-        ];
+        $userStats = $this->buildUserStats($users, $userActivity, $dateFrom, $dateTo);
 
         // Get QR scan data for the period
         $qrScanData = $this->getQrScanReportData($period);
@@ -334,6 +247,157 @@ class ReportsController extends Controller
             'dateTo'
         ));
     }
+
+    /**
+     * Get user activity data
+     */
+    private function getUserActivity($users, $dateFrom, $dateTo)
+    {
+        return $users->map(function($user) use ($dateFrom, $dateTo) {
+            $userRequests = $user->requests()->whereBetween('created_at', [$dateFrom, $dateTo])->get();
+            $userScans = $user->scanLogs()->whereBetween('created_at', [$dateFrom, $dateTo])->get();
+
+            return [
+                'user' => $user,
+                'total_requests' => $userRequests->count(),
+                'completed_requests' => $userRequests->where('status', 'completed')->count(),
+                'total_scans' => $userScans->count(),
+                'unique_items_scanned' => $userScans->pluck('item_id')->unique()->count(),
+                'last_activity' => max(
+                    $userRequests->max('created_at'),
+                    $userScans->max('created_at')
+                ),
+            ];
+        })->filter(function($activity) {
+            return $activity['total_requests'] > 0 || $activity['total_scans'] > 0;
+        })->sortByDesc(function($activity) {
+            return $activity['total_requests'] + $activity['total_scans'];
+        });
+    }
+
+    /**
+     * Build user stats structure
+     */
+    private function buildUserStats($users, $userActivity, $dateFrom, $dateTo)
+    {
+        return [
+            'total_users' => $users->count(),
+            'active_users' => $userActivity->count(),
+            'total_scans' => $userActivity->pluck('total_scans')->sum(),
+            'avg_scans_per_user' => $userActivity->count() > 0 ? round($userActivity->pluck('total_scans')->sum() / $userActivity->count(), 1) : 0,
+            'most_active_users' => $this->getMostActiveUsers($userActivity),
+            'recent_activities' => $this->getRecentActivities($dateFrom, $dateTo),
+            'users_by_role' => $this->getUsersByRole($users, $dateFrom, $dateTo),
+            'user_registration_trends' => $this->getUserRegistrationTrends($users),
+            'inactive_users' => $this->getInactiveUsers($users, $dateFrom, $dateTo),
+            'activity_distribution' => $this->getActivityDistribution($users, $userActivity),
+        ];
+    }
+
+    /**
+     * Get most active users
+     */
+    private function getMostActiveUsers($userActivity)
+    {
+        return $userActivity->take(10)->map(function($activity) {
+            return [
+                'name' => $activity['user']->name,
+                'role' => $activity['user']->role,
+                'scan_count' => $activity['total_scans'],
+                'last_activity' => $activity['last_activity'] ? Carbon::parse($activity['last_activity']) : null,
+            ];
+        });
+    }
+
+    /**
+     * Get recent activities
+     */
+    private function getRecentActivities($dateFrom, $dateTo)
+    {
+        return \App\Models\ItemScanLog::with(['user', 'item'])
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->orderBy('created_at', 'desc')
+            ->take(15)
+            ->get()
+            ->map(function($scan) {
+                return [
+                    'user_name' => $scan->user->name,
+                    'item_name' => $scan->item ? ($scan->item->name ?? 'Unknown Item') : 'Unknown Item',
+                    'created_at' => $scan->created_at,
+                ];
+            });
+    }
+
+    /**
+     * Get users by role
+     */
+    private function getUsersByRole($users, $dateFrom, $dateTo)
+    {
+        return $users->groupBy('role')->map(function($roleUsers) use ($dateFrom, $dateTo) {
+            $roleScans = \App\Models\ItemScanLog::whereIn('user_id', $roleUsers->pluck('id'))
+                ->whereBetween('created_at', [$dateFrom, $dateTo])
+                ->count();
+            return [
+                'total_users' => $roleUsers->count(),
+                'active_users' => $roleUsers->filter(function($user) use ($dateFrom, $dateTo) {
+                    return $user->scanLogs()->whereBetween('created_at', [$dateFrom, $dateTo])->exists() ||
+                           $user->requests()->whereBetween('created_at', [$dateFrom, $dateTo])->exists();
+                })->count(),
+                'total_scans' => $roleScans,
+            ];
+        });
+    }
+
+    /**
+     * Get user registration trends
+     */
+    private function getUserRegistrationTrends($users)
+    {
+        return $users->groupBy(function($user) {
+            return $user->created_at->format('Y-m');
+        })->map(function($monthUsers) {
+            return [
+                'month' => Carbon::createFromFormat('Y-m', collect($monthUsers)->first()->created_at->format('Y-m'))->startOfMonth(),
+                'count' => $monthUsers->count(),
+            ];
+        })->sortBy('month')->values();
+    }
+
+    /**
+     * Get inactive users
+     */
+    private function getInactiveUsers($users, $dateFrom, $dateTo)
+    {
+        return $users->filter(function($user) use ($dateFrom, $dateTo) {
+            return !$user->scanLogs()->whereBetween('created_at', [$dateFrom, $dateTo])->exists() &&
+                   !$user->requests()->whereBetween('created_at', [$dateFrom, $dateTo])->exists();
+        })->map(function($user) {
+            $lastScan = $user->scanLogs()->latest('created_at')->first();
+            $lastRequest = $user->requests()->latest('created_at')->first();
+            $lastActivity = $lastScan && $lastRequest ?
+                max($lastScan->created_at, $lastRequest->created_at) :
+                ($lastScan ? $lastScan->created_at : ($lastRequest ? $lastRequest->created_at : null));
+            return [
+                'name' => $user->name,
+                'role' => $user->role,
+                'last_activity' => $lastActivity,
+            ];
+        })->sortByDesc('last_activity');
+    }
+
+    /**
+     * Get activity distribution
+     */
+    private function getActivityDistribution($users, $userActivity)
+    {
+        return [
+            'active' => $userActivity->where('total_scans', '>', 10)->count(),
+            'moderate' => $userActivity->whereBetween('total_scans', [5, 10])->count(),
+            'low' => $userActivity->whereBetween('total_scans', [1, 4])->count(),
+            'inactive' => $users->count() - $userActivity->count(),
+        ];
+    }
+
 
     /**
      * Get inventory data for reports dashboard (API endpoint)
@@ -1426,7 +1490,7 @@ class ReportsController extends Controller
             throw new \Exception('PHP ZipArchive extension is required for DOCX export. Please contact your administrator.');
         }
 
-        $phpWord = new \PhpOffice\PhpWord\PhpWord();
+        $phpWord = new PhpWord();
 
         // Set document properties
         $properties = $phpWord->getDocInfo();
@@ -1501,7 +1565,7 @@ class ReportsController extends Controller
             throw new \Exception('PHP ZipArchive extension is required for DOCX export. Please contact your administrator.');
         }
 
-        $phpWord = new \PhpOffice\PhpWord\PhpWord();
+        $phpWord = new PhpWord();
 
         // Set document properties
         $properties = $phpWord->getDocInfo();

@@ -67,7 +67,7 @@
                 </div>
             </div>
             <div class="col-md-3 mb-3">
-                <div class="card bg-success text-white h-100 shadow-sm">
+                <div class="card bg-success h-100 shadow-sm">
                     <div class="card-body">
                         <div class="d-flex align-items-center">
                             <div class="flex-grow-1">
@@ -82,7 +82,7 @@
                 </div>
             </div>
             <div class="col-md-3 mb-3">
-                <div class="card bg-secondary text-white h-100 shadow-sm">
+                <div class="card bg-secondary h-100 shadow-sm">
                     <div class="card-body">
                         <div class="d-flex align-items-center">
                             <div class="flex-grow-1">
@@ -175,8 +175,8 @@
                                             @switch($request->status)
                                                 @case('pending') bg-primary @break
                                                 @case('approved_by_admin') bg-success @break
-                                                @case('ready_for_pickup') bg-purple text-white @break
-                                                @case('fulfilled') bg-purple text-white @break
+                                                @case('ready_for_pickup') bg-purple @break
+                                                @case('fulfilled') bg-purple @break
                                                 @case('claimed') bg-secondary @break
                                                 @case('declined') bg-danger @break
                                                 @case('cancelled') bg-secondary @break
@@ -251,9 +251,27 @@
         @if($requests->hasPages())
             <div class="row mt-5">
                 <div class="col-12">
-                    <nav aria-label="Requests pagination" class="d-flex justify-content-center">
-                        {{ $requests->appends(request()->query())->links('pagination::bootstrap-5') }}
-                    </nav>
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+                        <div class="text-muted small">
+                            <i class="fas fa-list me-1"></i>
+                            Showing {{ $requests->firstItem() }}-{{ $requests->lastItem() }} of {{ $requests->total() }} requests
+                            @if(request('search') || request('status'))
+                                (filtered)
+                            @endif
+                        </div>
+                        <nav aria-label="Requests pagination">
+                            {{ $requests->appends(request()->query())->links('pagination::bootstrap-5') }}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        @elseif($requests->total() > 0)
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="text-center text-muted small">
+                        <i class="fas fa-check me-1"></i>
+                        Showing all {{ $requests->total() }} requests
+                    </div>
                 </div>
             </div>
         @endif
@@ -302,6 +320,9 @@ document.addEventListener('DOMContentLoaded', function() {
 @endpush
 
 <style>
+    .bg-purple, .bg-secondary {
+        color: white !important;
+    }
     .bg-purple {
         background-color: #8b5cf6 !important;
     }
