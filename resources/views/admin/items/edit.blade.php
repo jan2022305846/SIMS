@@ -118,9 +118,18 @@
                             @if($item instanceof \App\Models\NonConsumable)
                             <div class="col-md-6">
                                 <label for="location" class="form-label fw-medium">Location *</label>
-                                <input type="text" name="location" id="location" 
-                                       class="form-control @error('location') is-invalid @enderror"
-                                       value="{{ old('location', $item->location) }}" required>
+                                <div class="position-relative">
+                                    <select name="location" id="location"
+                                            class="form-select @error('location') is-invalid @enderror" required>
+                                        <option value="">Select Location</option>
+                                        @foreach($offices as $office)
+                                            <option value="{{ $office->name }}" {{ old('location', $item->location) == $office->name ? 'selected' : '' }}>
+                                                {{ $office->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <i class="fas fa-chevron-down position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                                </div>
                                 @error('location')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror

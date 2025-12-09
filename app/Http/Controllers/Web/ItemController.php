@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Consumable;
 use App\Models\NonConsumable;
 use App\Models\Category;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -209,6 +210,9 @@ class ItemController extends Controller
             $item = NonConsumable::create($data);
         }
 
+        // Log item creation activity
+        ActivityLogger::logItemCreated($item);
+
         return redirect()->route('items.index')
             ->with('success', 'Item created successfully.');
     }
@@ -222,24 +226,24 @@ class ItemController extends Controller
 
         // If type is specified, search the appropriate table first
         if ($type === 'consumable') {
-            $item = Consumable::with('category')->find($id);
+            $item = Consumable::with('category', 'requests')->find($id);
             if (!$item) {
                 // If not found in consumables, try non-consumables as fallback
-                $item = NonConsumable::with('category')->find($id);
+                $item = NonConsumable::with('category', 'requests', 'scanLogs')->find($id);
             }
         } elseif ($type === 'non_consumable') {
-            $item = NonConsumable::with('category')->find($id);
+            $item = NonConsumable::with('category', 'requests', 'scanLogs')->find($id);
             if (!$item) {
                 // If not found in non-consumables, try consumables as fallback
-                $item = Consumable::with('category')->find($id);
+                $item = Consumable::with('category', 'requests')->find($id);
             }
         } else {
             // No type specified - use the original logic
             // First try to find in consumables
-            $consumableItem = Consumable::with('category')->find($id);
+            $consumableItem = Consumable::with('category', 'requests')->find($id);
 
             // Then try to find in non-consumables
-            $nonConsumableItem = NonConsumable::with('category')->find($id);
+            $nonConsumableItem = NonConsumable::with('category', 'requests', 'scanLogs')->find($id);
 
             // Determine which item to show based on availability and context
             if ($consumableItem && $nonConsumableItem) {
@@ -312,7 +316,8 @@ class ItemController extends Controller
         }
 
         $categories = Category::all();
-        return view('admin.items.edit', compact('item', 'categories'));
+        $offices = \App\Models\Office::all();
+        return view('admin.items.edit', compact('item', 'categories', 'offices'));
     }
 
     /**
@@ -390,15 +395,35 @@ class ItemController extends Controller
         // Prepare update data (exclude add_quantity)
         $updateData = $request->except(['add_quantity']);
 
+        // Capture original values for logging
+        $originalValues = $item->toArray();
+
         // Update the item
         $item->update($updateData);
 
         // Handle stock addition if provided
+        $stockAdded = 0;
         if ($request->filled('add_quantity') && $request->add_quantity > 0) {
             $item->increment('quantity', $request->add_quantity);
+            $stockAdded = $request->add_quantity;
             $message = 'Item updated successfully. Added ' . $request->add_quantity . ' ' . $item->unit . ' to stock.';
         } else {
             $message = 'Item updated successfully.';
+        }
+
+        // Log item update activity
+        $changes = [];
+        foreach ($updateData as $key => $value) {
+            if (isset($originalValues[$key]) && $originalValues[$key] != $value) {
+                $changes[$key] = ['old' => $originalValues[$key], 'new' => $value];
+            }
+        }
+        if ($stockAdded > 0) {
+            $changes['quantity'] = ['old' => $originalValues['quantity'], 'new' => $item->quantity, 'added' => $stockAdded];
+        }
+
+        if (!empty($changes)) {
+            ActivityLogger::logItemUpdated($item, null, $changes);
         }
 
         return redirect()->route('items.show', $item->id . '?type=' . ($item instanceof Consumable ? 'consumable' : 'non_consumable'))
@@ -429,6 +454,9 @@ class ItemController extends Controller
         }
 
         $item->delete();
+
+        // Log item deletion activity
+        ActivityLogger::logItemDeleted($item);
 
         return redirect()->route('items.index')
             ->with('success', 'Item deleted successfully.');
@@ -1151,7 +1179,6 @@ class ItemController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'location' => 'nullable|string|max:255',
-            'notes' => 'nullable|string|max:1000',
         ]);
 
         $user = \App\Models\User::findOrFail($request->user_id);
@@ -1226,7 +1253,10 @@ class ItemController extends Controller
             }
 
             $holderName = $item->currentHolder->name;
-            $item->update(['current_holder_id' => null]);
+            $item->update([
+                'current_holder_id' => null,
+                'location' => 'Supply Office' // Update location to indicate item has been returned
+            ]);
         } else {
             // For consumables, just return success (they don't have holders)
             return redirect()->route('items.show', $item->id . '?type=' . ($item instanceof Consumable ? 'consumable' : 'non_consumable'))

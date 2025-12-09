@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use App\Services\ActivityLogger;
 
 class LoginController extends Controller
 {
@@ -32,14 +33,29 @@ class LoginController extends Controller
     protected $redirectTo = '/dashboard';
 
     /**
-     * Create a new controller instance.
+     * Validate the user login request.
      *
+     * @param  \Illuminate\Http\Request  $request
      * @return void
+     *
+     * @throws \Illuminate\Validation\ValidationException
      */
-    public function __construct()
+    protected function validateLogin(Request $request)
     {
-        $this->middleware('guest')->except('logout');
-        $this->middleware('auth')->only('logout');
+        $request->validate([
+            $this->username() => 'required|string',
+            'password' => 'required|string',
+        ]);
+    }
+
+    /**
+     * Get the login username to be used by the controller.
+     *
+     * @return string
+     */
+    public function username()
+    {
+        return 'username';
     }
 
     /**
@@ -168,6 +184,11 @@ class LoginController extends Controller
             'ip' => $request->ip()
         ]);
 
+        // Log logout activity before performing logout
+        if (Auth::check()) {
+            ActivityLogger::logLogout(Auth::user());
+        }
+
         // Perform logout
         $this->guard()->logout();
 
@@ -200,6 +221,9 @@ class LoginController extends Controller
     {
         $credentials = $this->credentials($request);
 
+        // Log failed login attempt
+        ActivityLogger::logFailedLogin($credentials);
+
         // Check if user exists
         $user = \App\Models\User::where('username', $credentials['username'])->first();
 
@@ -228,12 +252,15 @@ class LoginController extends Controller
     }
 
     /**
-     * Get the login username to be used by the controller.
+     * The user has been authenticated.
      *
-     * @return string
+     * @param  \Illuminate\Http\Request  $request
+     * @param  mixed  $user
+     * @return mixed
      */
-    public function username()
+    protected function authenticated(Request $request, $user)
     {
-        return 'username';
+        // Log successful login
+        ActivityLogger::logLogin($user);
     }
 }

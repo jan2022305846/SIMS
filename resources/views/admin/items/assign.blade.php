@@ -33,10 +33,7 @@
                             <i class="fas fa-info-circle me-2"></i>
                             <div>
                                 <strong>Currently Assigned:</strong> This item is currently assigned to {{ $item->currentHolder->name }}
-                                ({{ $item->currentHolder->email }}) since {{ $item->assigned_at->format('M d, Y') }}.
-                                @if($item->assignment_notes)
-                                    <br><strong>Notes:</strong> {{ $item->assignment_notes }}
-                                @endif
+                                ({{ $item->currentHolder->email }}) since {{ $item->updated_at->format('M d, Y') }}.
                             </div>
                         </div>
                     @else
@@ -117,36 +114,27 @@
                                             <i class="fas fa-map-marker-alt me-1"></i>
                                             Update Location
                                         </label>
-                                        <input type="text" name="location" id="location"
-                                               class="form-control" value="{{ $item->location }}"
-                                               placeholder="e.g., ICT Office, Faculty Office, etc.">
+                                        <div class="position-relative">
+                                            <select name="location" id="location" class="form-select">
+                                                <option value="">Select a location...</option>
+                                                @foreach($offices as $office)
+                                                    <option value="{{ $office->name }}"
+                                                            {{ $item->location == $office->name ? 'selected' : '' }}>
+                                                        {{ $office->name }}
+                                                        @if($office->location)
+                                                            ({{ $office->location }})
+                                                        @endif
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <i class="fas fa-chevron-down position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                                        </div>
                                         <div class="form-text">Update the current location of the item if needed.</div>
-                                    </div>
-
-                                    <!-- Assignment Notes -->
-                                    <div class="col-12">
-                                        <label for="notes" class="form-label">
-                                            <i class="fas fa-sticky-note me-1"></i>
-                                            Assignment Notes
-                                        </label>
-                                        <textarea name="notes" id="notes" class="form-control" rows="3"
-                                                  placeholder="Optional notes about this assignment...">{{ $item->assignment_notes }}</textarea>
-                                        <div class="form-text">Add any relevant notes about this assignment (purpose, duration, etc.).</div>
                                     </div>
                                 </div>
 
                                 <!-- Action Buttons -->
-                                <div class="d-flex justify-content-between align-items-center mt-4">
-                                    <div>
-                                        @if($item->isAssigned())
-                                            <a href="{{ route('items.unassign', $item) }}"
-                                               class="btn btn-outline-danger"
-                                               onclick="return confirm('Are you sure you want to unassign this item from {{ $item->currentHolder->name }}?')">
-                                                <i class="fas fa-user-times me-1"></i>
-                                                Unassign Current Holder
-                                            </a>
-                                        @endif
-                                    </div>
+                                <div class="d-flex justify-content-end mt-4">
                                     <div class="d-flex gap-2">
                                         <a href="{{ route('items.show', $item->id) }}?type={{ $item instanceof \App\Models\Consumable ? 'consumable' : 'non_consumable' }}" class="btn btn-secondary">
                                             <i class="fas fa-times me-1"></i>
@@ -161,6 +149,21 @@
                             </div>
                         </div>
                     </form>
+
+                    <!-- Unassign Form (separate from main assignment form) -->
+                    @if($item->isAssigned())
+                        <div class="mt-3">
+                            <form action="{{ route('items.unassign', $item) }}" method="POST" class="d-inline"
+                                  onsubmit="return confirm('Are you sure you want to unassign this item from {{ $item->currentHolder->name }}?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-outline-danger">
+                                    <i class="fas fa-user-times me-1"></i>
+                                    Unassign Current Holder
+                                </button>
+                            </form>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

@@ -205,19 +205,30 @@
                             </div>
                         @endif
                         @if($request->canGenerateClaimSlip())
-                            <div class="d-flex gap-2 mb-2">
-                                <a href="{{ route('requests.claim-slip', $request) }}"
-                                   class="btn btn-outline-info flex-fill"
-                                   target="_blank">
-                                    <i class="fas fa-eye me-2"></i>Preview Claim Slip
-                                </a>
-                                <form action="{{ route('faculty.requests.generate-claim-slip', $request) }}" method="POST" class="flex-fill">
+                            @if($request->isApprovedByAdmin())
+                                <!-- For approved requests, show only Generate button to avoid redundancy -->
+                                <form action="{{ route('faculty.requests.generate-claim-slip', $request) }}" method="POST">
                                     @csrf
-                                    <button type="submit" class="btn btn-primary w-100">
+                                    <button type="submit" class="btn btn-primary w-100 mb-2">
                                         <i class="fas fa-ticket-alt me-2"></i>Generate Claim Slip
                                     </button>
                                 </form>
-                            </div>
+                            @else
+                                <!-- For other statuses that can generate claim slip, show both buttons -->
+                                <div class="d-flex gap-2 mb-2">
+                                    <a href="{{ route('requests.claim-slip', $request) }}"
+                                       class="btn btn-outline-info flex-fill"
+                                       target="_blank">
+                                        <i class="fas fa-eye me-2"></i>Preview Claim Slip
+                                    </a>
+                                    <form action="{{ route('faculty.requests.generate-claim-slip', $request) }}" method="POST" class="flex-fill">
+                                        @csrf
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            <i class="fas fa-ticket-alt me-2"></i>Generate Claim Slip
+                                        </button>
+                                    </form>
+                                </div>
+                            @endif
                         @endif
 
                         @if($request->isReadyForPickup() || $request->isFulfilled() || $request->isClaimed())
@@ -729,11 +740,19 @@
         min-height: 180px;
     }
 
-    /* Dark mode support for content cards */
-    [data-bs-theme="dark"] .workflow-content {
-        background: #343a40;
-        border-color: #495057;
-        color: #ffffff;
+    /* Dark mode support for content cards - Universal override with maximum specificity */
+    [data-bs-theme="dark"] .workflow-timeline .workflow-content,
+    [data-bs-theme="dark"] .workflow-timeline .workflow-step .workflow-content,
+    [data-bs-theme="dark"] .workflow-timeline .workflow-step.completed .workflow-content,
+    [data-bs-theme="dark"] .workflow-timeline .workflow-step.current .workflow-content,
+    [data-bs-theme="dark"] .workflow-timeline .workflow-step.declined .workflow-content,
+    [data-bs-theme="dark"] .workflow-timeline .workflow-step.cancelled .workflow-content,
+    [data-bs-theme="dark"] .workflow-timeline .workflow-step.terminated .workflow-content,
+    [data-bs-theme="dark"] div.workflow-content {
+        background-color: #343a40 !important;
+        background-image: none !important;
+        border-color: #495057 !important;
+        color: #ffffff !important;
     }
 
     .workflow-step.completed .workflow-content {
@@ -743,8 +762,8 @@
     }
 
     [data-bs-theme="dark"] .workflow-step.completed .workflow-content {
-        border-color: #155724;
-        background: linear-gradient(135deg, #1e3a1f 0%, #343a40 100%);
+        border-color: #155724 !important;
+        box-shadow: 0 4px 16px rgba(40, 167, 69, 0.2) !important;
     }
 
     .workflow-step.current .workflow-content {
@@ -755,8 +774,9 @@
     }
 
     [data-bs-theme="dark"] .workflow-step.current .workflow-content {
-        border-color: #004085;
-        background: linear-gradient(135deg, #1a252f 0%, #343a40 100%);
+        border-color: #004085 !important;
+        box-shadow: 0 4px 16px rgba(0, 123, 255, 0.25) !important;
+        transform: translateY(-2px);
     }
 
     .workflow-step.declined .workflow-content {
@@ -766,8 +786,8 @@
     }
 
     [data-bs-theme="dark"] .workflow-step.declined .workflow-content {
-        border-color: #721c24;
-        background: linear-gradient(135deg, #3a1f1f 0%, #343a40 100%);
+        border-color: #721c24 !important;
+        box-shadow: 0 4px 16px rgba(220, 53, 69, 0.2) !important;
     }
 
     .workflow-step.cancelled .workflow-content {
@@ -777,8 +797,8 @@
     }
 
     [data-bs-theme="dark"] .workflow-step.cancelled .workflow-content {
-        border-color: #495057;
-        background: linear-gradient(135deg, #2d3436 0%, #343a40 100%);
+        border-color: #495057 !important;
+        box-shadow: 0 4px 16px rgba(108, 117, 125, 0.2) !important;
     }
 
     .workflow-step.terminated .workflow-content {
@@ -788,8 +808,8 @@
     }
 
     [data-bs-theme="dark"] .workflow-step.terminated .workflow-content {
-        border-color: #495057;
-        background: linear-gradient(135deg, #2d3436 0%, #343a40 100%);
+        border-color: #495057 !important;
+        box-shadow: 0 4px 16px rgba(108, 117, 125, 0.2) !important;
     }
 
     .step-header {
@@ -828,6 +848,39 @@
         padding-top: 10px;
     }
 
+    [data-bs-theme="dark"] .step-description {
+        color: #adb5bd;
+    }
+
+    /* Improve text readability for small elements in workflow */
+    [data-bs-theme="dark"] .workflow-content small {
+        color: #adb5bd !important;
+    }
+
+    [data-bs-theme="dark"] .workflow-content strong {
+        color: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] .workflow-content .text-muted {
+        color: #adb5bd !important;
+    }
+
+    [data-bs-theme="dark"] .workflow-content .text-primary {
+        color: #6ea8fe !important;
+    }
+
+    [data-bs-theme="dark"] .workflow-content .text-success {
+        color: #75b798 !important;
+    }
+
+    [data-bs-theme="dark"] .workflow-content .text-danger {
+        color: #ea868f !important;
+    }
+
+    [data-bs-theme="dark"] .workflow-content .text-dark {
+        color: #ffffff !important;
+    }
+
     /* Badge improvements */
     .badge {
         font-size: 0.75rem;
@@ -836,7 +889,32 @@
         border-radius: 6px;
     }
 
-    /* Dark mode badge support */
+    [data-bs-theme="dark"] .workflow-content .text-dark {
+        color: #ffffff !important;
+    }
+
+    /* Improve list readability in workflow */
+    [data-bs-theme="dark"] .workflow-content ul li {
+        color: #adb5bd;
+    }
+
+    [data-bs-theme="dark"] .workflow-content ul li strong {
+        color: #ffffff;
+    }
+
+    /* Ensure all small text in workflow is readable */
+    [data-bs-theme="dark"] .workflow-content small {
+        color: #adb5bd !important;
+    }
+
+    /* Fix bg-light elements inside workflow in dark mode */
+    [data-bs-theme="dark"] .workflow-content .bg-light,
+    [data-bs-theme="dark"] .workflow-content code.bg-light {
+        background-color: #495057 !important;
+        color: #ffffff !important;
+    }
+
+    /* Improve badge text contrast in dark mode */
     [data-bs-theme="dark"] .badge.bg-success-subtle {
         background-color: rgba(25, 135, 84, 0.2) !important;
         color: #75b798 !important;

@@ -44,20 +44,6 @@ class RequestClaimed extends Notification
             $request->load('requestItems');
         }
 
-        // Manually load itemable relationships for each request item
-        foreach ($request->requestItems as $requestItem) {
-            if (!$requestItem->relationLoaded('itemable')) {
-                if ($requestItem->item_type === 'consumable') {
-                    $itemable = \App\Models\Consumable::find($requestItem->item_id);
-                } elseif ($requestItem->item_type === 'non_consumable') {
-                    $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
-                } else {
-                    $itemable = null;
-                }
-                $requestItem->setRelation('itemable', $itemable);
-            }
-        }
-
         $mail = (new MailMessage)
             ->subject('Request Claimed - Supply Office System')
             ->greeting("Hello {$notifiable->name},")
@@ -66,7 +52,9 @@ class RequestClaimed extends Notification
 
         // Add each item to the email
         foreach ($request->requestItems as $requestItem) {
-            $itemName = $requestItem->itemable ? $requestItem->itemable->name : 'Unknown Item';
+            // Use lazy loading instead of eager loading for polymorphic relationship
+            $itemable = $requestItem->itemable;
+            $itemName = $itemable ? $itemable->name : 'Unknown Item';
             $mail->line("- Item: {$itemName} (Quantity: {$requestItem->quantity})");
         }
 
@@ -94,24 +82,12 @@ class RequestClaimed extends Notification
             $request->load('requestItems');
         }
 
-        // Manually load itemable relationships for each request item
-        foreach ($request->requestItems as $requestItem) {
-            if (!$requestItem->relationLoaded('itemable')) {
-                if ($requestItem->item_type === 'consumable') {
-                    $itemable = \App\Models\Consumable::find($requestItem->item_id);
-                } elseif ($requestItem->item_type === 'non_consumable') {
-                    $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
-                } else {
-                    $itemable = null;
-                }
-                $requestItem->setRelation('itemable', $itemable);
-            }
-        }
-
         $items = [];
         foreach ($request->requestItems as $requestItem) {
+            // Use lazy loading instead of eager loading for polymorphic relationship
+            $itemable = $requestItem->itemable;
             $items[] = [
-                'name' => $requestItem->itemable ? $requestItem->itemable->name : 'Unknown Item',
+                'name' => $itemable ? $itemable->name : 'Unknown Item',
                 'quantity' => $requestItem->quantity,
             ];
         }

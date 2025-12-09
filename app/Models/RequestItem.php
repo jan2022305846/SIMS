@@ -22,11 +22,6 @@ class RequestItem extends Model
         'quantity' => 'integer',
     ];
 
-    protected $morphMap = [
-        'consumable' => \App\Models\Consumable::class,
-        'non_consumable' => \App\Models\NonConsumable::class,
-    ];
-
     // Relationships
     public function request()
     {

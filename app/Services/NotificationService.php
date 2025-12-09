@@ -29,7 +29,7 @@ class NotificationService
      */
     public static function notifyNewPendingRequest(SupplyRequest $request): void
     {
-        $admins = User::whereRaw('id = 6')->get(); // Single admin system - user ID 6
+        $admins = User::where('role', 'admin')->get(); // Get all admin users
 
         foreach ($admins as $admin) {
             // Only create notification if the request has an associated user
@@ -59,7 +59,7 @@ class NotificationService
      */
     public static function notifyLowStockAlerts(): void
     {
-        $admins = User::whereRaw('id = 6')->get(); // Single admin system - user ID 6
+        $admins = User::where('role', 'admin')->get(); // Get all admin users
 
         // Check consumables
         $lowStockConsumables = Consumable::whereColumn('quantity', '<=', 'min_stock')->get();
@@ -200,9 +200,9 @@ class NotificationService
         foreach ($request->requestItems as $requestItem) {
             if (!$requestItem->relationLoaded('itemable')) {
                 if ($requestItem->item_type === 'consumable') {
-                    $itemable = \App\Models\Consumable::find($requestItem->item_id);
+                    $itemable = Consumable::find($requestItem->item_id);
                 } elseif ($requestItem->item_type === 'non_consumable') {
-                    $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
+                    $itemable = NonConsumable::find($requestItem->item_id);
                 } else {
                     $itemable = null;
                 }
@@ -217,6 +217,37 @@ class NotificationService
         }
 
         return $itemNames;
+    }
+
+    /**
+     * Notify admin when request is cancelled by faculty.
+     */
+    public static function notifyRequestCancelled(SupplyRequest $request, string $reason): void
+    {
+        $admins = User::where('role', 'admin')->get(); // Get all admin users
+
+        foreach ($admins as $admin) {
+            // Only create notification if the request has an associated user
+            $userName = $request->user ? $request->user->name : 'Unknown User';
+
+            // Get item names for the notification
+            $itemNames = self::getItemNamesForRequest($request);
+            $itemSummary = count($itemNames) === 1 ? $itemNames[0] : count($itemNames) . ' items';
+
+            self::create(
+                $admin,
+                'cancelled_request',
+                'Request Cancelled',
+                "Request from {$userName} for {$itemSummary} has been cancelled. Reason: {$reason}",
+                [
+                    'request_id' => $request->id,
+                    'user_id' => $request->user_id,
+                    'item_names' => $itemNames,
+                    'total_quantity' => $request->getTotalItems(),
+                    'reason' => $reason,
+                ]
+            );
+        }
     }
 
     /**

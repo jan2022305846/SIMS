@@ -12,8 +12,8 @@
 Supply Office Inventory Management System (SIMS)
 </p>
 <p style="margin: 0 0 10px 0;">
-📧 <a href="mailto:supply.office@panaon.ustp.edu.ph" style="color: #4a5568; text-decoration: none;">supply.office@panaon.ustp.edu.ph</a><br>
-📍 USTP Panaon Campus, Panaon, Zamboanga del Norte
+📧 <a href="mailto:denverian.gimeno@ustp.edu.ph" style="color: #4a5568; text-decoration: none;">denverian.gimeno@ustp.edu.ph</a><br>
+📍 USTP Panaon Campus, Punta, Panaon, Misamis Occidental.
 </p>
 <p style="margin: 0; color: #a0aec0; font-size: 11px;">
 © {{ date('Y') }} University of Science and Technology of Southern Philippines. All rights reserved.<br>

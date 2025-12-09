@@ -10,6 +10,7 @@ use App\Models\Log as ActivityLog;
 use App\Models\ActivityLog as RequestActivityLog;
 use App\Models\User;
 use App\Services\DashboardService;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -242,6 +243,9 @@ class RequestController extends Controller
 
             DB::commit();
 
+            // Log request creation activity
+            ActivityLogger::logRequestCreated($supplyRequest);
+
             // Notify admin about new pending request
             \App\Services\NotificationService::notifyNewPendingRequest($supplyRequest);
 
@@ -387,6 +391,9 @@ class RequestController extends Controller
         }
 
         $supplyRequest->approveByAdmin(Auth::user());
+
+        // Log request approval activity
+        ActivityLogger::logRequestApproved($supplyRequest);
 
         // Clear dashboard cache for both admin and faculty user
         $dashboardService = app(DashboardService::class);
@@ -687,6 +694,9 @@ class RequestController extends Controller
 
         $supplyRequest->load('user');
         $supplyRequest->decline(Auth::user(), $validatedData['reason']);
+
+        // Log request decline activity
+        ActivityLogger::logRequestDeclined($supplyRequest, Auth::user(), $validatedData['reason']);
 
         // Check if the status was actually updated
         $supplyRequest->refresh();
@@ -1154,6 +1164,12 @@ class RequestController extends Controller
 
         $supplyRequest->load('user');
         $supplyRequest->cancel($user, $validatedData['reason'] ?? null);
+
+        // Log request cancellation activity
+        ActivityLogger::logRequestCancelled($supplyRequest, $user, $validatedData['reason'] ?? null);
+
+        // Notify admin about the cancelled request
+        \App\Services\NotificationService::notifyRequestCancelled($supplyRequest, $validatedData['reason'] ?? 'No reason provided');
 
         // Check if the status was actually updated
         $supplyRequest->refresh();

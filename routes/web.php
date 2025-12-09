@@ -71,6 +71,9 @@ Route::middleware(['auth'])->group(function () {
         // Users
         Route::resource('users', UserController::class);
         Route::get('users/{user}/export/fulfilled', [UserController::class, 'exportFulfilledRequests'])->name('admin.users.export.fulfilled');
+        Route::get('api/users/{user}/released-items', [UserController::class, 'getReleasedItems'])->name('admin.api.users.released-items');
+        Route::get('users/{user}/export-released-items', [UserController::class, 'exportReleasedItems'])->name('admin.users.export.released-items');
+        Route::get('api/users/check-duplicate', [UserController::class, 'checkDuplicate'])->name('admin.api.users.check-duplicate');
         
         // Categories
         Route::resource('categories', CategoryController::class);
@@ -132,6 +135,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('reports/request-analytics', [ReportsController::class, 'requestAnalytics'])->name('reports.request-analytics');
         Route::get('reports/stock-transactions', [ReportsController::class, 'stockTransactions'])->name('reports.stock-transactions');
         Route::get('reports/user-activity', [ReportsController::class, 'userActivityReport'])->name('reports.user-activity');
+        Route::get('reports/activity-logs', [ReportsController::class, 'activityLogs'])->name('reports.activity-logs');
         Route::get('reports/dashboard-data', [ReportsController::class, 'dashboardData'])->name('reports.dashboard-data');
         
         // Admin Reports - PDF Downloads

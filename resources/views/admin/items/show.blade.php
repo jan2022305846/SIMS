@@ -283,20 +283,45 @@
                                     </h5>
                                 </div>
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <span class="text-muted">Status:</span>
-                                        <span class="fw-semibold {{ $item->isOutOfStock() ? 'text-danger' : ($item->isLowStock() ? 'text-warning' : 'text-success') }}">
-                                            {{ $item->getStockStatus() }}
-                                        </span>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <span class="text-muted">Total Requests:</span>
-                                        <span class="fw-semibold">{{ $item->requests->count() }}</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center mb-0">
-                                        <span class="text-muted">Pending Requests:</span>
-                                        <span class="fw-semibold">{{ $item->requests->where('status', 'pending')->count() }}</span>
-                                    </div>
+                                    @if($item instanceof \App\Models\NonConsumable)
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <span class="text-muted">Assignment Status:</span>
+                                            <span class="fw-semibold {{ $item->isAssigned() ? 'text-success' : 'text-warning' }}">
+                                                {{ $item->isAssigned() ? 'Assigned' : 'Available' }}
+                                            </span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <span class="text-muted">Total Scan Logs:</span>
+                                            <span class="fw-semibold">{{ $item->scanLogs->count() }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-0">
+                                            <span class="text-muted">Recent Activity:</span>
+                                            <span class="fw-semibold">
+                                                @if($item->scanLogs->count() > 0)
+                                                    {{ $item->scanLogs->sortByDesc('created_at')->first()->created_at->format('M d, Y') }}
+                                                @elseif($item->isAssigned())
+                                                    {{ $item->updated_at->format('M d, Y') }}
+                                                @else
+                                                    Never
+                                                @endif
+                                            </span>
+                                        </div>
+                                    @else
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <span class="text-muted">Status:</span>
+                                            <span class="fw-semibold {{ $item->isOutOfStock() ? 'text-danger' : ($item->isLowStock() ? 'text-warning' : 'text-success') }}">
+                                                {{ $item->getStockStatus() }}
+                                            </span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <span class="text-muted">Total Requests:</span>
+                                            <span class="fw-semibold">{{ $item->requests->count() }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-0">
+                                            <span class="text-muted">Pending Requests:</span>
+                                            <span class="fw-semibold">{{ $item->requests->where('status', 'pending')->count() }}</span>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
 

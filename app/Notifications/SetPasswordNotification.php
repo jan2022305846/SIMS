@@ -13,14 +13,16 @@ class SetPasswordNotification extends Notification
 
     protected $token;
     protected $isInitialSetup;
+    protected $plainPassword;
 
     /**
      * Create a new notification instance.
      */
-    public function __construct(string $token, bool $isInitialSetup = true)
+    public function __construct(string $token, bool $isInitialSetup = true, ?string $plainPassword = null)
     {
         $this->token = $token;
         $this->isInitialSetup = $isInitialSetup;
+        $this->plainPassword = $plainPassword;
     }
 
     /**
@@ -41,9 +43,14 @@ class SetPasswordNotification extends Notification
         $url = url('/password/set/' . $this->token);
 
         if ($this->isInitialSetup) {
+            $greeting = 'Hi ' . $notifiable->name . ',';
+            if ($this->plainPassword) {
+                $greeting .= "\nYour username: " . $notifiable->username . "\nYour password: " . $this->plainPassword;
+            }
+
             return (new MailMessage)
                 ->subject('Welcome to SIMS - Set Your Password')
-                ->greeting('Hi ' . $notifiable->name . ',')
+                ->greeting($greeting)
                 ->line('An account has been created for you on the USTP Panaon Supply Office Inventory Management System (SIMS).')
                 ->line('Please click the button below to set your password and activate your account.')
                 ->action('Set My Password', $url)
@@ -73,6 +80,7 @@ class SetPasswordNotification extends Notification
         return [
             'token' => $this->token,
             'is_initial_setup' => $this->isInitialSetup,
+            'plain_password' => $this->plainPassword,
         ];
     }
 }

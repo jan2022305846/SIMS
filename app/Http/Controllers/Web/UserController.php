@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -57,10 +58,19 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    if (User::where('name', $value)->exists()) {
+                        $fail('A user with this full name already exists.');
+                    }
+                },
+            ],
             'username' => 'required|string|max:255|unique:users',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' =>  'required|string|min:8|confirmed', // password validation
+            'password' => 'required|string|min:8|confirmed',
             'office_id' => 'nullable|exists:offices,id',
         ]);
 
@@ -72,6 +82,13 @@ class UserController extends Controller
             'office_id' => $request->office_id,
             'must_set_password' => false,
         ]);
+
+        // Log user creation activity
+        ActivityLogger::logUserCreated($user);
+
+        // Send password setup notification with credentials
+        $token = app(\Illuminate\Auth\Passwords\PasswordBroker::class)->createToken($user);
+        $user->notify(new SetPasswordNotification($token, true, $request->password));
 
         return redirect()->route('users.index')
             ->with('success', 'User created successfully. A password setup email has been sent to the user.');
@@ -124,7 +141,22 @@ class UserController extends Controller
             $userData['password'] = Hash::make($request->password);
         }
 
+        // Capture original values for logging
+        $originalValues = $user->toArray();
+
         $user->update($userData);
+
+        // Log user update activity
+        $changes = [];
+        foreach ($userData as $key => $value) {
+            if (isset($originalValues[$key]) && $originalValues[$key] != $value) {
+                $changes[$key] = ['old' => $originalValues[$key], 'new' => $value];
+            }
+        }
+
+        if (!empty($changes)) {
+            ActivityLogger::logUserUpdated($user, null, $changes);
+        }
 
         return redirect()->route('users.index')
             ->with('success', 'User updated successfully.');
@@ -142,6 +174,9 @@ class UserController extends Controller
         }
 
         $user->delete();
+
+        // Log user deletion activity
+        ActivityLogger::logUserDeleted($user);
 
         return redirect()->route('users.index')
             ->with('success', 'User deleted successfully.');
@@ -268,7 +303,7 @@ class UserController extends Controller
         // Footer with generation info
         $section->addTextBreak(2);
         $section->addText(
-            'Report generated on ' . now()->format('M j, Y \a\t g:i A') . ' by ' . auth()->user()->name,
+            'Report generated on ' . now()->format('M j, Y \a\t g:i A') . ' by ' . Auth::user()->name,
             ['name' => 'Arial', 'size' => 9, 'italic' => true],
             ['alignment' => 'center']
         );
@@ -282,5 +317,225 @@ class UserController extends Controller
         $objWriter->save($tempFile);
 
         return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * API endpoint to get user released items by period
+     */
+    public function getReleasedItems(Request $request, User $user)
+    {
+        $period = $request->get('period', 'monthly');
+        $selection = $request->get('selection');
+
+        // Get date range
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
+
+        // Get released items for this user
+        $releasedItemsQuery = \App\Models\RequestItem::with(['request', 'itemable'])
+            ->whereHas('request', function($query) use ($user, $dateFrom, $dateTo) {
+                $query->where('user_id', $user->id)
+                      ->whereIn('status', ['claimed', 'returned'])
+                      ->whereBetween('updated_at', [$dateFrom, $dateTo]);
+            })
+            ->orderBy('request_items.created_at', 'desc')
+            ->get();
+
+        $items = $releasedItemsQuery->map(function($requestItem) {
+            $itemName = 'Unknown Item';
+            $unit = 'pcs';
+            
+            if ($requestItem->item_type && $requestItem->item_id) {
+                if ($requestItem->item_type === 'consumable') {
+                    $item = \App\Models\Consumable::find($requestItem->item_id);
+                    if ($item) {
+                        $itemName = $item->name ?: 'Item ID: ' . $requestItem->item_id;
+                        $unit = $item->unit ?: 'pcs';
+                    }
+                } elseif ($requestItem->item_type === 'non_consumable') {
+                    $item = \App\Models\NonConsumable::find($requestItem->item_id);
+                    if ($item) {
+                        $itemName = $item->name ?: 'Item ID: ' . $requestItem->item_id;
+                        $unit = $item->unit ?: 'pcs';
+                    }
+                }
+            }
+            
+            return [
+                'date' => $requestItem->request->updated_at->format('M j, Y'),
+                'item_name' => $itemName,
+                'quantity' => $requestItem->quantity . ' ' . $unit,
+            ];
+        });
+
+        return response()->json([
+            'items' => $items,
+            'totalCount' => $items->count()
+        ]);
+    }
+
+    /**
+     * Export user released items with period filter
+     */
+    public function exportReleasedItems(Request $request, User $user)
+    {
+        $period = $request->get('period', 'monthly');
+        $selection = $request->get('selection');
+
+        // Get date range
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
+
+        // Get released items for this user
+        $releasedItemsQuery = \App\Models\RequestItem::with(['request', 'itemable'])
+            ->whereHas('request', function($query) use ($user, $dateFrom, $dateTo) {
+                $query->where('user_id', $user->id)
+                      ->whereIn('status', ['claimed', 'returned'])
+                      ->whereBetween('updated_at', [$dateFrom, $dateTo]);
+            })
+            ->orderBy('request_items.created_at', 'asc')
+            ->get();
+
+        // Create new PhpWord instance
+        $phpWord = new \PhpOffice\PhpWord\PhpWord();
+
+        // Set document properties
+        $properties = $phpWord->getDocInfo();
+        $properties->setCreator('SIMS System');
+        $properties->setCompany('USTP Supply Office');
+        $properties->setTitle('Released Items Report - ' . $user->name);
+
+        // Add section
+        $section = $phpWord->addSection([
+            'marginLeft' => 1000,
+            'marginRight' => 1000,
+            'marginTop' => 1000,
+            'marginBottom' => 1000,
+        ]);
+
+        // Title
+        $section->addText(
+            'RELEASED ITEMS REPORT',
+            ['name' => 'Arial', 'size' => 16, 'bold' => true],
+            ['alignment' => 'center']
+        );
+
+        $section->addTextBreak(1);
+
+        // Period information
+        $periodText = '';
+        if ($period === 'monthly') {
+            $date = \Carbon\Carbon::parse($selection);
+            $periodText = $date->format('F Y');
+        } else if ($period === 'annual') {
+            $periodText = $selection;
+        }
+
+        $section->addText(
+            'Period: ' . $periodText,
+            ['name' => 'Arial', 'size' => 12, 'bold' => true],
+            ['alignment' => 'center']
+        );
+
+        $section->addText(
+            'User: ' . $user->name,
+            ['name' => 'Arial', 'size' => 11],
+            ['alignment' => 'center']
+        );
+
+        $section->addTextBreak(1);
+
+        // Create table
+        $tableStyle = [
+            'borderSize' => 6,
+            'borderColor' => '999999',
+            'width' => 80 * 50, // 80% of page width
+            'unit' => 'pct'
+        ];
+        
+        $table = $section->addTable($tableStyle);
+
+        // Add header row
+        $table->addRow(400);
+        $table->addCell(2500, ['bgColor' => 'E6E6E6'])->addText('Date', ['bold' => true]);
+        $table->addCell(4000, ['bgColor' => 'E6E6E6'])->addText('Item', ['bold' => true]);
+        $table->addCell(1500, ['bgColor' => 'E6E6E6'])->addText('Quantity', ['bold' => true]);
+
+        // Add data rows
+        foreach ($releasedItemsQuery as $requestItem) {
+            $itemName = 'Unknown Item';
+            $unit = 'pcs';
+            
+            if ($requestItem->item_type && $requestItem->item_id) {
+                if ($requestItem->item_type === 'consumable') {
+                    $item = \App\Models\Consumable::find($requestItem->item_id);
+                    if ($item) {
+                        $itemName = $item->name ?: 'Item ID: ' . $requestItem->item_id;
+                        $unit = $item->unit ?: 'pcs';
+                    }
+                } elseif ($requestItem->item_type === 'non_consumable') {
+                    $item = \App\Models\NonConsumable::find($requestItem->item_id);
+                    if ($item) {
+                        $itemName = $item->name ?: 'Item ID: ' . $requestItem->item_id;
+                        $unit = $item->unit ?: 'pcs';
+                    }
+                }
+            }
+
+            $table->addRow();
+            $table->addCell(2500)->addText($requestItem->request->updated_at->format('M j, Y'));
+            $table->addCell(4000)->addText($itemName);
+            $table->addCell(1500)->addText($requestItem->quantity . ' ' . $unit);
+        }
+
+        // Footer
+        $section->addTextBreak(2);
+        $section->addText(
+            'Generated on ' . now()->format('M j, Y \a\t g:i A'),
+            ['name' => 'Arial', 'size' => 9, 'italic' => true],
+            ['alignment' => 'center']
+        );
+
+        // Save and download
+        $filename = 'released_items_' . $user->name . '_' . $periodText . '_' . now()->format('Y-m-d') . '.docx';
+        $tempFile = tempnam(sys_get_temp_dir(), 'docx');
+        $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
+        $objWriter->save($tempFile);
+
+        return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Check for duplicate users via AJAX
+     */
+    public function checkDuplicate(Request $request)
+    {
+        $field = $request->get('field');
+        $value = $request->get('value');
+
+        $exists = false;
+        $message = '';
+
+        switch ($field) {
+            case 'name':
+                $exists = User::where('name', $value)->exists();
+                $message = 'A user with this full name already exists.';
+                break;
+            case 'username':
+                $exists = User::where('username', $value)->exists();
+                $message = 'This username is already taken.';
+                break;
+            case 'email':
+                $exists = User::where('email', $value)->exists();
+                $message = 'This email address is already registered.';
+                break;
+        }
+
+        return response()->json([
+            'exists' => $exists,
+            'message' => $message
+        ]);
     }
 }

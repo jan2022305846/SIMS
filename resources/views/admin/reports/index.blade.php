@@ -27,15 +27,38 @@
                         
                         <!-- Period Selection Dropdown -->
                         <div class="dropdown" id="periodDropdown">
-                            <select class="form-select" id="periodSelect" style="min-width: 180px;" disabled>
+                            <select class="form-select" id="periodSelect" style="min-width: 180px;">
                                 <!-- Options will be populated by JavaScript -->
                             </select>
                         </div>
                         
-                        <!-- Download Button -->
-                        <button class="btn btn-success" id="downloadBtn">
-                            <i class="fas fa-download me-1"></i>Download DOCX
-                        </button>
+                        <!-- Download Dropdown -->
+                        <div class="dropdown">
+                            <button class="btn btn-success dropdown-toggle" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-download me-1"></i>Download Report
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="downloadDropdown">
+                                <li><a class="dropdown-item d-flex align-items-center" href="#" data-report-type="inventory" onclick="downloadReport('inventory'); return false;">
+                                    <i class="fas fa-boxes me-2 text-primary"></i>
+                                    <span>Inventory Report</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item d-flex align-items-center" href="#" data-report-type="released-items" onclick="downloadReport('released-items'); return false;">
+                                    <i class="fas fa-history me-2 text-info"></i>
+                                    <span>History of Released Items</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item d-flex align-items-center" href="#" data-report-type="custodianship" onclick="downloadReport('custodianship'); return false;">
+                                    <i class="fas fa-user-shield me-2 text-warning"></i>
+                                    <span>Custodianship Report</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item d-flex align-items-center" href="{{ route('reports.activity-logs') }}">
+                                    <i class="fas fa-history me-2 text-dark"></i>
+                                    <span>Activity Logs</span>
+                                </a></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
 
@@ -117,7 +140,6 @@
                                         <th>Timestamp</th>
                                         <th>Item Scanned</th>
                                         <th>Action</th>
-                                        <th>Location</th>
                                     </tr>
                                 </thead>
                                 <tbody id="qrScanTableBody">
@@ -141,6 +163,9 @@
 
 <!-- Chart.js -->
 <script src="{{ asset('js/chart.js') }}"></script>
+
+<!-- Bootstrap JS (in case it's not loaded) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <style>
 .period-btn.active {
@@ -170,6 +195,105 @@
 
 #inventoryChart {
     max-height: 400px;
+}
+
+/* Ensure dropdown works properly */
+.dropdown {
+    position: relative;
+}
+
+.dropdown-menu {
+    min-width: 200px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1rem var(--shadow-md);
+    color: var(--text-primary);
+}
+
+.dropdown-item {
+    color: var(--text-primary) !important;
+    background: transparent;
+    border: none;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+    border-radius: 0.25rem;
+    margin: 0.125rem 0.25rem;
+}
+
+.dropdown-item:hover {
+    background: var(--bg-tertiary) !important;
+    color: var(--accent-primary) !important;
+}
+
+.dropdown-item:focus {
+    background: var(--bg-tertiary);
+    color: var(--accent-primary);
+}
+
+.dropdown-item i {
+    color: var(--accent-primary);
+    width: 16px;
+    text-align: center;
+    transition: color 0.2s ease;
+}
+
+.dropdown-item:hover i {
+    color: var(--accent-primary);
+}
+
+/* Dark mode specific adjustments for dropdown */
+[data-theme="dark"] .dropdown-menu {
+    background: var(--bg-primary);
+    border-color: var(--border-color);
+    box-shadow: 0 0.5rem 1rem var(--shadow-md);
+}
+
+/* Dropdown button styling for theme compatibility */
+.dropdown-toggle {
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    transition: all 0.2s ease;
+}
+
+/* Specific styling for Download Report button - keep it green */
+#downloadDropdown {
+    background-color: #198754 !important; /* Bootstrap success green */
+    border-color: #198754 !important;
+    color: white !important;
+}
+
+#downloadDropdown:hover {
+    background-color: #157347 !important; /* Darker green on hover */
+    border-color: #146c43 !important;
+    color: white !important;
+}
+
+#downloadDropdown:focus {
+    background-color: #157347 !important;
+    border-color: #146c43 !important;
+    color: white !important;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25) !important;
+}
+
+/* Dark mode - keep download button green */
+[data-theme="dark"] #downloadDropdown {
+    background-color: #198754 !important;
+    border-color: #198754 !important;
+    color: white !important;
+}
+
+[data-theme="dark"] #downloadDropdown:hover {
+    background-color: #157347 !important;
+    border-color: #146c43 !important;
+    color: white !important;
+}
+
+/* Dropdown divider styling */
+.dropdown-divider {
+    border-top-color: var(--border-color);
+    margin: 0.25rem 0;
 }
 </style>
 
@@ -202,16 +326,21 @@ function initializeEventListeners() {
             switchPeriod(period);
         });
     });
-    
+
     // Period dropdown
     document.getElementById('periodSelect').addEventListener('change', function() {
         currentSelection = this.value;
         loadReportData();
     });
-    
-    // Download button
-    document.getElementById('downloadBtn').addEventListener('click', downloadReport);
-    
+
+    // Download dropdown button click
+    const downloadBtn = document.getElementById('downloadDropdown');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function(e) {
+            // Let Bootstrap handle the dropdown toggle
+        });
+    }
+
     // QR Scan Analytics Event Listeners
     document.getElementById('qrPeriodSelect').addEventListener('change', function() {
         currentQRSelection = this.value;
@@ -220,7 +349,7 @@ function initializeEventListeners() {
         currentQRPeriod = period;
         loadQRData();
     });
-    
+
     document.getElementById('downloadQRBtn').addEventListener('click', downloadQRReport);
 }
 
@@ -252,17 +381,28 @@ function initializePeriodDropdown() {
     select.innerHTML = '';
 
     const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
 
     if (currentPeriod === 'monthly') {
-        // For monthly, just use current month - disable dropdown
-        const currentMonthValue = currentDate.toISOString().substring(0, 7);
-        const currentMonthText = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        const option = new Option(currentMonthText, currentMonthValue);
-        option.selected = true;
-        select.appendChild(option);
-        select.disabled = true;
+        // Show all 12 months for current year
+        const months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+
+        months.forEach((monthName, index) => {
+            const monthValue = `${currentYear}-${String(index + 1).padStart(2, '0')}`;
+            const option = new Option(`${monthName} ${currentYear}`, monthValue);
+            // Select current month by default
+            if (index === currentMonth) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+        select.disabled = false;
     } else if (currentPeriod === 'quarterly') {
-        // Simple Q1-Q4 options
+        // Simple Q1-Q4 options for current year
         const quarters = [
             { value: 'Q1', text: 'Q1 (Jan-Mar)' },
             { value: 'Q2', text: 'Q2 (Apr-Jun)' },
@@ -281,12 +421,19 @@ function initializePeriodDropdown() {
         });
         select.disabled = false;
     } else if (currentPeriod === 'annual') {
-        // For annual, just use current year - disable dropdown
-        const currentYear = currentDate.getFullYear().toString();
-        const option = new Option(currentYear, currentYear);
-        option.selected = true;
-        select.appendChild(option);
-        select.disabled = true;
+        // Show years from current-2 to current (3 years total: past 2 years + current)
+        const startYear = currentYear - 2;
+        const endYear = currentYear;
+
+        for (let year = startYear; year <= endYear; year++) {
+            const option = new Option(year.toString(), year.toString());
+            // Select current year by default
+            if (year === currentYear) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        }
+        select.disabled = false;
     }
 
     // Set currentSelection to the selected value
@@ -322,14 +469,47 @@ function getDefaultSelection(period) {
 // Update titles based on current period
 function updateTitles() {
     const chartTitle = document.getElementById('chartTitle');
-    
-    const titles = {
-        monthly: 'Monthly Inventory Movement',
-        quarterly: 'Quarterly Inventory Movement',
-        annual: 'Annual Inventory Movement'
-    };
-    
-    chartTitle.textContent = titles[currentPeriod];
+
+    let title = '';
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+
+    if (currentPeriod === 'monthly') {
+        // Parse the current selection to get month and year
+        if (currentSelection) {
+            const [year, month] = currentSelection.split('-');
+            const monthNames = [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            const monthName = monthNames[parseInt(month) - 1];
+            title = `Inventory Movement - ${monthName} ${year}`;
+        } else {
+            title = 'Monthly Inventory Movement';
+        }
+    } else if (currentPeriod === 'quarterly') {
+        // Parse the current selection to get quarter
+        if (currentSelection) {
+            const quarterMap = {
+                'Q1': 'Q1 (Jan-Mar)',
+                'Q2': 'Q2 (Apr-Jun)',
+                'Q3': 'Q3 (Jul-Sep)',
+                'Q4': 'Q4 (Oct-Dec)'
+            };
+            title = `Inventory Movement - ${quarterMap[currentSelection] || currentSelection}`;
+        } else {
+            title = 'Quarterly Inventory Movement';
+        }
+    } else if (currentPeriod === 'annual') {
+        // Use the selected year
+        if (currentSelection) {
+            title = `Inventory Movement - ${currentSelection}`;
+        } else {
+            title = 'Annual Inventory Movement';
+        }
+    }
+
+    chartTitle.textContent = title;
 }
 
 // Load report data
@@ -453,15 +633,25 @@ function showLoading(show) {
 }
 
 // Download DOCX report
-function downloadReport() {
+function downloadReport(reportType = 'inventory') {
+    // Ensure we have valid values
+    if (!currentSelection) {
+        currentSelection = getDefaultSelection(currentPeriod);
+    }
+
     const params = new URLSearchParams({
         period: currentPeriod,
         selection: currentSelection,
-        format: 'docx'
+        format: 'docx',
+        type: reportType
     });
-    
-    window.open(`/admin/reports/download?${params.toString()}`, '_blank');
+
+    const url = `/admin/reports/download?${params.toString()}`;
+    window.open(url, '_blank');
 }
+
+// Make downloadReport globally available
+window.downloadReport = downloadReport;
 
 // View item details (placeholder function)
 function viewItemDetails(itemName) {
@@ -568,12 +758,6 @@ function updateQRTable(filteredData = null) {
                     <i class="fas ${getActionIcon(scan.action)} me-1"></i>
                     ${formatAction(scan.action)}
                 </span>
-            </td>
-            <td>
-                <small class="text-muted">
-                    <i class="fas fa-map-marker-alt me-1"></i>
-                    ${scan.location || 'N/A'}
-                </small>
             </td>
         </tr>
     `).join('');

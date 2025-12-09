@@ -59,6 +59,11 @@ class NonConsumable extends Model
         return $this->hasMany(ItemScanLog::class, 'item_id');
     }
 
+    public function latestScanLog()
+    {
+        return $this->hasOne(ItemScanLog::class, 'item_id')->latestOfMany();
+    }
+
     /**
      * Generate QR code for this item
      *

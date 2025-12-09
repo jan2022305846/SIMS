@@ -170,10 +170,10 @@ class QRCodeController extends Controller
 
             $itemType = $item instanceof NonConsumable ? 'non_consumable' : 'consumable';
 
-            // Log the scan in item_scan_logs table (as per ERD requirement) - only if user is authenticated
-            if (Auth::check()) {
+            // Log the scan in item_scan_logs table ONLY for non-consumable items (for custodianship tracking)
+            if (Auth::check() && $item instanceof NonConsumable) {
                 ItemScanLog::logScan($item->id, 'inventory_check', [
-                    'location' => $item->location ?? 'Supply Office', // Use item's current location
+                    // Remove location and notes as they're not needed per system requirements
                     'item_type' => $itemType
                 ]);
             }            // Prepare enhanced item data with holder and assignment information

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Log;
+use App\Services\NotificationService;
 
 /**
  * @property int $id
@@ -63,7 +64,7 @@ class Request extends Model
         // Return a relationship that points to the first request item's itemable
         // This maintains backward compatibility with existing code
         return $this->hasOneThrough(
-            related: \Illuminate\Database\Eloquent\Model::class,
+            related: Model::class,
             through: RequestItem::class,
             firstKey: 'id',
             secondKey: 'item_id',
@@ -135,7 +136,7 @@ class Request extends Model
         $this->reserveStockForItems();
 
         // Notify the faculty user
-        \App\Services\NotificationService::notifyRequestApproved($this);
+        NotificationService::notifyRequestApproved($this);
     }
 
     public function generateClaimSlip()
@@ -215,12 +216,12 @@ class Request extends Model
         ]);
 
         // Notify the faculty user
-        \App\Services\NotificationService::notifyRequestClaimed($this);
+        NotificationService::notifyRequestClaimed($this);
     }
 
     public function decline(User $user, ?string $reason = null)
     {
-        \Illuminate\Support\Facades\Log::info('Request decline method called', [
+        Log::info('Request decline method called', [
             'request_id' => $this->id,
             'current_status' => $this->status,
             'reason' => $reason,
@@ -232,7 +233,7 @@ class Request extends Model
             'notes' => $reason,
         ]);
 
-        \Illuminate\Support\Facades\Log::info('Request update result', [
+        Log::info('Request update result', [
             'request_id' => $this->id,
             'update_result' => $result,
             'new_status' => $this->status,
@@ -240,12 +241,12 @@ class Request extends Model
         ]);
 
         // Notify the faculty user
-        \App\Services\NotificationService::notifyRequestDeclined($this, $reason ?? 'No reason provided');
+        NotificationService::notifyRequestDeclined($this, $reason ?? 'No reason provided');
     }
 
     public function cancel(User $user, ?string $reason = null)
     {
-        \Illuminate\Support\Facades\Log::info('Request cancel method called', [
+        Log::info('Request cancel method called', [
             'request_id' => $this->id,
             'current_status' => $this->status,
             'reason' => $reason,
@@ -257,7 +258,7 @@ class Request extends Model
             'notes' => $reason,
         ]);
 
-        \Illuminate\Support\Facades\Log::info('Request update result', [
+        Log::info('Request update result', [
             'request_id' => $this->id,
             'update_result' => $result,
             'new_status' => $this->status,

@@ -27,7 +27,7 @@ class ReportsController extends Controller
         ];
 
         // Get recent QR scan activity
-        $recentScans = \App\Models\ItemScanLog::with(['item', 'user'])
+        $recentScans = \App\Models\ItemScanLog::with(['item'])
             ->orderBy('created_at', 'desc')
             ->take(10)
             ->get()
@@ -35,10 +35,8 @@ class ReportsController extends Controller
                 return [
                     'id' => $scan->id,
                     'item_name' => optional($scan->item)->name ?? 'Unknown Item',
-                    'user_name' => optional($scan->user)->name ?? 'Unknown User',
                     'action' => $scan->action,
                     'created_at' => $scan->created_at,
-                    'item_type' => $scan->item_type,
                 ];
             });
 
@@ -48,7 +46,7 @@ class ReportsController extends Controller
             'total_scans_this_week' => \App\Models\ItemScanLog::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
             'total_scans_this_month' => \App\Models\ItemScanLog::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count(),
             'unique_items_scanned' => \App\Models\ItemScanLog::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->distinct('item_id')->count(),
-            'active_scanners' => \App\Models\ItemScanLog::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->distinct('user_id')->count(),
+            'active_scanners' => 1, // Only admin can monitor items
         ];
 
         return view('admin.reports.index', compact('stats', 'recentScans', 'qrStats'));
@@ -223,7 +221,7 @@ class ReportsController extends Controller
         $dateTo = $dateRange['to'];
 
         // Get user activity data
-        $users = \App\Models\User::with(['requests', 'scanLogs'])->get();
+        $users = \App\Models\User::with(['requests'])->get();
         $userActivity = $this->getUserActivity($users, $dateFrom, $dateTo);
 
         // Build userStats structure expected by the view
@@ -249,24 +247,274 @@ class ReportsController extends Controller
     }
 
     /**
+     * Activity Logs Report
+     */
+    public function activityLogs(Request $request)
+    {
+        // Get filter parameters
+        $logName = $request->get('log_name');
+        $userId = $request->get('user_id');
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+        $format = $request->get('format', 'view');
+
+        // Build query
+        $query = \App\Models\ActivityLog::with(['causer', 'subject'])
+            ->orderBy('created_at', 'desc');
+
+        // Apply filters
+        if ($logName && $logName !== 'all') {
+            $query->where('log_name', $logName);
+        }
+
+        if ($userId && $userId !== 'all') {
+            $query->where('causer_type', \App\Models\User::class)
+                  ->where('causer_id', $userId);
+        }
+
+        if ($dateFrom) {
+            $query->where('created_at', '>=', $dateFrom . ' 00:00:00');
+        }
+
+        if ($dateTo) {
+            $query->where('created_at', '<=', $dateTo . ' 23:59:59');
+        }
+
+        // Get data
+        $activityLogs = $query->paginate(50);
+        $users = \App\Models\User::orderBy('name')->get();
+        $logNames = \App\Models\ActivityLog::distinct('log_name')->pluck('log_name');
+
+        // Badge classes for log names
+        $badgeClasses = [
+            'auth' => 'primary',
+            'request' => 'info',
+            'item' => 'success',
+            'user' => 'warning',
+            'system' => 'secondary',
+            'default' => 'light'
+        ];
+
+        // Handle different formats
+        if ($format === 'csv') {
+            return $this->exportActivityLogsCsv($query);
+        }
+
+        if ($format === 'excel') {
+            return $this->exportActivityLogsExcel($query);
+        }
+
+        if ($format === 'pdf') {
+            return $this->exportActivityLogsPdf($query, $request);
+        }
+
+        if ($format === 'docx') {
+            return $this->exportActivityLogsDocx($query);
+        }
+
+        return view('admin.reports.activity-logs', compact(
+            'activityLogs',
+            'users',
+            'logNames',
+            'logName',
+            'userId',
+            'dateFrom',
+            'dateTo',
+            'badgeClasses'
+        ));
+    }
+
+    /**
+     * Get badge class for log name
+     */
+    public function getLogNameBadgeClass($logName)
+    {
+        $badgeClasses = [
+            'auth' => 'primary',
+            'request' => 'info',
+            'item' => 'success',
+            'user' => 'warning',
+            'system' => 'secondary',
+            'default' => 'light'
+        ];
+
+        return $badgeClasses[$logName] ?? $badgeClasses['default'];
+    }
+
+    /**
+     * Export activity logs to CSV
+     */
+    private function exportActivityLogsCsv($query)
+    {
+        $logs = $query->get();
+
+        $filename = 'activity-logs-' . date('Y-m-d-H-i-s') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($logs) {
+            $file = fopen('php://output', 'w');
+
+            // CSV headers
+            fputcsv($file, [
+                'ID',
+                'Log Name',
+                'Description',
+                'User',
+                'Subject Type',
+                'Subject ID',
+                'IP Address',
+                'User Agent',
+                'Created At'
+            ]);
+
+            // CSV data
+            foreach ($logs as $log) {
+                fputcsv($file, [
+                    $log->id,
+                    $log->log_name,
+                    $log->description,
+                    $log->causer ? $log->causer->name : 'System',
+                    $log->subject_type ? class_basename($log->subject_type) : 'N/A',
+                    $log->subject_id ?: 'N/A',
+                    $log->ip_address,
+                    substr($log->user_agent, 0, 100), // Truncate user agent
+                    $log->created_at
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export activity logs to Excel (CSV format for simplicity)
+     */
+    private function exportActivityLogsExcel($query)
+    {
+        $logs = $query->get();
+
+        $filename = 'activity-logs-' . date('Y-m-d-H-i-s') . '.xlsx';
+        $headers = [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($logs) {
+            $file = fopen('php://output', 'w');
+
+            // CSV headers (Excel can read CSV)
+            fputcsv($file, [
+                'ID',
+                'Log Name',
+                'Description',
+                'User',
+                'Subject Type',
+                'Subject ID',
+                'IP Address',
+                'User Agent',
+                'Created At'
+            ]);
+
+            // CSV data
+            foreach ($logs as $log) {
+                fputcsv($file, [
+                    $log->id,
+                    $log->log_name,
+                    $log->description,
+                    $log->causer ? $log->causer->name : 'System',
+                    $log->subject_type ? class_basename($log->subject_type) : 'N/A',
+                    $log->subject_id ?: 'N/A',
+                    $log->ip_address,
+                    substr($log->user_agent, 0, 100), // Truncate user agent
+                    $log->created_at
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export activity logs to PDF
+     */
+    private function exportActivityLogsPdf($query, Request $request)
+    {
+        $logs = $query->limit(1000)->get(); // Limit for PDF generation
+
+        $pdf = Pdf::loadView('admin.reports.pdf.activity-logs', compact('logs', 'request'))
+            ->setPaper('a4', 'landscape');
+
+        return $pdf->download('activity-logs-' . date('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Export activity logs to DOCX
+     */
+    private function exportActivityLogsDocx($query)
+    {
+        $logs = $query->get();
+
+        $filename = 'activity-logs-' . date('Y-m-d-H-i-s') . '.docx';
+        $headers = [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($logs) {
+            // Create a simple HTML content that can be saved as DOCX
+            $html = '<html><head><title>Activity Logs Report</title></head><body>';
+            $html .= '<h1>Activity Logs Report</h1>';
+            $html .= '<p>Generated on: ' . date('Y-m-d H:i:s') . '</p>';
+            $html .= '<table border="1" style="border-collapse: collapse; width: 100%;">';
+            $html .= '<tr><th>ID</th><th>Log Name</th><th>Description</th><th>User</th><th>Subject Type</th><th>Subject ID</th><th>IP Address</th><th>User Agent</th><th>Created At</th></tr>';
+
+            foreach ($logs as $log) {
+                $html .= '<tr>';
+                $html .= '<td>' . $log->id . '</td>';
+                $html .= '<td>' . htmlspecialchars($log->log_name) . '</td>';
+                $html .= '<td>' . htmlspecialchars($log->description) . '</td>';
+                $html .= '<td>' . htmlspecialchars($log->causer ? $log->causer->name : 'System') . '</td>';
+                $html .= '<td>' . htmlspecialchars($log->subject_type ? class_basename($log->subject_type) : 'N/A') . '</td>';
+                $html .= '<td>' . htmlspecialchars($log->subject_id ?: 'N/A') . '</td>';
+                $html .= '<td>' . htmlspecialchars($log->ip_address) . '</td>';
+                $html .= '<td>' . htmlspecialchars(substr($log->user_agent, 0, 100)) . '</td>';
+                $html .= '<td>' . $log->created_at . '</td>';
+                $html .= '</tr>';
+            }
+
+            $html .= '</table>';
+            $html .= '</body></html>';
+
+            echo $html;
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
      * Get user activity data
      */
     private function getUserActivity($users, $dateFrom, $dateTo)
     {
         return $users->map(function($user) use ($dateFrom, $dateTo) {
             $userRequests = $user->requests()->whereBetween('created_at', [$dateFrom, $dateTo])->get();
-            $userScans = $user->scanLogs()->whereBetween('created_at', [$dateFrom, $dateTo])->get();
+            // Users don't scan items anymore - only admin does
+            $userScans = collect(); // Empty collection
 
             return [
                 'user' => $user,
                 'total_requests' => $userRequests->count(),
                 'completed_requests' => $userRequests->where('status', 'completed')->count(),
-                'total_scans' => $userScans->count(),
-                'unique_items_scanned' => $userScans->pluck('item_id')->unique()->count(),
-                'last_activity' => max(
-                    $userRequests->max('created_at'),
-                    $userScans->max('created_at')
-                ),
+                'total_scans' => 0, // Users don't scan items
+                'unique_items_scanned' => 0, // Users don't scan items
+                'last_activity' => $userRequests->max('created_at'),
             ];
         })->filter(function($activity) {
             return $activity['total_requests'] > 0 || $activity['total_scans'] > 0;
@@ -314,14 +562,14 @@ class ReportsController extends Controller
      */
     private function getRecentActivities($dateFrom, $dateTo)
     {
-        return \App\Models\ItemScanLog::with(['user', 'item'])
+        return \App\Models\ItemScanLog::with(['item'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->take(15)
             ->get()
             ->map(function($scan) {
                 return [
-                    'user_name' => $scan->user->name,
+                    'user_name' => 'Admin', // Only admin can monitor items
                     'item_name' => $scan->item ? ($scan->item->name ?? 'Unknown Item') : 'Unknown Item',
                     'created_at' => $scan->created_at,
                 ];
@@ -334,13 +582,14 @@ class ReportsController extends Controller
     private function getUsersByRole($users, $dateFrom, $dateTo)
     {
         return $users->groupBy('role')->map(function($roleUsers) use ($dateFrom, $dateTo) {
-            $roleScans = \App\Models\ItemScanLog::whereIn('user_id', $roleUsers->pluck('id'))
-                ->whereBetween('created_at', [$dateFrom, $dateTo])
-                ->count();
+            // Since only admin can scan items, count scans only for admin role
+            $roleScans = $roleUsers->contains('role', 'admin') ? 
+                \App\Models\ItemScanLog::whereBetween('created_at', [$dateFrom, $dateTo])->count() : 0;
             return [
                 'total_users' => $roleUsers->count(),
                 'active_users' => $roleUsers->filter(function($user) use ($dateFrom, $dateTo) {
-                    return $user->scanLogs()->whereBetween('created_at', [$dateFrom, $dateTo])->exists() ||
+                    // Only admin can scan, so only admin users are active for scanning
+                    return $user->role === 'admin' || 
                            $user->requests()->whereBetween('created_at', [$dateFrom, $dateTo])->exists();
                 })->count(),
                 'total_scans' => $roleScans,
@@ -369,18 +618,15 @@ class ReportsController extends Controller
     private function getInactiveUsers($users, $dateFrom, $dateTo)
     {
         return $users->filter(function($user) use ($dateFrom, $dateTo) {
-            return !$user->scanLogs()->whereBetween('created_at', [$dateFrom, $dateTo])->exists() &&
-                   !$user->requests()->whereBetween('created_at', [$dateFrom, $dateTo])->exists();
+            // Users don't scan items anymore - only check for requests
+            return !$user->requests()->whereBetween('created_at', [$dateFrom, $dateTo])->exists();
         })->map(function($user) {
-            $lastScan = $user->scanLogs()->latest('created_at')->first();
+            // Users don't scan items, so only check last request
             $lastRequest = $user->requests()->latest('created_at')->first();
-            $lastActivity = $lastScan && $lastRequest ?
-                max($lastScan->created_at, $lastRequest->created_at) :
-                ($lastScan ? $lastScan->created_at : ($lastRequest ? $lastRequest->created_at : null));
             return [
                 'name' => $user->name,
                 'role' => $user->role,
-                'last_activity' => $lastActivity,
+                'last_activity' => $lastRequest ? $lastRequest->created_at : null,
             ];
         })->sortByDesc('last_activity');
     }
@@ -460,37 +706,24 @@ class ReportsController extends Controller
         $summary = [
             'totalScans' => $scans->count(),
             'uniqueItems' => $scans->pluck('item_id')->unique()->count(),
-            'activeUsers' => $scans->pluck('user_id')->unique()->filter()->count(),
+            'activeUsers' => 1, // Only admin can monitor
             'todayScans' => \App\Models\ItemScanLog::whereDate('created_at', today())
                 ->count(),
         ];
 
         // Get scan logs with relationships - only non-consumable items, limit to top 10 recent
-        $scanLogs = \App\Models\ItemScanLog::with(['item', 'user', 'office'])
+        $scanLogs = \App\Models\ItemScanLog::with(['item'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->limit(10) // Top 10 recent scans only
             ->get()
             ->map(function($scan) {
                 $item = $scan->item;
-                // Get current location from the item itself (non-consumable items have location)
-                $currentLocation = 'N/A';
-                if ($item && $item instanceof \App\Models\NonConsumable) {
-                    $currentLocation = $item->location ?? 'N/A';
-                }
 
                 return [
                     'timestamp' => $scan->created_at->format('Y-m-d H:i:s'),
                     'item' => $item ? $item->name : 'Unknown Item',
-                    'user' => $scan->user ? $scan->user->name : 'Unknown User',
-                    'scanner_type' => 'webcam', // Default, could be enhanced
-                    'location' => $currentLocation, // Current location of the scanned item
-                    'ip_address' => 'N/A', // Not stored in current model
-                    'item_id' => $scan->item_id,
-                    'user_id' => $scan->user_id,
                     'action' => $scan->action,
-                    'notes' => $scan->notes,
-                    'item_type' => 'non_consumable', // Since only non-consumables are scanned
                     'id' => $scan->id,
                 ];
             });
@@ -613,8 +846,7 @@ class ReportsController extends Controller
         $dateFrom = $dateRange['from'];
         $dateTo = $dateRange['to'];
 
-        $scanLogs = \App\Models\ItemScanLog::with('user')
-            ->where('item_id', $itemId)
+        $scanLogs = \App\Models\ItemScanLog::where('item_id', $itemId)
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -625,10 +857,8 @@ class ReportsController extends Controller
             'total_scans' => $scanLogs->count(),
             'first_scan' => $scanLogs->isNotEmpty() ? $scanLogs->last()->created_at : null,
             'last_scan' => $scanLogs->isNotEmpty() ? $scanLogs->first()->created_at : null,
-            'unique_users' => $scanLogs->pluck('user_id')->unique()->filter()->count(),
-            'scans_by_location' => $scanLogs->whereNotNull('location')
-                ->groupBy('location')
-                ->map->count(),
+            'unique_users' => 1, // Only admin can monitor
+            'scans_by_location' => [], // No location tracking
             'frequency_analysis' => $frequencyAnalysis,
         ];
 
@@ -719,7 +949,7 @@ class ReportsController extends Controller
         }
 
         // Current year scans for display
-        $yearScans = \App\Models\ItemScanLog::with(['item', 'user'])
+        $yearScans = \App\Models\ItemScanLog::with(['item'])
             ->whereBetween('created_at', [$startDate, $endDate])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -781,7 +1011,7 @@ class ReportsController extends Controller
         }
 
         // Current month scans for display
-        $monthScans = \App\Models\ItemScanLog::with(['item', 'user'])
+        $monthScans = \App\Models\ItemScanLog::with(['item'])
             ->whereBetween('created_at', [$startDate, $endDate])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -843,7 +1073,7 @@ class ReportsController extends Controller
         }
 
         // Current quarter scans for display
-        $quarterScans = \App\Models\ItemScanLog::with(['item', 'user'])
+        $quarterScans = \App\Models\ItemScanLog::with(['item'])
             ->whereBetween('created_at', [$startDate, $endDate])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -955,7 +1185,7 @@ class ReportsController extends Controller
         $endDate = Carbon::createFromFormat('Y-m', $month)->endOfMonth();
 
         $monthlyScanData = [
-            'scans' => \App\Models\ItemScanLog::with(['item', 'user'])
+            'scans' => \App\Models\ItemScanLog::with(['item'])
                 ->whereBetween('created_at', [$startDate, $endDate])
                 ->orderBy('created_at', 'desc')
                 ->get(),
@@ -964,7 +1194,7 @@ class ReportsController extends Controller
         $analytics = [
             'total_scans' => $monthlyScanData['scans']->count(),
             'unique_items_scanned' => $monthlyScanData['scans']->pluck('item_id')->unique()->count(),
-            'unique_users_scanning' => $monthlyScanData['scans']->pluck('user_id')->unique()->filter()->count(),
+            'unique_users_scanning' => 1, // Only admin can scan items
             'scans_by_location' => $monthlyScanData['scans']->whereNotNull('location')
                 ->groupBy('location')
                 ->map->count(),
@@ -995,7 +1225,7 @@ class ReportsController extends Controller
         $endDate = Carbon::createFromDate($year, ($quarterNum - 1) * 3 + 1, 1)->endOfQuarter();
 
         $quarterlyScanData = [
-            'scans' => \App\Models\ItemScanLog::with(['item', 'user'])
+            'scans' => \App\Models\ItemScanLog::with(['item'])
                 ->whereBetween('created_at', [$startDate, $endDate])
                 ->orderBy('created_at', 'desc')
                 ->get(),
@@ -1004,7 +1234,7 @@ class ReportsController extends Controller
         $analytics = [
             'total_scans' => $quarterlyScanData['scans']->count(),
             'unique_items_scanned' => $quarterlyScanData['scans']->pluck('item_id')->unique()->count(),
-            'unique_users_scanning' => $quarterlyScanData['scans']->pluck('user_id')->unique()->filter()->count(),
+            'unique_users_scanning' => 1, // Only admin can scan items
             'monthly_breakdown' => $this->getQuarterlyMonthlyScanBreakdown($startDate, $endDate),
             'most_scanned_items' => $this->getMostScannedItems($quarterlyScanData['scans']),
         ];
@@ -1029,7 +1259,7 @@ class ReportsController extends Controller
         $endDate = Carbon::createFromDate($year, 12, 31)->endOfYear();
 
         $annualScanData = [
-            'scans' => \App\Models\ItemScanLog::with(['item', 'user'])
+            'scans' => \App\Models\ItemScanLog::with(['item'])
                 ->whereBetween('created_at', [$startDate, $endDate])
                 ->orderBy('created_at', 'desc')
                 ->get(),
@@ -1038,7 +1268,7 @@ class ReportsController extends Controller
         $analytics = [
             'total_scans' => $annualScanData['scans']->count(),
             'unique_items_scanned' => $annualScanData['scans']->pluck('item_id')->unique()->count(),
-            'unique_users_scanning' => $annualScanData['scans']->pluck('user_id')->unique()->filter()->count(),
+            'unique_users_scanning' => 1, // Only admin can scan items
             'quarterly_breakdown' => $this->getAnnualQuarterlyScanBreakdown($year),
             'most_scanned_items' => $this->getMostScannedItems($annualScanData['scans']),
         ];
@@ -1064,7 +1294,7 @@ class ReportsController extends Controller
                 return [
                     'item' => $firstScan->item ?? null,
                     'total_scans' => $itemScans->count(),
-                    'unique_users' => $itemScans->pluck('user_id')->unique()->filter()->count(),
+                    'unique_users' => 1, // Only admin can scan items
                     'last_scan' => $firstScan->created_at
                 ];
             })
@@ -1434,6 +1664,29 @@ class ReportsController extends Controller
         $period = $request->get('period', 'monthly');
         $selection = $request->get('selection');
         $format = $request->get('format', 'pdf');
+        $type = $request->get('type', 'inventory');
+
+        // Route to different report generation methods based on type
+        switch ($type) {
+            case 'inventory':
+                return $this->downloadInventoryReport($request);
+            case 'released-items':
+                return $this->downloadReleasedItemsReport($request);
+            case 'custodianship':
+                return $this->downloadCustodianshipReport($request);
+            default:
+                return $this->downloadInventoryReport($request);
+        }
+    }
+
+    /**
+     * Download Inventory Report (Original functionality)
+     */
+    private function downloadInventoryReport(Request $request)
+    {
+        $period = $request->get('period', 'monthly');
+        $selection = $request->get('selection');
+        $format = $request->get('format', 'pdf');
 
         // Get data for the report
         $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
@@ -1461,7 +1714,7 @@ class ReportsController extends Controller
             } catch (\Exception $e) {
                 // Fallback to PDF if DOCX generation fails
                 Log::warning('DOCX report generation failed, falling back to PDF: ' . $e->getMessage());
-                
+
                 $pdf = Pdf::loadView('admin.reports.pdf.inventory-report', compact('data'))
                     ->setPaper('a4', 'landscape');
 
@@ -1479,10 +1732,6 @@ class ReportsController extends Controller
             return $pdf->download($filename);
         }
     }
-
-    /**
-     * Generate DOCX report with ZipArchive check
-     */
     private function generateDocxReport($data)
     {
         // Check if ZipArchive is available
@@ -1556,8 +1805,170 @@ class ReportsController extends Controller
     }
 
     /**
-     * Generate QR Scan Logs DOCX report
+     * Download History of Released Items Report
      */
+    private function downloadReleasedItemsReport(Request $request)
+    {
+        $period = $request->get('period', 'monthly');
+        $selection = $request->get('selection');
+        $format = $request->get('format', 'pdf');
+
+        // Get date range
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
+
+        // Get released items data - items that have been claimed/fulfilled
+        $releasedItemsQuery = \App\Models\RequestItem::with(['request.user.office', 'itemable'])
+            ->whereHas('request', function($query) use ($dateFrom, $dateTo) {
+                $query->where('status', 'claimed')
+                      ->whereBetween('updated_at', [$dateFrom, $dateTo]);
+            })
+            ->orderBy('request_items.created_at', 'asc')
+            ->get();
+
+        $releasedItems = $releasedItemsQuery->map(function($requestItem) {
+            $itemName = 'Unknown Item';
+            $unit = 'pcs';
+            
+            if ($requestItem->item_type && $requestItem->item_id) {
+                if ($requestItem->item_type === 'consumable') {
+                    $item = \App\Models\Consumable::find($requestItem->item_id);
+                    if ($item) {
+                        $itemName = $item->name ?: 'Item ID: ' . $requestItem->item_id;
+                        $unit = $item->unit ?: 'pcs';
+                    }
+                } elseif ($requestItem->item_type === 'non_consumable') {
+                    $item = \App\Models\NonConsumable::find($requestItem->item_id);
+                    if ($item) {
+                        $itemName = $item->name ?: 'Item ID: ' . $requestItem->item_id;
+                        $unit = $item->unit ?: 'pcs';
+                    }
+                }
+            }
+            
+            return [
+                'date' => $requestItem->request->updated_at->format('M j, Y'),
+                'item_name' => $itemName,
+                'quantity' => $requestItem->quantity . ' ' . $unit,
+                'requested_by' => ($requestItem->request->user ? $requestItem->request->user->name : 'Unknown User') . ' (' . ($requestItem->request->user && $requestItem->request->user->office ? $requestItem->request->user->office->name : 'N/A') . ')',
+            ];
+        });
+
+        // Calculate summary data after mapping
+        $totalQuantity = $releasedItemsQuery->sum('quantity');
+        $uniqueItemsCount = $releasedItems->unique('item_name')->count();
+        $uniqueUsersCount = $releasedItemsQuery->unique(function($item) {
+            return $item->request->user ? $item->request->user->name : 'Unknown User';
+        })->count();
+
+        $data = [
+            'period' => $period,
+            'selection' => $selection,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'releasedItems' => $releasedItems,
+            'summary' => [
+                'totalItems' => $releasedItems->count(),
+                'totalQuantity' => $totalQuantity,
+                'uniqueItems' => $uniqueItemsCount,
+                'uniqueUsers' => $uniqueUsersCount,
+            ],
+        ];
+
+        if ($format === 'docx') {
+            try {
+                return $this->generateReleasedItemsDocxReport($data);
+            } catch (\Exception $e) {
+                Log::warning('DOCX report generation failed, falling back to PDF: ' . $e->getMessage());
+
+                $pdf = Pdf::loadView('admin.reports.pdf.released-items-report', compact('data'))
+                    ->setPaper('a4', 'landscape');
+
+                $filename = 'released-items-report-' . $period . '-' . $selection . '.pdf';
+                return $pdf->download($filename)->withHeaders([
+                    'X-Fallback-Message' => 'DOCX export failed. PDF version downloaded instead.'
+                ]);
+            }
+        } else {
+            $pdf = Pdf::loadView('admin.reports.pdf.released-items-report', compact('data'))
+                ->setPaper('a4', 'landscape');
+
+            $filename = 'released-items-report-' . $period . '-' . $selection . '.pdf';
+            return $pdf->download($filename);
+        }
+    }
+
+    /**
+     * Download Custodianship Report
+     */
+    private function downloadCustodianshipReport(Request $request)
+    {
+        $period = $request->get('period', 'monthly');
+        $selection = $request->get('selection');
+        $format = $request->get('format', 'pdf');
+
+        // Get date range
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
+        $dateFrom = $dateRange['from'];
+        $dateTo = $dateRange['to'];
+
+        // Get non-consumable items with their latest scan logs
+        $nonConsumables = \App\Models\NonConsumable::with(['category', 'latestScanLog', 'currentHolder'])
+            ->get()
+            ->map(function($item) {
+                $latestScan = $item->latestScanLog;
+                return [
+                    'item_name' => $item->name,
+                    'category' => $item->category ? $item->category->name : 'Uncategorized',
+                    'holder' => $item->currentHolder ? $item->currentHolder->name : 'Unassigned',
+                    'condition' => $item->condition ?? 'Unknown',
+                    'last_monitored' => $latestScan ? $latestScan->created_at->format('M j, Y g:i A') : 'Never monitored',
+                    'location' => $item->location ?? 'N/A',
+                    'serial_number' => $item->serial_number ?? 'N/A',
+                    'acquisition_date' => $item->acquisition_date ? $item->acquisition_date->format('M j, Y') : 'N/A',
+                ];
+            });
+
+        $data = [
+            'period' => $period,
+            'selection' => $selection,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'nonConsumables' => $nonConsumables,
+            'summary' => [
+                'totalItems' => $nonConsumables->count(),
+                'assignedItems' => $nonConsumables->where('holder', '!=', 'Unassigned')->count(),
+                'unassignedItems' => $nonConsumables->where('holder', 'Unassigned')->count(),
+                'monitoredRecently' => $nonConsumables->filter(function($item) {
+                    return $item['last_monitored'] !== 'Never monitored' &&
+                           Carbon::parse($item['last_monitored'])->isAfter(now()->subDays(30));
+                })->count(),
+            ],
+        ];
+
+        if ($format === 'docx') {
+            try {
+                return $this->generateCustodianshipDocxReport($data);
+            } catch (\Exception $e) {
+                Log::warning('DOCX report generation failed, falling back to PDF: ' . $e->getMessage());
+
+                $pdf = Pdf::loadView('admin.reports.pdf.custodianship-report', compact('data'))
+                    ->setPaper('a4', 'landscape');
+
+                $filename = 'custodianship-report-' . $period . '-' . $selection . '.pdf';
+                return $pdf->download($filename)->withHeaders([
+                    'X-Fallback-Message' => 'DOCX export failed. PDF version downloaded instead.'
+                ]);
+            }
+        } else {
+            $pdf = Pdf::loadView('admin.reports.pdf.custodianship-report', compact('data'))
+                ->setPaper('a4', 'landscape');
+
+            $filename = 'custodianship-report-' . $period . '-' . $selection . '.pdf';
+            return $pdf->download($filename);
+        }
+    }
     private function generateQrScanLogsDocx($data)
     {
         // Check if ZipArchive is available
@@ -1600,21 +2011,15 @@ class ReportsController extends Controller
 
         $table = $section->addTable();
         $table->addRow();
-        $table->addCell(1500)->addText('Timestamp');
-        $table->addCell(2000)->addText('Item Scanned');
-        $table->addCell(1500)->addText('User');
-        $table->addCell(1500)->addText('Action');
-        $table->addCell(1500)->addText('Location');
-        $table->addCell(2000)->addText('Notes');
+        $table->addCell(3264)->addText('Timestamp');
+        $table->addCell(3264)->addText('Item Scanned');
+        $table->addCell(3264)->addText('Action');
 
         foreach ($data['scans'] as $scan) {
             $table->addRow();
-            $table->addCell(1500)->addText($scan->created_at->format('Y-m-d H:i:s'));
-            $table->addCell(2000)->addText($scan->item ? $scan->item->name : 'Unknown Item');
-            $table->addCell(1500)->addText($scan->user ? $scan->user->name : 'Unknown User');
-            $table->addCell(1500)->addText($this->formatScanAction($scan->action));
-            $table->addCell(1500)->addText($scan->office ? $scan->office->name : 'N/A');
-            $table->addCell(2000)->addText($scan->notes ?: 'No notes');
+            $table->addCell(3264)->addText($scan->created_at->format('Y-m-d H:i:s'));
+            $table->addCell(3264)->addText($scan->item ? $scan->item->name : 'Unknown Item');
+            $table->addCell(3264)->addText($this->formatScanAction($scan->action));
         }
 
         $filename = 'qr-scan-logs-' . $data['period'] . '-' . $data['selection'] . '.docx';
@@ -1676,29 +2081,36 @@ class ReportsController extends Controller
      */
     public function downloadQrScanLogs(Request $request)
     {
-        $period = $request->get('period', 'monthly');
         $selection = $request->get('selection');
 
+        // Parse the selection value (format: period_selection, e.g., monthly_2025-12)
+        if (str_contains($selection, '_')) {
+            [$period, $selectionValue] = explode('_', $selection, 2);
+        } else {
+            $period = $request->get('period', 'monthly');
+            $selectionValue = $selection;
+        }
+
         // Get data for the report
-        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selection);
+        $dateRange = $this->getDateRangeFromPeriodAndSelection($period, $selectionValue);
         $dateFrom = $dateRange['from'];
         $dateTo = $dateRange['to'];
 
-        $scans = \App\Models\ItemScanLog::with(['item', 'user', 'office'])
+        $scans = \App\Models\ItemScanLog::with(['item'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();
 
         $data = [
             'period' => $period,
-            'selection' => $selection,
+            'selection' => $selectionValue,
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
             'scans' => $scans,
             'summary' => [
                 'totalScans' => $scans->count(),
                 'uniqueItems' => $scans->pluck('item_id')->unique()->count(),
-                'activeUsers' => $scans->pluck('user_id')->unique()->filter()->count(),
+                'activeUsers' => 1, // Only admin can monitor
             ],
         ];
 
@@ -1709,15 +2121,12 @@ class ReportsController extends Controller
             Log::warning('QR Scan Logs DOCX generation failed, falling back to CSV: ' . $e->getMessage());
             
             // Create CSV content
-            $csv = "Timestamp,Item Scanned,User,Action,Location,Notes\n";
+            $csv = "Timestamp,Item Scanned,Action\n";
 
             foreach ($scans as $scan) {
                 $csv .= '"' . $scan->created_at->format('Y-m-d H:i:s') . '",';
                 $csv .= '"' . ($scan->item ? $scan->item->name : 'Unknown Item') . '",';
-                $csv .= '"' . ($scan->user ? $scan->user->name : 'Unknown User') . '",';
-                $csv .= '"' . $this->formatScanAction($scan->action) . '",';
-                $csv .= '"' . ($scan->office ? $scan->office->name : 'N/A') . '",';
-                $csv .= '"' . ($scan->notes ?: 'No notes') . '"' . "\n";
+                $csv .= '"' . $this->formatScanAction($scan->action) . '"' . "\n";
             }
 
             $filename = 'qr-scan-logs-' . $period . '-' . $selection . '.csv';
@@ -1742,21 +2151,18 @@ class ReportsController extends Controller
         $dateFrom = $dateRange['from'];
         $dateTo = $dateRange['to'];
 
-        $scans = \App\Models\ItemScanLog::with(['item', 'user', 'office'])
+        $scans = \App\Models\ItemScanLog::with(['item'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();
 
         // Create CSV content
-        $csv = "Timestamp,Item Scanned,User,Scanner Type,Location,IP Address\n";
+        $csv = "Timestamp,Item Scanned,Action\n";
 
         foreach ($scans as $scan) {
             $csv .= '"' . $scan->created_at->format('Y-m-d H:i:s') . '",';
             $csv .= '"' . ($scan->item ? $scan->item->name : 'Unknown Item') . '",';
-            $csv .= '"' . ($scan->user ? $scan->user->name : 'Unknown User') . '",';
-            $csv .= '"webcam",'; // Default scanner type
-            $csv .= '"' . ($scan->office ? $scan->office->name : 'N/A') . '",';
-            $csv .= '"N/A"' . "\n"; // IP address not stored
+            $csv .= '"' . $this->formatScanAction($scan->action) . '"' . "\n";
         }
 
         $filename = 'qr-scan-logs-' . $period . '-' . $selection . '.csv';
@@ -1764,5 +2170,153 @@ class ReportsController extends Controller
         return response($csv)
             ->header('Content-Type', 'text/csv')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    /**
+     * Generate Released Items DOCX Report
+     */
+    private function generateReleasedItemsDocxReport($data)
+    {
+        // Check if ZipArchive is available
+        if (!class_exists('ZipArchive')) {
+            throw new \Exception('PHP ZipArchive extension is required for DOCX export. Please contact your administrator.');
+        }
+
+        $phpWord = new PhpWord();
+
+        // Set document properties
+        $properties = $phpWord->getDocInfo();
+        $properties->setCreator('Supply Office System');
+        $properties->setCompany('Supply Office');
+        $properties->setTitle('History of Released Items Report');
+        $properties->setDescription('Report showing items that have been released/claimed');
+        $properties->setCategory('Reports');
+        $properties->setLastModifiedBy('System');
+        $properties->setCreated(time());
+        $properties->setModified(time());
+
+        // Add a section
+        $section = $phpWord->addSection();
+
+        // Add title
+        $section->addTitle('History of Released Items Report', 1);
+        $section->addText('Period: ' . ucfirst($data['period']) . ' - ' . $data['selection']);
+        $section->addText('Report Date: ' . date('F j, Y'));
+        $section->addTextBreak(1);
+
+        // Add summary
+        $section->addTitle('Summary', 2);
+        $summary = $data['summary'];
+        $section->addText('Total Released Transactions: ' . $summary['totalItems']);
+        $section->addText('Total Quantity Released: ' . $summary['totalQuantity']);
+        $section->addText('Unique Items Released: ' . $summary['uniqueItems']);
+        $section->addText('Unique Users: ' . $summary['uniqueUsers']);
+        $section->addTextBreak(1);
+
+        // Add table
+        $section->addTitle('Released Items Details', 2);
+        $table = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '000000',
+            'cellMargin' => 80
+        ]);
+
+        // Add table header
+        $table->addRow();
+        $table->addCell(1500)->addText('Date', ['bold' => true]);
+        $table->addCell(3000)->addText('Item Name', ['bold' => true]);
+        $table->addCell(1200)->addText('Quantity', ['bold' => true]);
+        $table->addCell(3000)->addText('Requested By', ['bold' => true]);
+
+        // Add table data
+        foreach ($data['releasedItems'] as $item) {
+            $table->addRow();
+            $table->addCell(1500)->addText($item['date']);
+            $table->addCell(3000)->addText($item['item_name']);
+            $table->addCell(1200)->addText($item['quantity']);
+            $table->addCell(3000)->addText($item['requested_by']);
+        }
+
+        $filename = 'released-items-report-' . $data['period'] . '-' . $data['selection'] . '.docx';
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'docx');
+        $phpWord->save($tempFile, 'Word2007');
+
+        return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Generate Custodianship DOCX Report
+     */
+    private function generateCustodianshipDocxReport($data)
+    {
+        // Check if ZipArchive is available
+        if (!class_exists('ZipArchive')) {
+            throw new \Exception('PHP ZipArchive extension is required for DOCX export. Please contact your administrator.');
+        }
+
+        $phpWord = new PhpWord();
+
+        // Set document properties
+        $properties = $phpWord->getDocInfo();
+        $properties->setCreator('Supply Office System');
+        $properties->setCompany('Supply Office');
+        $properties->setTitle('Custodianship Report');
+        $properties->setDescription('Report showing custodianship of non-consumable items');
+        $properties->setCategory('Reports');
+        $properties->setLastModifiedBy('System');
+        $properties->setCreated(time());
+        $properties->setModified(time());
+
+        // Add a section
+        $section = $phpWord->addSection();
+
+        // Add title
+        $section->addTitle('Custodianship Report', 1);
+        $section->addText('Period: ' . ucfirst($data['period']) . ' - ' . $data['selection']);
+        $section->addText('Report Date: ' . date('F j, Y'));
+        $section->addTextBreak(1);
+
+        // Add summary
+        $section->addTitle('Summary', 2);
+        $summary = $data['summary'];
+        $section->addText('Total Non-Consumable Items: ' . $summary['totalItems']);
+        $section->addText('Assigned Items: ' . $summary['assignedItems']);
+        $section->addText('Unassigned Items: ' . $summary['unassignedItems']);
+        $section->addText('Items Monitored Recently (30 days): ' . $summary['monitoredRecently']);
+        $section->addTextBreak(1);
+
+        // Add table
+        $section->addTitle('Non-Consumable Items Custodianship', 2);
+        $table = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '000000',
+            'cellMargin' => 60
+        ]);
+
+        // Add table header
+        $table->addRow();
+        $table->addCell(2500)->addText('Item Name', ['bold' => true]);
+        $table->addCell(1500)->addText('Condition', ['bold' => true]);
+        $table->addCell(1500)->addText('Location', ['bold' => true]);
+        $table->addCell(2000)->addText('Current Holder', ['bold' => true]);
+        $table->addCell(2000)->addText('Last Monitored', ['bold' => true]);
+
+        // Add table data
+        foreach ($data['nonConsumables'] as $item) {
+            $table->addRow();
+            $table->addCell(2500)->addText($item['item_name']);
+            $table->addCell(1500)->addText($item['condition']);
+            $table->addCell(1500)->addText($item['location']);
+            $table->addCell(2000)->addText($item['holder']);
+            $table->addCell(2000)->addText($item['last_monitored']);
+        }
+
+        $filename = 'custodianship-report-' . $data['period'] . '-' . $data['selection'] . '.docx';
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'docx');
+        $phpWord->save($tempFile, 'Word2007');
+
+        return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
     }
 }

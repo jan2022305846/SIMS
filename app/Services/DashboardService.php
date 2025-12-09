@@ -76,8 +76,7 @@ class DashboardService
             ],
             'users' => [
                 'total' => User::count(),
-                'active_today' => ItemScanLog::whereDate('created_at', today())
-                    ->distinct('user_id')->count('user_id'),
+                'active_today' => 1, // Only admin can monitor items
                 'faculty' => User::where('id', '!=', 6)->count(), // Admin is ID 6
                 'staff' => 1 // Single admin system
             ],
@@ -135,9 +134,9 @@ class DashboardService
             foreach ($request->requestItems as $requestItem) {
                 if (!$requestItem->relationLoaded('itemable')) {
                     if ($requestItem->item_type === 'consumable') {
-                        $itemable = \App\Models\Consumable::find($requestItem->item_id);
+                        $itemable = Consumable::find($requestItem->item_id);
                     } elseif ($requestItem->item_type === 'non_consumable') {
-                        $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
+                        $itemable = NonConsumable::find($requestItem->item_id);
                     } else {
                         $itemable = null;
                     }
@@ -371,9 +370,9 @@ class DashboardService
             foreach ($request->requestItems as $requestItem) {
                 if (!$requestItem->relationLoaded('itemable')) {
                     if ($requestItem->item_type === 'consumable') {
-                        $itemable = \App\Models\Consumable::find($requestItem->item_id);
+                        $itemable = Consumable::find($requestItem->item_id);
                     } elseif ($requestItem->item_type === 'non_consumable') {
-                        $itemable = \App\Models\NonConsumable::find($requestItem->item_id);
+                        $itemable = NonConsumable::find($requestItem->item_id);
                     } else {
                         $itemable = null;
                     }

@@ -10,9 +10,6 @@
                     <h2 class="h3 fw-semibold text-dark mb-0">
                         <i class="fas fa-clipboard-list me-2 text-warning"></i>
                         Request Management
-                        <small class="text-muted fw-normal ms-2">
-                            <i class="fas fa-clock me-1"></i>Most recent first
-                        </small>
                     </h2>
                     <div>
                         <span class="badge bg-primary fs-6 px-3 py-2">
@@ -73,8 +70,8 @@
                             <div class="card-body">
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
-                                        <h6 class="card-title mb-1">Items Released/Claimed</h6>
-                                        <h3 class="mb-0 fw-bold">{{ $stats['total_items_claimed'] }}</h3>
+                                        <h6 class="card-title mb-1">Completed</h6>
+                                        <h3 class="mb-0 fw-bold">{{ $stats['claimed'] }}</h3>
                                     </div>
                                     <div class="ms-3">
                                         <i class="fas fa-check-circle fa-2x opacity-75"></i>

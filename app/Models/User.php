@@ -139,14 +139,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the user's scan logs
-     */
-    public function scanLogs()
-    {
-        return $this->hasMany(ItemScanLog::class);
-    }
-
-    /**
      * Get the user's notifications.
      */
     public function notifications()

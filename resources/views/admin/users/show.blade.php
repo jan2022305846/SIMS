@@ -83,7 +83,7 @@
                                         <p class="text-muted small mb-0">Total Requests</p>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="h3 fw-bold text-success mb-1">{{ $user->requests->where('status', 'completed')->count() }}</div>
+                                        <div class="h3 fw-bold text-success mb-1">{{ $user->requests->whereIn('status', ['claimed', 'returned'])->count() }}</div>
                                         <p class="text-muted small mb-0">Completed Requests</p>
                                     </div>
                                     <div class="col-md-4">
@@ -97,56 +97,86 @@
                         <!-- Recent Activity -->
                         @if($requests->count() > 0)
                         <div class="card shadow-sm mt-4">
-                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                                <h5 class="card-title mb-0">
-                                    <i class="fas fa-history me-2"></i>
-                                    Request History
-                                </h5>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge bg-info">{{ $requests->total() }} total requests</span>
-                                    <a href="{{ route('admin.users.export.fulfilled', $user->id) }}" 
-                                       class="btn btn-success btn-sm" 
-                                       target="_blank"
-                                       title="Download fulfilled requests as DOCX">
-                                        <i class="fas fa-download me-1"></i>
-                                        Export DOCX
-                                    </a>
+                            <div class="card-header bg-white">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-history me-2"></i>
+                                        Released Items History
+                                    </h5>
+
+                                    <div class="d-flex align-items-center gap-2">
+                                        <!-- Period Selection Buttons -->
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-primary btn-sm user-period-btn active" data-period="monthly">
+                                                <i class="fas fa-calendar-alt me-1"></i>Monthly
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm user-period-btn" data-period="annual">
+                                                <i class="fas fa-calendar me-1"></i>Annual
+                                            </button>
+                                        </div>
+
+                                        <!-- Period Selection Dropdown -->
+                                        <select class="form-select form-select-sm" id="userPeriodSelect" style="min-width: 150px;">
+                                            <!-- Options will be populated by JavaScript -->
+                                        </select>
+
+                                        <!-- Export Button -->
+                                        <a href="#" id="exportUserReleasedBtn" class="btn btn-success btn-sm">
+                                            <i class="fas fa-download me-1"></i>
+                                            Export DOCX
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive">
-                                    <table class="table table-sm">
+                                    <table class="table table-sm" id="releasedItemsTable">
                                         <thead>
                                             <tr>
+                                                <th>Date</th>
                                                 <th>Item</th>
                                                 <th>Quantity</th>
-                                                <th>Status</th>
-                                                <th>Date</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            @foreach($requests as $request)
+                                        <tbody id="releasedItemsTableBody">
+                                            @foreach($requests->whereIn('status', ['claimed', 'returned']) as $request)
+                                            @foreach($request->requestItems as $requestItem)
+                                            @php
+                                                $itemName = 'N/A';
+                                                $unit = 'pcs';
+                                                if ($requestItem->item_type && $requestItem->item_id) {
+                                                    if ($requestItem->item_type === 'consumable') {
+                                                        $item = \App\Models\Consumable::find($requestItem->item_id);
+                                                        if ($item) {
+                                                            $itemName = $item->name ?: 'Item ID: ' . $requestItem->item_id;
+                                                            $unit = $item->unit ?: 'pcs';
+                                                        }
+                                                    } elseif ($requestItem->item_type === 'non_consumable') {
+                                                        $item = \App\Models\NonConsumable::find($requestItem->item_id);
+                                                        if ($item) {
+                                                            $itemName = $item->name ?: 'Item ID: ' . $requestItem->item_id;
+                                                            $unit = $item->unit ?: 'pcs';
+                                                        }
+                                                    }
+                                                }
+                                            @endphp
                                             <tr>
-                                                <td>{{ $request->requestItems->first() && $request->requestItems->first()->itemable ? $request->requestItems->first()->itemable->name : 'N/A' }}</td>
-                                                <td>{{ $request->quantity }}</td>
-                                                <td>
-                                                    <span class="badge bg-{{ $request->status === 'completed' ? 'success' : ($request->status === 'pending' ? 'warning' : ($request->status === 'claimed' ? 'primary' : 'secondary')) }}">
-                                                        {{ ucfirst(str_replace('_', ' ', $request->status)) }}
-                                                    </span>
-                                                </td>
-                                                <td>{{ $request->created_at->format('M j, Y') }}</td>
+                                                <td>{{ $request->updated_at->format('M j, Y') }}</td>
+                                                <td>{{ $itemName }}</td>
+                                                <td>{{ $requestItem->quantity }} {{ $unit }}</td>
                                             </tr>
+                                            @endforeach
                                             @endforeach
                                         </tbody>
                                     </table>
                                 </div>
 
-                                <!-- Pagination -->
-                                @if($requests->hasPages())
-                                    <div class="d-flex justify-content-center mt-3">
-                                        {{ $requests->links('pagination::bootstrap-5') }}
-                                    </div>
-                                @endif
+                                <!-- Empty State -->
+                                <div id="releasedItemsEmptyState" class="text-center py-5" style="display: none;">
+                                    <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No Released Items</h5>
+                                    <p class="text-muted">No items have been released for the selected period.</p>
+                                </div>
                             </div>
                         </div>
                         @endif
@@ -219,4 +249,170 @@
         </div>
     </div>
 </div>
+
+<style>
+.user-period-btn.active {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: white !important;
+}
+</style>
+
+<script>
+// Global variables for user released items filtering
+let currentUserPeriod = 'monthly';
+let currentUserSelection = null;
+const userId = {{ $user->id }};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeUserPeriodDropdown();
+
+    // Period button click handlers
+    document.querySelectorAll('.user-period-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const period = this.getAttribute('data-period');
+            switchUserPeriod(period);
+        });
+    });
+
+    // Period select change handler
+    document.getElementById('userPeriodSelect').addEventListener('change', function() {
+        currentUserSelection = this.value;
+        loadUserReleasedItems();
+    });
+
+    // Export button handler
+    document.getElementById('exportUserReleasedBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        exportUserReleasedItems();
+    });
+});
+
+// Switch period type
+function switchUserPeriod(period) {
+    currentUserPeriod = period;
+
+    // Update button states
+    document.querySelectorAll('.user-period-btn').forEach(btn => {
+        btn.classList.remove('active', 'btn-primary');
+        btn.classList.add('btn-outline-primary');
+    });
+    document.querySelector(`[data-period="${period}"]`).classList.add('active', 'btn-primary');
+    document.querySelector(`[data-period="${period}"]`).classList.remove('btn-outline-primary');
+
+    // Update dropdown options
+    initializeUserPeriodDropdown();
+
+    // Load new data
+    loadUserReleasedItems();
+}
+
+// Initialize period dropdown based on current period
+function initializeUserPeriodDropdown() {
+    const select = document.getElementById('userPeriodSelect');
+    select.innerHTML = '';
+
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+
+    if (currentUserPeriod === 'monthly') {
+        // Show all 12 months for current year
+        const months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+
+        months.forEach((monthName, index) => {
+            const monthValue = `${currentYear}-${String(index + 1).padStart(2, '0')}`;
+            const option = new Option(`${monthName} ${currentYear}`, monthValue);
+            // Select current month by default
+            if (index === currentMonth) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    } else if (currentUserPeriod === 'annual') {
+        // Show years from current-2 to current (3 years total)
+        const startYear = currentYear - 2;
+        const endYear = currentYear;
+
+        for (let year = startYear; year <= endYear; year++) {
+            const option = new Option(year.toString(), year.toString());
+            // Select current year by default
+            if (year === currentYear) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        }
+    }
+
+    // Set currentUserSelection to the selected value
+    currentUserSelection = select.value;
+}
+
+// Load user released items based on period
+async function loadUserReleasedItems() {
+    try {
+        const url = `/admin/api/users/${userId}/released-items?period=${currentUserPeriod}&selection=${currentUserSelection}`;
+
+        const response = await fetch(url, {
+            credentials: 'same-origin'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Update table
+        updateReleasedItemsTable(data.items);
+
+        // Update badge count - REMOVED: badge no longer exists
+
+    } catch (error) {
+        console.error('Error loading released items:', error);
+        // Show empty state on error
+        document.getElementById('releasedItemsTable').style.display = 'none';
+        document.getElementById('releasedItemsEmptyState').style.display = 'block';
+    }
+}
+
+// Update released items table
+function updateReleasedItemsTable(items) {
+    const tbody = document.getElementById('releasedItemsTableBody');
+    const table = document.getElementById('releasedItemsTable');
+    const emptyState = document.getElementById('releasedItemsEmptyState');
+
+    if (items.length === 0) {
+        table.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+    }
+
+    table.style.display = 'table';
+    emptyState.style.display = 'none';
+
+    tbody.innerHTML = items.map(item => `
+        <tr>
+            <td>${item.date}</td>
+            <td>${item.item_name}</td>
+            <td>${item.quantity}</td>
+        </tr>
+    `).join('');
+}
+
+// Export user released items
+function exportUserReleasedItems() {
+    const params = new URLSearchParams({
+        period: currentUserPeriod,
+        selection: currentUserSelection
+    });
+
+    const url = `/admin/users/${userId}/export-released-items?${params.toString()}`;
+    window.open(url, '_blank');
+}
+</script>
 @endsection

@@ -9,10 +9,7 @@ use Illuminate\Support\Facades\Auth;
 /**
  * @property int $id
  * @property int $item_id
- * @property int $user_id
  * @property string $action
- * @property int|null $location_id
- * @property string|null $notes
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -22,9 +19,8 @@ class ItemScanLog extends Model
 
     protected $fillable = [
         'item_id',
-        'user_id',
         'action',
-        'location_id',
+        // Removed item_type and user_id as they're not used
     ];
 
     protected $casts = [
@@ -40,40 +36,15 @@ class ItemScanLog extends Model
     }
 
     /**
-     * Get the user who performed the scan
-     */
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    /**
-     * Get the office where the scan occurred
-     */
-    public function office()
-    {
-        return $this->belongsTo(Office::class, 'location_id');
-    }
-
-    /**
      * Create a scan log entry
      */
     public static function logScan($itemId, string $action = 'inventory_check', array $data = []): self
     {
-        $locationId = null;
-        if (isset($data['location_id'])) {
-            $locationId = $data['location_id'];
-        } elseif (isset($data['location'])) {
-            // If location name is provided, find the office by name
-            $office = Office::where('name', $data['location'])->first();
-            $locationId = $office ? $office->id : null;
-        }
-
+        // Simplified logging - only track essential information
         return self::create([
             'item_id' => $itemId,
-            'user_id' => Auth::check() ? Auth::user()->id : null,
             'action' => $action,
-            'location_id' => $locationId,
+            // Removed user_id, location_id and notes as they're not needed per system requirements
         ]);
     }
 
@@ -125,7 +96,7 @@ class ItemScanLog extends Model
 
         $totalScans = $query->count();
         $uniqueItemsScanned = $query->distinct('item_id')->count();
-        $uniqueUsersScanning = $query->distinct('user_id')->count();
+        $uniqueUsersScanning = 1; // Only admin can monitor
 
         // Get most scanned items (without item relationship for now)
         $mostScannedItems = $query->selectRaw('item_id, COUNT(*) as scan_count')
@@ -140,20 +111,8 @@ class ItemScanLog extends Model
                 ];
             });
 
-        // Get scans by location
-        $scansByLocation = $query->whereNotNull('location_id')
-            ->with('office')
-            ->get()
-            ->groupBy('location_id')
-            ->map(function($scans, $locationId) {
-                $office = $scans->first()->office;
-                return [
-                    'office_name' => $office ? $office->name : 'Unknown Office',
-                    'count' => $scans->count()
-                ];
-            })
-            ->sortByDesc('count')
-            ->pluck('count', 'office_name');
+        // No location tracking
+        $scansByLocation = collect();
 
         return [
             'total_scans' => $totalScans,

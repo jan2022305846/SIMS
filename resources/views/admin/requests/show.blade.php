@@ -260,13 +260,9 @@
                                 <form method="POST" action="{{ route('requests.claim', $request) }}" class="mb-2">
                                     @csrf
                                     <input type="hidden" name="scanned_barcode" id="scanned_claim_barcode_input">
-                                    <button type="submit" class="btn btn-secondary w-100" id="claim-btn" disabled>
+                                    <button type="submit" class="btn btn-primary w-100" id="claim-btn" disabled>
                                         <i class="fas fa-handshake me-2"></i>
-                                        @if($request->requestItems && $request->requestItems->count() > 0)
-                                            Mark Bulk Request as Claimed
-                                        @else
-                                            Mark as Claimed
-                                        @endif
+                                        Mark as Claimed
                                     </button>
                                 </form>
                             @else
@@ -1204,21 +1200,21 @@ function initializeClaimBarcodeScanner() {
     }
 
     function verifyAndDisplayClaim(qrDataString) {
+        // Show loading state immediately
+        claimDetailsContent.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-2">Verifying claim slip...</div>
+            </div>
+        `;
+        claimDetailsDiv.style.display = 'block';
+
         try {
             // Parse the QR data as JSON
             const qrData = JSON.parse(qrDataString);
             console.log('Parsed QR data:', qrData);
-            
-            // Show loading state
-            claimDetailsContent.innerHTML = `
-                <div class="text-center">
-                    <div class="spinner-border text-success" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <div class="mt-2">Verifying claim slip...</div>
-                </div>
-            `;
-            claimDetailsDiv.style.display = 'block';
 
             // Make AJAX request to verify the QR code data
             fetch(`{{ url('admin/requests/verify-claim-slip-qr') }}`, {
@@ -1268,7 +1264,7 @@ function initializeClaimBarcodeScanner() {
                     <h6 class="text-success mb-2"><i class="fas fa-ticket-alt me-1"></i>Claim Slip Details</h6>
                     <p class="mb-1"><strong>Claim Slip Number:</strong> <code>${verificationData.claim_slip_number}</code></p>
                     <p class="mb-1"><strong>Requester:</strong> ${verificationData.user_name}</p>
-                    <p class="mb-1"><strong>Department:</strong> ${verificationData.department}</p>
+                    <p class="mb-1"><strong>Office:</strong> ${verificationData.department}</p>
                 </div>
                 <div class="col-md-6">
                     <h6 class="text-success mb-2"><i class="fas fa-box me-1"></i>Request Information</h6>

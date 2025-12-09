@@ -94,6 +94,7 @@ class Notification extends Model
             case 'approved':
             case 'claimed':
             case 'declined':
+            case 'cancelled_request':
                 return isset($data['request_id']) ? route('faculty.requests.show', $data['request_id']) : null;
             default:
                 return null;
@@ -116,6 +117,8 @@ class Notification extends Model
                 return 'fas fa-box-open';
             case 'declined':
                 return 'fas fa-times-circle';
+            case 'cancelled_request':
+                return 'fas fa-ban';
             default:
                 return 'fas fa-bell';
         }
@@ -137,6 +140,8 @@ class Notification extends Model
                 return 'info';
             case 'declined':
                 return 'danger';
+            case 'cancelled_request':
+                return 'secondary';
             default:
                 return 'primary';
         }

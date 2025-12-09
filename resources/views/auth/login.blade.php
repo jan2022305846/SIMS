@@ -8,14 +8,6 @@
 <script>
 // Add cache control headers to prevent CSRF token caching
 document.addEventListener('DOMContentLoaded', function() {
-    // Force fresh CSRF token on page load
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    if (csrfMeta) {
-        // Add timestamp to ensure uniqueness
-        const timestamp = Date.now();
-        csrfMeta.setAttribute('content', csrfMeta.getAttribute('content') + '_' + timestamp);
-    }
-    
     // Ensure CSRF token is available before form submission
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
@@ -327,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('{{ route("login") }}', {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content').split('_')[0], // Remove timestamp suffix
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json',
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache'

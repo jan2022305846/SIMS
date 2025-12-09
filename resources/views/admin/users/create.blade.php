@@ -234,6 +234,99 @@ document.addEventListener('DOMContentLoaded', function() {
         confirmPasswordInput.type = isPassword ? 'text' : 'password';
         confirmPasswordToggleIcon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
     });
+
+    // Duplicate checking
+    const nameInput = document.getElementById('name');
+    const usernameInput = document.getElementById('username');
+    const emailInput = document.getElementById('email');
+
+    let nameTimeout, usernameTimeout, emailTimeout;
+
+    // Check name duplication
+    nameInput.addEventListener('input', function() {
+        clearTimeout(nameTimeout);
+        const value = this.value.trim();
+        if (value.length >= 2) {
+            nameTimeout = setTimeout(() => checkDuplicate('name', value, this), 500);
+        } else {
+            clearFieldError(this);
+        }
+    });
+
+    // Check username duplication
+    usernameInput.addEventListener('input', function() {
+        clearTimeout(usernameTimeout);
+        const value = this.value.trim();
+        if (value.length >= 3) {
+            usernameTimeout = setTimeout(() => checkDuplicate('username', value, this), 500);
+        } else {
+            clearFieldError(this);
+        }
+    });
+
+    // Check email duplication
+    emailInput.addEventListener('input', function() {
+        clearTimeout(emailTimeout);
+        const value = this.value.trim();
+        if (value.length >= 5 && value.includes('@')) {
+            emailTimeout = setTimeout(() => checkDuplicate('email', value, this), 500);
+        } else {
+            clearFieldError(this);
+        }
+    });
+
+    // Function to check for duplicates
+    async function checkDuplicate(field, value, inputElement) {
+        try {
+            const response = await fetch(`/admin/api/users/check-duplicate?field=${field}&value=${encodeURIComponent(value)}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
+
+            const data = await response.json();
+
+            if (data.exists) {
+                showFieldError(inputElement, data.message);
+            } else {
+                clearFieldError(inputElement);
+            }
+        } catch (error) {
+            console.error('Error checking duplicate:', error);
+        }
+    }
+
+    // Function to show field error
+    function showFieldError(inputElement, message) {
+        inputElement.classList.add('is-invalid');
+        inputElement.classList.remove('is-valid');
+
+        // Remove existing error message
+        const existingError = inputElement.parentNode.querySelector('.invalid-feedback');
+        if (existingError) {
+            existingError.remove();
+        }
+
+        // Add new error message
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'invalid-feedback d-block';
+        errorDiv.textContent = message;
+        inputElement.parentNode.appendChild(errorDiv);
+    }
+
+    // Function to clear field error
+    function clearFieldError(inputElement) {
+        inputElement.classList.remove('is-invalid');
+        inputElement.classList.add('is-valid');
+
+        const errorMessage = inputElement.parentNode.querySelector('.invalid-feedback');
+        if (errorMessage) {
+            errorMessage.remove();
+        }
+    }
 });
 </script>
 @endpush
