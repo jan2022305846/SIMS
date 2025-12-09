@@ -631,6 +631,13 @@ body {
     }
 }
 
+/* Tablet responsive - hide time/date on tablet aspect ratios */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .time-date-display {
+        display: none !important;
+    }
+}
+
 /* Dark mode transitions - smooth and consistent */
 html[data-theme="dark"] {
     transition: all 0.3s ease !important;

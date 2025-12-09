@@ -8,10 +8,14 @@ uses(RefreshDatabase::class);
 
 it('loads the item create form with correct fields', function () {
     // Create admin user
-    $admin = User::factory()->create(['id' => 6]);
+    $admin = User::factory()->create(['id' => 6, 'role' => 'admin']);
 
     // Create a category
     Category::factory()->create();
+
+    // Create offices
+    \App\Models\Office::create(['name' => 'Main Office', 'location' => 'Building A']);
+    \App\Models\Office::create(['name' => 'Branch Office', 'location' => 'Building B']);
 
     // Act as admin
     $this->actingAs($admin);
@@ -36,11 +40,15 @@ it('loads the item create form with correct fields', function () {
 
 it('loads the item edit form with correct fields', function () {
     // Create admin user
-    $admin = User::factory()->create(['id' => 6]);
+    $admin = User::factory()->create(['id' => 6, 'role' => 'admin']);
 
     // Create a category and consumable item
     $category = Category::factory()->create();
     $item = \App\Models\Consumable::factory()->create(['category_id' => $category->id]);
+
+    // Create offices
+    \App\Models\Office::create(['name' => 'Main Office', 'location' => 'Building A']);
+    \App\Models\Office::create(['name' => 'Branch Office', 'location' => 'Building B']);
 
     // Act as admin
     $this->actingAs($admin);

@@ -131,7 +131,8 @@ class ItemController extends Controller
     public function create()
     {
         $categories = Category::all();
-        return view('admin.items.create', compact('categories'));
+        $offices = \App\Models\Office::all();
+        return view('admin.items.create', compact('categories', 'offices'));
     }
 
         /**

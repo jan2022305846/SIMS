@@ -34,6 +34,12 @@ class DashboardController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
+        
+        // Check if user is authenticated
+        if (!$user) {
+            return redirect()->route('login')->with('error', 'Please log in to access the dashboard.');
+        }
+        
         $dashboardData = $this->dashboardService->getDashboardData($user);
 
         // Flatten the data structure for backward compatibility with the view
@@ -123,7 +129,7 @@ class DashboardController extends Controller
         // Only for admin
         /** @var User $user */
         $user = Auth::user();
-        if (!$user->isAdmin()) {
+        if (!$user || !$user->isAdmin()) {
             abort(403);
         }
         
@@ -196,18 +202,11 @@ class DashboardController extends Controller
 
             $itemType = $item instanceof NonConsumable ? 'non_consumable' : 'consumable';
 
-            // Log the scan
-            ItemScanLog::create([
-                'item_id' => $item->id,
-                'user_id' => Auth::id(),
-                'action' => 'scanned',
-                'metadata' => [
-                    'scanned_at' => now(),
-                    'scanner' => 'dashboard',
-                    'ip_address' => $request->ip(),
-                    'qr_data' => $parsedData
-                ]
-            ]);
+            // Log the scan - only admin can scan items for monitoring
+            $user = Auth::user();
+            if ($user && $user->isAdmin()) {
+                ItemScanLog::logScan($item->id, 'inventory_check');
+            }
 
             return response()->json([
                 'success' => true,
@@ -274,6 +273,11 @@ class DashboardController extends Controller
     private function flattenDashboardData(array $dashboardData, $user): array
     {
         $flattened = [];
+        
+        // Ensure user is not null
+        if (!$user) {
+            return $flattened;
+        }
         
         // Handle admin/office_head data structure
         if ($user->isAdmin()) {

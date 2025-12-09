@@ -721,7 +721,7 @@ class ReportsController extends Controller
                 $item = $scan->item;
 
                 return [
-                    'timestamp' => $scan->created_at->format('Y-m-d H:i:s'),
+                    'timestamp' => $scan->created_at->toISOString(),
                     'item' => $item ? $item->name : 'Unknown Item',
                     'action' => $scan->action,
                     'id' => $scan->id,

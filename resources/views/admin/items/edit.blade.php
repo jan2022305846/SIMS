@@ -57,15 +57,18 @@
 
                             <div class="col-md-6">
                                 <label for="category_id" class="form-label fw-medium">Category *</label>
-                                <select name="category_id" id="category_id" 
-                                        class="form-select @error('category_id') is-invalid @enderror" required>
-                                    <option value="">Select Category</option>
-                                    @foreach($categories as $category)
-                                        <option value="{{ $category->id }}" {{ old('category_id', $item->category_id) == $category->id ? 'selected' : '' }}>
-                                            {{ $category->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <div class="position-relative">
+                                    <select name="category_id" id="category_id" 
+                                            class="form-select @error('category_id') is-invalid @enderror" required>
+                                        <option value="">Select Category</option>
+                                        @foreach($categories as $category)
+                                            <option value="{{ $category->id }}" {{ old('category_id', $item->category_id) == $category->id ? 'selected' : '' }}>
+                                                {{ $category->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <i class="fas fa-chevron-down position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                                </div>
                                 @error('category_id')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -137,13 +140,16 @@
 
                             <div class="col-md-6">
                                 <label for="condition" class="form-label fw-medium">Condition *</label>
-                                <select name="condition" id="condition" 
-                                        class="form-select @error('condition') is-invalid @enderror" required>
-                                    <option value="New" {{ old('condition', $item->condition) == 'New' ? 'selected' : '' }}>New</option>
-                                    <option value="Good" {{ old('condition', $item->condition) == 'Good' ? 'selected' : '' }}>Good</option>
-                                    <option value="Fair" {{ old('condition', $item->condition) == 'Fair' ? 'selected' : '' }}>Fair</option>
-                                    <option value="Needs Repair" {{ old('condition', $item->condition) == 'Needs Repair' ? 'selected' : '' }}>Needs Repair</option>
-                                </select>
+                                <div class="position-relative">
+                                    <select name="condition" id="condition" 
+                                            class="form-select @error('condition') is-invalid @enderror" required>
+                                        <option value="New" {{ old('condition', $item->condition) == 'New' ? 'selected' : '' }}>New</option>
+                                        <option value="Good" {{ old('condition', $item->condition) == 'Good' ? 'selected' : '' }}>Good</option>
+                                        <option value="Fair" {{ old('condition', $item->condition) == 'Fair' ? 'selected' : '' }}>Fair</option>
+                                        <option value="Needs Repair" {{ old('condition', $item->condition) == 'Needs Repair' ? 'selected' : '' }}>Needs Repair</option>
+                                    </select>
+                                    <i class="fas fa-chevron-down position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                                </div>
                                 @error('condition')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror

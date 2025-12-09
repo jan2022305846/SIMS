@@ -171,11 +171,10 @@ class QRCodeController extends Controller
             $itemType = $item instanceof NonConsumable ? 'non_consumable' : 'consumable';
 
             // Log the scan in item_scan_logs table ONLY for non-consumable items (for custodianship tracking)
-            if (Auth::check() && $item instanceof NonConsumable) {
-                ItemScanLog::logScan($item->id, 'inventory_check', [
-                    // Remove location and notes as they're not needed per system requirements
-                    'item_type' => $itemType
-                ]);
+            // Only admin users can scan items for monitoring
+            $user = Auth::user();
+            if ($user && $user->isAdmin() && $item instanceof NonConsumable) {
+                ItemScanLog::logScan($item->id, 'inventory_check');
             }            // Prepare enhanced item data with holder and assignment information
             $itemData = $item->load('category');
             

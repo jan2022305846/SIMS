@@ -203,7 +203,7 @@
                                 </div>
                                 <div class="card-body">
                                     @php
-                                        $recentScans = $item->scanLogs()->with('user')->latest()->take(3)->get();
+                                        $recentScans = $item->scanLogs()->latest()->take(3)->get();
                                         $scanStats = [
                                             'total_scans' => $item->scanLogs()->count(),
                                             'last_scan' => $item->scanLogs()->latest()->first(),
@@ -221,7 +221,7 @@
                                         <div class="col-md-6">
                                             <div class="text-center">
                                                 <div class="h5 fw-bold text-success mb-1">
-                                                    {{ $scanStats['last_scan'] ? $scanStats['last_scan']->scanned_at->diffForHumans() : 'Never' }}
+                                                    {{ $scanStats['last_scan'] ? $scanStats['last_scan']->created_at->diffForHumans() : 'Never' }}
                                                 </div>
                                                 <p class="text-muted small mb-0">Last Scanned</p>
                                             </div>
@@ -235,19 +235,17 @@
                                                 <thead>
                                                     <tr>
                                                         <th>Date</th>
-                                                        <th>User</th>
-                                                        <th>Location</th>
+                                                        <th>Action</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     @foreach($recentScans as $scan)
                                                         <tr>
                                                             <td>
-                                                                <strong>{{ $scan->scanned_at->format('M d') }}</strong><br>
-                                                                <small class="text-muted">{{ $scan->scanned_at->format('H:i') }}</small>
+                                                                <strong>{{ $scan->created_at->format('M d') }}</strong><br>
+                                                                <small class="text-muted">{{ $scan->created_at->format('H:i') }}</small>
                                                             </td>
-                                                            <td>{{ $scan->user->name ?? 'System' }}</td>
-                                                            <td>{{ $scan->location ?: 'N/A' }}</td>
+                                                            <td>{{ ucfirst(str_replace('_', ' ', $scan->action)) }}</td>
                                                         </tr>
                                                     @endforeach
                                                 </tbody>

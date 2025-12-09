@@ -70,15 +70,111 @@ class QRCodeService
     public function parseQRCode(string $qrData): ?array
     {
         try {
+            // First try to parse as JSON
             $data = json_decode($qrData, true);
             
-            if (!is_array($data) || !isset($data['type']) || $data['type'] !== 'item') {
-                return null;
+            if (is_array($data) && isset($data['type']) && $data['type'] === 'item') {
+                return $data;
             }
 
-            return $data;
+            // If JSON parsing failed or didn't contain valid item data,
+            // try to parse as URL
+            if (filter_var($qrData, FILTER_VALIDATE_URL)) {
+                return $this->parseItemUrl($qrData);
+            }
+
+            // If not JSON or URL, try to parse as product code
+            return $this->parseProductCode($qrData);
         } catch (\Exception $e) {
+            // If JSON parsing failed, try URL parsing
+            if (filter_var($qrData, FILTER_VALIDATE_URL)) {
+                return $this->parseItemUrl($qrData);
+            }
+            
+            // If not a URL, try product code parsing
+            return $this->parseProductCode($qrData);
+        }
+    }
+
+    /**
+     * Parse an item URL to extract item data
+     *
+     * @param string $url The item URL
+     * @return array|null Parsed item data or null if invalid
+     */
+    private function parseItemUrl(string $url): ?array
+    {
+        // Parse the URL
+        $parsedUrl = parse_url($url);
+        if (!$parsedUrl || !isset($parsedUrl['path'])) {
             return null;
         }
+
+        // Check if it's an item path
+        $path = $parsedUrl['path'];
+        if (!preg_match('#^/admin/items/(\d+)$#', $path, $matches)) {
+            return null;
+        }
+
+        $itemId = (int) $matches[1];
+        
+        // Parse query parameters
+        $queryParams = [];
+        if (isset($parsedUrl['query'])) {
+            parse_str($parsedUrl['query'], $queryParams);
+        }
+
+        $itemType = $queryParams['type'] ?? null;
+        
+        // Validate item type - must be provided for URL parsing
+        if (!in_array($itemType, ['consumable', 'non_consumable'])) {
+            return null; // Type must be specified in URL
+        }
+
+        return [
+            'type' => 'item',
+            'id' => $itemId,
+            'item_type' => $itemType,
+            'name' => '', // Will be filled by the controller
+            'code' => '', // Will be filled by the controller
+            'url' => $url
+        ];
+    }
+
+    /**
+     * Parse a product code to find the corresponding item
+     *
+     * @param string $productCode The product code
+     * @return array|null Parsed item data or null if not found
+     */
+    private function parseProductCode(string $productCode): ?array
+    {
+        // Trim whitespace and validate product code format
+        $productCode = trim($productCode);
+        if (empty($productCode)) {
+            return null;
+        }
+
+        // Look for item by product code in both tables
+        $consumable = \App\Models\Consumable::where('product_code', $productCode)->first();
+        $nonConsumable = \App\Models\NonConsumable::where('product_code', $productCode)->first();
+
+        // If found in both tables, prioritize non-consumable (more specific)
+        $item = $nonConsumable ?? $consumable;
+
+        if (!$item) {
+            return null;
+        }
+
+        $itemType = $item instanceof \App\Models\NonConsumable ? 'non_consumable' : 'consumable';
+
+        return [
+            'type' => 'item',
+            'id' => $item->id,
+            'item_type' => $itemType,
+            'name' => $item->name,
+            'code' => $item->product_code,
+            'url' => route('items.show', [$item->id, 'type' => $itemType])
+        ];
     }
 }

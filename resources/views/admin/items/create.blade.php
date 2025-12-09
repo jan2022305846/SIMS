@@ -50,12 +50,15 @@
 
                             <div class="col-md-6">
                                 <label for="item_type" class="form-label fw-medium">Item Type *</label>
-                                <select name="item_type" id="item_type" 
-                                        class="form-select @error('item_type') is-invalid @enderror" required>
-                                    <option value="">Select Type</option>
-                                    <option value="consumable" {{ old('item_type') == 'consumable' ? 'selected' : '' }}>Consumable</option>
-                                    <option value="non_consumable" {{ old('item_type') == 'non_consumable' ? 'selected' : '' }}>Non-Consumable</option>
-                                </select>
+                                <div class="position-relative">
+                                    <select name="item_type" id="item_type" 
+                                            class="form-select @error('item_type') is-invalid @enderror" required>
+                                        <option value="">Select Type</option>
+                                        <option value="consumable" {{ old('item_type') == 'consumable' ? 'selected' : '' }}>Consumable</option>
+                                        <option value="non_consumable" {{ old('item_type') == 'non_consumable' ? 'selected' : '' }}>Non-Consumable</option>
+                                    </select>
+                                    <i class="fas fa-chevron-down position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                                </div>
                                 @error('item_type')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -78,15 +81,18 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label for="category_id" class="form-label fw-medium">Category *</label>
-                                    <select name="category_id" id="category_id" 
-                                            class="form-select @error('category_id') is-invalid @enderror" required>
-                                        <option value="">Select Category</option>
-                                        @foreach($categories as $category)
-                                            <option value="{{ $category->id }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>
-                                                {{ $category->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
+                                    <div class="position-relative">
+                                        <select name="category_id" id="category_id" 
+                                                class="form-select @error('category_id') is-invalid @enderror" required>
+                                            <option value="">Select Category</option>
+                                            @foreach($categories as $category)
+                                                <option value="{{ $category->id }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>
+                                                    {{ $category->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <i class="fas fa-chevron-down position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                                    </div>
                                     @error('category_id')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -140,9 +146,18 @@
                                 <div id="non-consumable-fields" class="row g-3 d-none">
                                     <div class="col-md-6">
                                         <label for="location" class="form-label fw-medium">Location *</label>
-                                        <input type="text" name="location" id="location" 
-                                               class="form-control @error('location') is-invalid @enderror"
-                                               value="{{ old('location') }}" required>
+                                        <div class="position-relative">
+                                            <select name="location" id="location" 
+                                                    class="form-select @error('location') is-invalid @enderror" required>
+                                                <option value="">Select Location</option>
+                                                @foreach($offices as $office)
+                                                    <option value="{{ $office->name }}" {{ old('location') == $office->name ? 'selected' : '' }}>
+                                                        {{ $office->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <i class="fas fa-chevron-down position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                                        </div>
                                         @error('location')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -150,13 +165,16 @@
 
                                     <div class="col-md-6">
                                         <label for="condition" class="form-label fw-medium">Condition *</label>
-                                        <select name="condition" id="condition" 
-                                                class="form-select @error('condition') is-invalid @enderror" required>
-                                            <option value="New" {{ old('condition') == 'New' ? 'selected' : '' }}>New</option>
-                                            <option value="Good" {{ old('condition', 'Good') == 'Good' ? 'selected' : '' }}>Good</option>
-                                            <option value="Fair" {{ old('condition') == 'Fair' ? 'selected' : '' }}>Fair</option>
-                                            <option value="Needs Repair" {{ old('condition') == 'Needs Repair' ? 'selected' : '' }}>Needs Repair</option>
-                                        </select>
+                                        <div class="position-relative">
+                                            <select name="condition" id="condition" 
+                                                    class="form-select @error('condition') is-invalid @enderror" required>
+                                                <option value="New" {{ old('condition') == 'New' ? 'selected' : '' }}>New</option>
+                                                <option value="Good" {{ old('condition', 'Good') == 'Good' ? 'selected' : '' }}>Good</option>
+                                                <option value="Fair" {{ old('condition') == 'Fair' ? 'selected' : '' }}>Fair</option>
+                                                <option value="Needs Repair" {{ old('condition') == 'Needs Repair' ? 'selected' : '' }}>Needs Repair</option>
+                                            </select>
+                                            <i class="fas fa-chevron-down position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                                        </div>
                                         @error('condition')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
