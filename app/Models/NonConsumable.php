@@ -54,6 +54,11 @@ class NonConsumable extends Model
         return $this->morphMany(RequestItem::class, 'itemable');
     }
 
+    public function officeLimits(): MorphMany
+    {
+        return $this->morphMany(OfficeItemLimit::class, 'itemable', 'item_type', 'item_id');
+    }
+
     public function scanLogs(): HasMany
     {
         return $this->hasMany(ItemScanLog::class, 'item_id');

@@ -16,10 +16,14 @@ class RequestItem extends Model
         'quantity',
         'notes',
         'status',
+        'adjusted_quantity',
+        'adjustment_reason',
+        'item_status',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
+        'adjusted_quantity' => 'integer',
     ];
 
     // Relationships
@@ -128,5 +132,55 @@ class RequestItem extends Model
     public function hasSufficientStock()
     {
         return $this->getAvailableStock() >= $this->quantity;
+    }
+    public function getFinalQuantity()
+    {
+        return $this->adjusted_quantity ?? $this->quantity;
+    }
+
+    public function isAdjusted()
+    {
+        return $this->adjusted_quantity !== null && $this->adjusted_quantity !== $this->quantity;
+    }
+
+    public function getAdjustmentText()
+    {
+        if (!$this->isAdjusted()) {
+            return null;
+        }
+        
+        $original = $this->quantity;
+        $adjusted = $this->adjusted_quantity;
+        
+        if ($adjusted > $original) {
+            return "Increased from {$original} to {$adjusted}";
+        } elseif ($adjusted < $original) {
+            return "Reduced from {$original} to {$adjusted}";
+        }
+        
+        return null;
+    }
+
+    public function canBeAdjusted()
+    {
+        return $this->item_status === 'pending';
+    }
+
+    public function approve($reason = null)
+    {
+        $this->item_status = 'approved';
+        if ($reason) {
+            $this->adjustment_reason = $reason;
+        }
+        $this->save();
+    }
+
+    public function decline($reason = null)
+    {
+        $this->item_status = 'declined';
+        if ($reason) {
+            $this->adjustment_reason = $reason;
+        }
+        $this->save();
     }
 }

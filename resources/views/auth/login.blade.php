@@ -2,6 +2,182 @@
 
 @push('styles')
 <link rel="stylesheet" href="{{ asset('css/login.css') }}">
+<style>
+/* Floating About Us Bubble */
+.floating-about-us {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    transition: all 0.3s ease;
+    z-index: 1000;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    padding: 12px 20px;
+    min-width: 140px;
+}
+
+.floating-about-us:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+}
+
+.floating-about-us .bubble-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.floating-about-us i {
+    font-size: 16px;
+    transition: transform 0.3s ease;
+}
+
+.floating-about-us:hover i {
+    transform: rotate(15deg);
+}
+
+.floating-about-us:hover .bubble-content {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* About Us Modal Enhancements */
+.about-us-modal .modal-content {
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.about-us-modal .modal-dialog {
+    max-width: 80vw !important; /* Use 80% of viewport width */
+    width: 1600px; /* Fallback max width */
+    max-height: 90vh !important; /* Use 90% of viewport height */
+    height: auto; /* Allow content to determine height up to max */
+}
+
+.about-us-modal .modal-header {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border-radius: 20px 20px 0 0;
+    border-bottom: none;
+    padding: 1rem 1.5rem;
+}
+
+.about-us-modal .modal-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.about-us-modal .modal-body {
+    padding: 1rem;
+    max-height: calc(90vh - 120px); /* Account for header and footer */
+    overflow-y: auto;
+}
+
+.about-us-modal .team-section,
+.about-us-modal .advisor-section {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 0.75rem;
+    border-left: 4px solid #007bff;
+    text-align: left;
+    height: 100%;
+}
+
+.about-us-modal .team-section h6,
+.about-us-modal .advisor-section h6 {
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+.about-us-modal .team-member {
+    padding: 0.5rem 0.75rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.about-us-modal .team-member.team-lead {
+    background: linear-gradient(135deg, #f8f9ff, #ffffff);
+    border: 2px solid #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.about-us-modal .team-member:hover {
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    border-color: #007bff;
+    transform: translateY(-1px);
+}
+
+.about-us-modal .badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.about-us-modal .advisor-card {
+    background: white;
+    border-radius: 8px;
+    padding: 0.75rem;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.about-us-modal .advisor-card:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.about-us-modal .advisor-avatar {
+    color: #007bff;
+    margin-bottom: 0.5rem;
+}
+
+.about-us-modal .advisor-card h6 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.about-us-modal .advisor-card p {
+    font-size: 0.8rem;
+}
+
+.about-us-modal .advisor-list .advisor-card:last-child {
+    margin-bottom: 0;
+}
+
+.about-us-modal .social-links a {
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    display: inline-block;
+    color: inherit !important;
+}
+
+.about-us-modal .social-links a:hover {
+    transform: scale(1.2);
+}
+
+.about-us-modal .social-links i {
+    display: inline-block;
+    width: 20px;
+    text-align: center;
+}
+</style>
 @endpush
 
 @push('scripts')
@@ -197,6 +373,118 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span id="forgot-password-error-message"></span>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating About Us Bubble -->
+<div class="floating-about-us" data-bs-toggle="modal" data-bs-target="#aboutUsModal" title="About SIMS">
+    <div class="bubble-content">
+        <i class="fas fa-info-circle"></i>
+        <span>About Us</span>
+    </div>
+</div>
+
+<!-- About Us Modal -->
+<div class="modal fade about-us-modal" id="aboutUsModal" tabindex="-1" aria-labelledby="aboutUsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="aboutUsModalLabel">
+                    <i class="fas fa-users me-2"></i>Meet Our Team
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- Development Team Section -->
+                    <div class="col-md-6">
+                        <div class="team-section mb-4">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-code me-2"></i>Development Team
+                            </h6>
+                            <div class="row g-1">
+                                <!-- Janny with social links -->
+                                <div class="col-12">
+                                    <div class="team-member team-lead d-flex align-items-center justify-content-between">
+                                        <span class="fw-bold">Janny Abu-abu</span>
+                                        <div class="social-links">
+                                            <a href="https://www.facebook.com/jannyabuabu" target="_blank" class="text-primary me-2" title="Facebook">
+                                                <i class="fab fa-facebook-f"></i>
+                                            </a>
+                                            <a href="https://github.com/jan2022305846" target="_blank" class="text-dark me-2" title="GitHub">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                                                </svg>
+                                            </a>
+                                            <a href="https://www.onlinejobs.ph/jobseekers/info/3898314" target="_blank" class="text-success" title="OnlineJobs.ph">
+                                                <i class="fas fa-briefcase"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Other team members -->
+                                <div class="col-12">
+                                    <div class="team-member">
+                                        <span class="fw-bold">Leneisa Manua</span>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="team-member">
+                                        <span class="fw-bold">Renz Bison</span>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="team-member">
+                                        <span class="fw-bold">Jayvee Maglasang</span>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="team-member">
+                                        <span class="fw-bold">Jelcy Omongos</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project Advisor Section -->
+                    <div class="col-md-6">
+                        <div class="advisor-section">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-user-tie me-2"></i>Project Advisors
+                            </h6>
+                            <div class="row g-1">
+                                <div class="col-12">
+                                    <div class="team-member">
+                                        <span class="fw-bold">Sir Mark Rey Embudo</span>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="team-member">
+                                        <span class="fw-bold">Sir Warnner Amin</span>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="team-member">
+                                        <span class="fw-bold">Maam Jelly Grace Caw-it</span>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="team-member">
+                                        <span class="fw-bold">Maam Judielyn Cualbar</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Close
+                </button>
             </div>
         </div>
     </div>
@@ -473,6 +761,86 @@ document.addEventListener('DOMContentLoaded', function() {
             originalContainer.appendChild(modalElement);
         }
     });
+
+    // About Us Modal initialization
+    const aboutUsModalElement = document.getElementById('aboutUsModal');
+    const aboutUsBubble = document.querySelector('.floating-about-us');
+
+    if (aboutUsModalElement && aboutUsBubble) {
+        const aboutUsModal = new bootstrap.Modal(aboutUsModalElement, {
+            backdrop: 'static',
+            keyboard: true
+        });
+
+        // Ensure modal is properly positioned when shown
+        aboutUsModalElement.addEventListener('shown.bs.modal', function() {
+            // Move modal to body for proper positioning
+            if (aboutUsModalElement.parentNode !== document.body) {
+                document.body.appendChild(aboutUsModalElement);
+            }
+
+            // Create backdrop if it doesn't exist
+            let backdrop = document.querySelector('.modal-backdrop');
+            if (!backdrop) {
+                backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop fade show';
+                backdrop.style.zIndex = '1055';
+                document.body.appendChild(backdrop);
+            }
+
+            // Apply proper modal positioning
+            aboutUsModalElement.style.position = 'fixed';
+            aboutUsModalElement.style.top = '0';
+            aboutUsModalElement.style.left = '0';
+            aboutUsModalElement.style.width = '100%';
+            aboutUsModalElement.style.height = '100%';
+            aboutUsModalElement.style.zIndex = '1055';
+            aboutUsModalElement.style.display = 'block';
+            aboutUsModalElement.style.overflow = 'hidden';
+            aboutUsModalElement.style.outline = '0';
+
+            const modalDialog = aboutUsModalElement.querySelector('.modal-dialog');
+            const modalContent = aboutUsModalElement.querySelector('.modal-content');
+
+            if (modalDialog) {
+                modalDialog.style.position = 'relative';
+                modalDialog.style.width = 'auto';
+                modalDialog.style.maxWidth = '1600px'; // Expanded for larger width
+                modalDialog.style.margin = '1.75rem auto';
+                modalDialog.style.pointerEvents = 'none';
+                modalDialog.style.zIndex = '1065';
+            }
+
+            if (modalContent) {
+                modalContent.style.position = 'relative';
+                modalContent.style.display = 'flex';
+                modalContent.style.flexDirection = 'column';
+                modalContent.style.width = '100%';
+                modalContent.style.pointerEvents = 'auto';
+                modalContent.style.backgroundColor = 'white';
+                modalContent.style.backgroundClip = 'padding-box';
+                modalContent.style.border = '1px solid rgba(0, 0, 0, 0.2)';
+                modalContent.style.borderRadius = '0.3rem';
+                modalContent.style.outline = '0';
+                modalContent.style.boxShadow = '0 0.125rem 0.25rem rgba(0, 0, 0, 0.075), 0 0.5rem 1rem rgba(0, 0, 0, 0.15)';
+                modalContent.style.zIndex = '1070';
+            }
+        });
+
+        // Reset modal when closed
+        aboutUsModalElement.addEventListener('hidden.bs.modal', function() {
+            // Move modal back to original position if needed
+            const originalContainer = document.querySelector('.guest-main') || document.body;
+            if (aboutUsModalElement.parentNode === document.body && originalContainer !== document.body) {
+                originalContainer.appendChild(aboutUsModalElement);
+            }
+        });
+
+        // Add click handler for the floating bubble
+        aboutUsBubble.addEventListener('click', function() {
+            aboutUsModal.show();
+        });
+    }
 });
 </script>
 @endsection

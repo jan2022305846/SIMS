@@ -501,16 +501,21 @@
                 <div class="section-title">Item Details</div>
                 <div class="item-details">
                     <div class="item-list">
-                        @if($request->requestItems && $request->requestItems->count() > 0)
-                            @foreach($request->requestItems as $requestItem)
+                        @php
+                            $approvedItems = $request->requestItems->filter(function ($requestItem) {
+                                return $requestItem->item_status === 'approved' || $requestItem->isAdjusted();
+                            });
+                        @endphp
+                        @if($approvedItems && $approvedItems->count() > 0)
+                            @foreach($approvedItems as $requestItem)
                                 <div class="item-entry">
                                     <div class="item-name-compact">{{ $requestItem->itemable ? $requestItem->itemable->name : 'Item Not Found' }}</div>
-                                    <div class="quantity-compact">{{ $requestItem->quantity }} {{ $requestItem->itemable ? ($requestItem->itemable->unit ?? 'pcs') : 'pcs' }}</div>
+                                    <div class="quantity-compact">{{ $requestItem->getFinalQuantity() }} {{ $requestItem->itemable ? ($requestItem->itemable->unit ?? 'pcs') : 'pcs' }}</div>
                                 </div>
                             @endforeach
                         @else
                             <div class="item-entry">
-                                <div class="item-name-compact">No Items Found</div>
+                                <div class="item-name-compact">No approved items found</div>
                                 <div class="quantity-compact">0 pcs</div>
                             </div>
                         @endif

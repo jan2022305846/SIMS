@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Request as SupplyRequest;
 use App\Models\Consumable;
 use App\Models\NonConsumable;
+use App\Models\RequestItem;
 use App\Models\Log as ActivityLog;
 use App\Models\ActivityLog as RequestActivityLog;
 use App\Models\User;
+use App\Models\Office;
+use App\Models\OfficeItemLimit;
 use App\Services\DashboardService;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
@@ -207,6 +210,26 @@ class RequestController extends Controller
                         $item = NonConsumable::findOrFail($itemData['item_id']);
                     }
 
+                    // Check office item limit
+                    $limit = OfficeItemLimit::where('office_id', $supplyRequest->office_id)
+                        ->where('item_type', $itemData['item_type'])
+                        ->where('item_id', $itemData['item_id'])
+                        ->first();
+
+                    if ($limit && $limit->max_quantity > 0) {
+                        $currentRequested = DB::table('request_items')
+                            ->join('requests', 'request_items.request_id', '=', 'requests.id')
+                            ->where('requests.office_id', $supplyRequest->office_id)
+                            ->where('request_items.item_type', $itemData['item_type'])
+                            ->where('request_items.item_id', $itemData['item_id'])
+                            ->whereIn('requests.status', ['pending', 'approved_by_admin', 'fulfilled'])
+                            ->sum('request_items.quantity');
+
+                        if ($currentRequested + $itemData['quantity'] > $limit->max_quantity) {
+                            throw new \Exception("Request exceeds office limit for {$item->name}. Limit: {$limit->max_quantity}, Current requested: {$currentRequested}, This request: {$itemData['quantity']}");
+                        }
+                    }
+
                     $supplyRequest->requestItems()->create([
                         'item_id' => $itemData['item_id'],
                         'item_type' => $itemData['item_type'],
@@ -231,6 +254,26 @@ class RequestController extends Controller
                         'available' => $item->quantity
                     ]);
                                      new \Exception("Requested quantity exceeds available stock ({$item->quantity} available)");
+                }
+
+                // Check office item limit
+                $limit = OfficeItemLimit::where('office_id', $supplyRequest->office_id)
+                    ->where('item_type', $validatedData['item_type'])
+                    ->where('item_id', $validatedData['item_id'])
+                    ->first();
+
+                if ($limit && $limit->max_quantity > 0) {
+                    $currentRequested = DB::table('request_items')
+                        ->join('requests', 'request_items.request_id', '=', 'requests.id')
+                        ->where('requests.office_id', $supplyRequest->office_id)
+                        ->where('request_items.item_type', $validatedData['item_type'])
+                        ->where('request_items.item_id', $validatedData['item_id'])
+                        ->whereIn('requests.status', ['pending', 'approved_by_admin', 'fulfilled'])
+                        ->sum('request_items.quantity');
+
+                    if ($currentRequested + $validatedData['quantity'] > $limit->max_quantity) {
+                        throw new \Exception("Request exceeds office limit for {$item->name}. Limit: {$limit->max_quantity}, Current requested: {$currentRequested}, This request: {$validatedData['quantity']}");
+                    }
                 }
 
                 $supplyRequest->requestItems()->create([
@@ -286,9 +329,9 @@ class RequestController extends Controller
             // Manually load itemable relationships for each request item
             foreach ($supplyRequest->requestItems as $requestItem) {
                 if ($requestItem->item_type === 'consumable') {
-                    $itemable = Consumable::find($requestItem->item_id);
+                    $itemable = Consumable::with('officeLimits')->find($requestItem->item_id);
                 } elseif ($requestItem->item_type === 'non_consumable') {
-                    $itemable = NonConsumable::find($requestItem->item_id);
+                    $itemable = NonConsumable::with('officeLimits')->find($requestItem->item_id);
                 } else {
                     $itemable = null;
                 }
@@ -907,16 +950,21 @@ class RequestController extends Controller
             'color' => '2c3e50'
         ]);
 
-        if ($supplyRequest->requestItems && $supplyRequest->requestItems->count() > 0) {
-            foreach ($supplyRequest->requestItems as $requestItem) {
+        // Filter items to only include approved or adjusted items (not declined)
+        $approvedItems = $supplyRequest->requestItems->filter(function ($requestItem) {
+            return $requestItem->item_status === 'approved' || $requestItem->isAdjusted();
+        });
+
+        if ($approvedItems && $approvedItems->count() > 0) {
+            foreach ($approvedItems as $requestItem) {
                 $itemName = $requestItem->itemable ? $requestItem->itemable->name : 'Item Not Found';
-                $quantity = $requestItem->quantity;
+                $quantity = $requestItem->getFinalQuantity(); // Use final quantity (adjusted if applicable)
                 $unit = $requestItem->itemable ? ($requestItem->itemable->unit ?? 'pcs') : 'pcs';
 
                 $section->addText('• ' . $itemName . ' - ' . $quantity . ' ' . $unit, ['size' => 11]);
             }
         } else {
-            $section->addText('• No Items Found - 0 pcs', ['size' => 11]);
+            $section->addText('• No approved items found - 0 pcs', ['size' => 11]);
         }
 
         $section->addTextBreak(1);
@@ -1228,6 +1276,9 @@ class RequestController extends Controller
                     $request = SupplyRequest::findOrFail($requestId);
 
                     if ($request->claim_slip_number === $claimSlipNumber) {
+                        $approvedItems = $request->requestItems->filter(function ($requestItem) {
+                            return $requestItem->item_status === 'approved' || $requestItem->isAdjusted();
+                        });
                         return response()->json([
                             'success' => true,
                             'message' => 'Claim slip verified successfully',
@@ -1236,8 +1287,8 @@ class RequestController extends Controller
                                 'request_id' => $request->id,
                                 'user_name' => $request->user->name ?? 'Unknown User',
                                 'department' => $request->user->office->name ?? 'N/A',
-                                'items_count' => $request->requestItems ? $request->requestItems->count() : 1,
-                                'total_quantity' => $request->requestItems ? $request->requestItems->sum('quantity') : $request->quantity,
+                                'items_count' => $approvedItems ? $approvedItems->count() : 0,
+                                'total_quantity' => $approvedItems ? $approvedItems->sum(function ($item) { return $item->getFinalQuantity(); }) : 0,
                             ]
                         ]);
                     } else {
@@ -1332,8 +1383,8 @@ class RequestController extends Controller
                     'request_id' => $request->id,
                     'user_name' => $request->user->name ?? 'Unknown User',
                     'department' => $request->user->office->name ?? 'N/A',
-                    'items_count' => $request->requestItems ? $request->requestItems->count() : 1,
-                    'total_quantity' => $request->requestItems ? $request->requestItems->sum('quantity') : $request->quantity,
+                    'items_count' => $request->requestItems ? $request->requestItems->filter(function ($item) { return $item->item_status === 'approved' || $item->isAdjusted(); })->count() : 0,
+                    'total_quantity' => $request->requestItems ? $request->requestItems->filter(function ($item) { return $item->item_status === 'approved' || $item->isAdjusted(); })->sum(function ($item) { return $item->getFinalQuantity(); }) : 0,
                 ]
             ]);
 
@@ -1348,6 +1399,223 @@ class RequestController extends Controller
                 'success' => false, 
                 'message' => 'Failed to verify QR code'
             ], 500);
+        }
+    }
+
+    public function manageLimits(Request $request)
+    {
+        $offices = Office::orderBy('name')->get();
+        $consumables = Consumable::orderBy('name')->get();
+
+        // Get selected office or default to first office
+        $selectedOfficeId = $request->get('office_id', $offices->first()->id ?? null);
+        $selectedOffice = $offices->find($selectedOfficeId);
+
+        $limits = OfficeItemLimit::where('office_id', $selectedOfficeId)
+            ->where('item_type', 'consumable')
+            ->get()
+            ->keyBy('item_id');
+
+        return view('admin.office-limits.index', compact('offices', 'consumables', 'selectedOffice', 'limits'));
+    }
+
+    public function updateLimits(Request $request)
+    {
+        $validated = $request->validate([
+            'office_id' => 'required|exists:offices,id',
+            'limits' => 'required|array',
+            'limits.*' => 'nullable|integer|min:0',
+        ]);
+
+        $officeId = $validated['office_id'];
+
+        foreach ($validated['limits'] as $itemId => $maxQuantity) {
+            OfficeItemLimit::updateOrCreate(
+                [
+                    'office_id' => $officeId,
+                    'item_type' => 'consumable',
+                    'item_id' => $itemId,
+                ],
+                [
+                    'max_quantity' => $maxQuantity ?? 0,
+                ]
+            );
+        }
+
+        return redirect()->route('office.limits', ['office_id' => $officeId])->with('success', 'Office item limits updated successfully.');
+    }
+
+    public function adjustItemQuantity(Request $request, SupplyRequest $supplyRequest, $requestItemId)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user || !$user->isAdmin()) {
+            abort(403, 'Only administrators can adjust item quantities.');
+        }
+
+        if (!$supplyRequest->isPending()) {
+            return response()->json(['success' => false, 'message' => 'Request is not in pending status.'], 400);
+        }
+
+        $requestItem = RequestItem::findOrFail($requestItemId);
+
+        if (!$requestItem->canBeAdjusted()) {
+            return response()->json(['success' => false, 'message' => 'Item cannot be adjusted.'], 400);
+        }
+
+        $validated = $request->validate([
+            'quantity' => 'required|integer|min:1',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $originalQuantity = $requestItem->quantity;
+        $requestItem->adjusted_quantity = $validated['quantity'];
+        $requestItem->adjustment_reason = $validated['reason'] ?? null;
+        $requestItem->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Item quantity adjusted successfully.',
+            'data' => [
+                'original_quantity' => $originalQuantity,
+                'adjusted_quantity' => $requestItem->adjusted_quantity,
+                'adjustment_text' => $requestItem->getAdjustmentText(),
+            ]
+        ]);
+    }
+
+    public function declineItem(Request $request, SupplyRequest $supplyRequest, $requestItemId)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user || !$user->isAdmin()) {
+            abort(403, 'Only administrators can decline items.');
+        }
+
+        if (!$supplyRequest->isPending()) {
+            return response()->json(['success' => false, 'message' => 'Request is not in pending status.'], 400);
+        }
+
+        $requestItem = RequestItem::findOrFail($requestItemId);
+
+        if (!$requestItem->canBeAdjusted()) {
+            return response()->json(['success' => false, 'message' => 'Item cannot be declined.'], 400);
+        }
+
+        $validated = $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $requestItem->decline($validated['reason']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Item declined successfully.',
+        ]);
+    }
+
+    public function approveItem(Request $request, SupplyRequest $supplyRequest, $requestItemId)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user || !$user->isAdmin()) {
+            abort(403, 'Only administrators can approve items.');
+        }
+
+        if (!$supplyRequest->isPending()) {
+            return response()->json(['success' => false, 'message' => 'Request is not in pending status.'], 400);
+        }
+
+        $requestItem = RequestItem::findOrFail($requestItemId);
+
+        if (!$requestItem->canBeAdjusted()) {
+            return response()->json(['success' => false, 'message' => 'Item cannot be approved.'], 400);
+        }
+
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $requestItem->approve();
+        if ($validated['reason']) {
+            $requestItem->adjustment_reason = $validated['reason'];
+            $requestItem->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Item approved successfully.',
+        ]);
+    }
+
+    public function approveRequestWithAdjustments(Request $httpRequest, SupplyRequest $supplyRequest)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user || !$user->isAdmin()) {
+            abort(403, 'Only administrators can approve requests.');
+        }
+
+        if (!$supplyRequest->canBeApprovedByAdmin()) {
+            return back()->withErrors(['error' => 'This request cannot be approved at this stage.']);
+        }
+
+        $validated = $httpRequest->validate([
+            'approval_reason' => 'nullable|string|max:500',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Load request items
+            $supplyRequest->load('requestItems');
+
+            // Check if any items were adjusted and need approval reason
+            $hasAdjustments = $supplyRequest->requestItems->contains(function ($item) {
+                return $item->isAdjusted();
+            });
+
+            if ($hasAdjustments && empty($validated['approval_reason'])) {
+                return back()->withErrors(['approval_reason' => 'Approval reason is required when item quantities have been adjusted.']);
+            }
+
+            // Approve all pending items
+            foreach ($supplyRequest->requestItems as $requestItem) {
+                if ($requestItem->item_status === 'pending') {
+                    $requestItem->approve();
+                }
+            }
+
+            // Approve the main request
+            $supplyRequest->approveByAdmin($user);
+
+            // Add approval reason to request notes if there were adjustments
+            if ($hasAdjustments && !empty($validated['approval_reason'])) {
+                $currentNotes = $supplyRequest->notes ?? '';
+                $adjustmentNote = "\n\n[Approval Note]: " . $validated['approval_reason'];
+                $supplyRequest->notes = $currentNotes . $adjustmentNote;
+                $supplyRequest->save();
+            }
+
+            DB::commit();
+
+            // Log request approval activity
+            ActivityLogger::logRequestApproved($supplyRequest);
+
+            // Clear dashboard cache
+            $dashboardService = app(DashboardService::class);
+            $dashboardService->clearCache($user);
+            $dashboardService->clearCache($supplyRequest->user);
+
+            return back()->with('success', 'Request approved successfully with item adjustments.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Logger::error('Approval with adjustments failed', [
+                'request_id' => $supplyRequest->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return back()->withErrors(['error' => 'Failed to approve request: ' . $e->getMessage()]);
         }
     }
 }

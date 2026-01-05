@@ -8,9 +8,6 @@
         </h2>
         <div class="d-flex gap-2">
             @if($request->isPending())
-                <a href="{{ route('faculty.requests.edit', $request) }}" class="btn btn-primary fw-bold">
-                    <i class="fas fa-edit me-1"></i>Edit Request
-                </a>
                 <button type="button" class="btn btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#cancelModal">
                     <i class="fas fa-times me-1"></i>Cancel Request
                 </button>
@@ -96,8 +93,28 @@
                                                     <h5 class="mb-2">{{ $requestItem->itemable ? $requestItem->itemable->name : 'Item Not Found' }}</h5>
                                                     <div class="row">
                                                         <div class="col-6">
-                                                            <small class="text-muted">Requested Quantity</small>
-                                                            <div class="fw-bold fs-5">{{ $requestItem->quantity }} {{ $requestItem->itemable && $requestItem->itemable->unit ? $requestItem->itemable->unit : 'pcs' }}</div>
+                                                            <small class="text-muted">
+                                                                @if($requestItem->item_status === 'declined')
+                                                                    Requested Quantity
+                                                                @elseif($requestItem->item_status === 'approved')
+                                                                    @if($requestItem->isAdjusted())
+                                                                        Approved Quantity
+                                                                    @else
+                                                                        Requested Quantity
+                                                                    @endif
+                                                                @else
+                                                                    Requested Quantity
+                                                                @endif
+                                                            </small>
+                                                            <div class="fw-bold fs-5">
+                                                                @if($requestItem->item_status === 'declined')
+                                                                    {{ $requestItem->quantity }} {{ $requestItem->itemable && $requestItem->itemable->unit ? $requestItem->itemable->unit : 'pcs' }}
+                                                                @elseif($requestItem->item_status === 'approved')
+                                                                    {{ $requestItem->getFinalQuantity() }} {{ $requestItem->itemable && $requestItem->itemable->unit ? $requestItem->itemable->unit : 'pcs' }}
+                                                                @else
+                                                                    {{ $requestItem->quantity }} {{ $requestItem->itemable && $requestItem->itemable->unit ? $requestItem->itemable->unit : 'pcs' }}
+                                                                @endif
+                                                            </div>
                                                         </div>
                                                         <div class="col-6">
                                                             <small class="text-muted">Available Stock</small>
@@ -106,6 +123,26 @@
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    @if($requestItem->item_status === 'declined')
+                                                        <div class="mt-2 p-2 bg-danger bg-opacity-10 border border-danger rounded">
+                                                            <small class="text-danger fw-bold"><i class="fas fa-times me-1"></i>Declined</small>
+                                                            @if($requestItem->adjustment_reason)
+                                                                <div class="small text-danger mt-1">{{ $requestItem->adjustment_reason }}</div>
+                                                            @endif
+                                                        </div>
+                                                    @elseif($requestItem->isAdjusted())
+                                                        <div class="mt-2 p-2 bg-warning bg-opacity-10 border border-warning rounded">
+                                                            <small class="text-warning fw-bold"><i class="fas fa-edit me-1"></i>Quantity Adjusted to {{ $requestItem->getFinalQuantity() }}</small>
+                                                            @if($requestItem->adjustment_reason)
+                                                                <div class="small text-warning mt-1">{{ $requestItem->adjustment_reason }}</div>
+                                                            @endif
+                                                        </div>
+                                                    @elseif($requestItem->item_status === 'approved' && $requestItem->adjustment_reason)
+                                                        <div class="mt-2 p-2 bg-success bg-opacity-10 border border-success rounded">
+                                                            <small class="text-success fw-bold"><i class="fas fa-check me-1"></i>Approved</small>
+                                                            <div class="small text-success mt-1">{{ $requestItem->adjustment_reason }}</div>
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             @endforeach
                                         @else

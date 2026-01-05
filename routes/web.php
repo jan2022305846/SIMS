@@ -108,13 +108,23 @@ Route::middleware(['auth'])->group(function () {
         Route::get('requests/manage', [RequestController::class, 'manage'])->name('requests.manage');
         Route::put('requests/{request}/status', [RequestController::class, 'updateStatus'])->name('requests.update-status');
         
+        // Office Item Limits Management
+        Route::get('office-limits', [RequestController::class, 'manageLimits'])->name('office.limits');
+        Route::post('office-limits/update', [RequestController::class, 'updateLimits'])->name('office.limits.update');
+        
         // New workflow actions
         Route::post('requests/{request}/approve-admin', [RequestController::class, 'approveByAdmin'])->name('requests.approve-admin');
+        Route::post('requests/{request}/approve-with-adjustments', [RequestController::class, 'approveRequestWithAdjustments'])->name('requests.approve-with-adjustments');
         Route::post('requests/{request}/fulfill', [RequestController::class, 'fulfill'])->name('requests.fulfill');
         Route::post('requests/{request}/complete', [RequestController::class, 'completeAndClaim'])->name('requests.complete');
         Route::post('requests/{request}/claim', [RequestController::class, 'markAsClaimed'])->name('requests.claim');
         Route::post('requests/{request}/decline', [RequestController::class, 'decline'])->name('requests.decline');
         Route::delete('requests/{request}', [RequestController::class, 'destroy'])->name('requests.destroy');
+        
+        // Item-level actions for bulk requests
+        Route::post('requests/{request}/items/{requestItemId}/adjust', [RequestController::class, 'adjustItemQuantity'])->name('requests.items.adjust');
+        Route::post('requests/{request}/items/{requestItemId}/approve', [RequestController::class, 'approveItem'])->name('requests.items.approve');
+        Route::post('requests/{request}/items/{requestItemId}/decline', [RequestController::class, 'declineItem'])->name('requests.items.decline');
         
         // Add explicit show route
         Route::get('requests/{request}/details', [RequestController::class, 'show'])->name('requests.show');

@@ -11,8 +11,15 @@
                         <i class="fas fa-clipboard-list me-2 text-warning"></i>
                         Request Management
                     </h2>
+
+
+
+
                     <div>
-                        <span class="badge bg-primary fs-6 px-3 py-2">
+                        <a href="{{ route('office.limits') }}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-cogs me-1"></i>Manage Office Limits
+                        </a>
+                        <span class="badge bg-primary fs-6 px-3 py-2 me-2">
                             {{ $stats['total_requests'] }} Total Requests
                         </span>
                     </div>
