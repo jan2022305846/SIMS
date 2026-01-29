@@ -607,11 +607,11 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('{{ route("login") }}', {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json',
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache'
             },
+            credentials: 'same-origin',
             cache: 'no-store',
             body: formData
         })
@@ -657,8 +657,14 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (error.message) {
                 // General error message
                 showLoginError(error.message);
+            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                // Network error - show user-friendly message
+                showLoginError('Network error. Please check your connection and try again.');
+                console.warn('AJAX login failed due to network error, falling back to form submission:', error);
+                loginForm.submit();
+                return;
             } else {
-                // Network or other error - fall back to regular form submission
+                // Other error - fall back to regular form submission
                 console.warn('AJAX login failed, falling back to form submission:', error);
                 loginForm.submit();
                 return;
