@@ -214,3 +214,7 @@ Route::middleware(['auth'])->group(function () {
 if (config('app.debug') || config('app.env') !== 'production') {
     require __DIR__ . '/debug.php';
 }
+
+Route::get('/refresh-csrf', function () {
+    return response()->json(['token' => csrf_token()]);
+})->middleware('web');

@@ -654,6 +654,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     passwordError.textContent = error.errors.password[0];
                     passwordError.style.display = 'block';
                 }
+            } else if (error.message && error.message.includes('CSRF token mismatch')) {
+                // CSRF mismatch due to session timeout - show friendly message and refresh
+                showLoginError('Your session has expired for security reasons. Refreshing the page...');
+                setTimeout(() => {
+                    window.location.reload();  // Auto-refresh after 3 seconds to regenerate token
+                }, 3000);
             } else if (error.message) {
                 // General error message
                 showLoginError(error.message);
@@ -848,5 +854,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Refresh CSRF token every 30 minutes (adjust as needed)
+setInterval(() => {
+    fetch('/refresh-csrf', { method: 'GET', credentials: 'same-origin' })
+        .then(response => response.json())
+        .then(data => {
+            document.querySelector('meta[name="csrf-token"]').setAttribute('content', data.token);
+        })
+        .catch(err => console.warn('Failed to refresh CSRF token:', err));
+}, 30 * 60 * 1000);  // 30 minutes
 </script>
 @endsection
