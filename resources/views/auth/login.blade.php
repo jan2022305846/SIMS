@@ -20,7 +20,46 @@
     border: 3px solid rgba(255, 255, 255, 0.2);
     padding: 12px 20px;
     min-width: 140px;
+    animation: pulse 2s ease-in-out infinite;
 }
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 
+            0 0 0 0 rgba(0, 123, 255, 0.8),
+            0 4px 12px rgba(0, 123, 255, 0.4);
+    }
+
+    25% {
+        transform: scale(1.12);
+        box-shadow: 
+            0 0 0 10px rgba(0, 123, 255, 0.5),
+            0 8px 25px rgba(0, 123, 255, 0.7);
+    }
+
+    50% {
+        transform: scale(1.18);
+        box-shadow: 
+            0 0 0 18px rgba(0, 123, 255, 0.3),
+            0 12px 35px rgba(0, 123, 255, 0.9);
+    }
+
+    75% {
+        transform: scale(1.12);
+        box-shadow: 
+            0 0 0 10px rgba(0, 123, 255, 0.5),
+            0 8px 25px rgba(0, 123, 255, 0.7);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 
+            0 0 0 0 rgba(0, 123, 255, 0),
+            0 4px 12px rgba(0, 123, 255, 0.4);
+    }
+}
+
 
 .floating-about-us:hover {
     transform: scale(1.05);
