@@ -695,7 +695,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else if (error.message && error.message.includes('CSRF token mismatch')) {
                 // CSRF mismatch due to session timeout - show friendly message and refresh
-                showLoginError('Your session has expired for security reasons. Refreshing the page...');
+                showLoginError('Session Expired!. Refreshing the page...');
                 setTimeout(() => {
                     window.location.reload();  // Auto-refresh after 3 seconds to regenerate token
                 }, 3000);
